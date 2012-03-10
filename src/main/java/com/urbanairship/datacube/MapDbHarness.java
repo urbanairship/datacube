@@ -5,7 +5,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.commons.lang.ArrayUtils;
 import org.apache.commons.lang.NotImplementedException;
 
 import com.google.common.base.Optional;
@@ -15,10 +14,13 @@ import com.google.common.base.Optional;
  * DB just to test the cube logic.
  */
 public class MapDbHarness<T extends Op> implements DbHarness<T> {
+    private final List<Dimension> dimensions;
     private final Map<BoxedByteArray,byte[]> map;
     private final Deserializer<T> deserializer;
     
-    public MapDbHarness(Map<BoxedByteArray,byte[]> map, Deserializer<T> deserializer) {
+    public MapDbHarness(List<Dimension> dimensions, Map<BoxedByteArray,byte[]> map, 
+            Deserializer<T> deserializer) {
+        this.dimensions = dimensions;
         this.map = map;
         this.deserializer = deserializer;
     }
@@ -26,11 +28,11 @@ public class MapDbHarness<T extends Op> implements DbHarness<T> {
     @Override
     public void runBatch(Batch<T> batch) throws IOException {
         
-        for(Map.Entry<Coords,T> entry: batch.getMap().entrySet()) {
-            Coords c = entry.getKey();
+        for(Map.Entry<ExplodedAddress,T> entry: batch.getMap().entrySet()) {
+            ExplodedAddress address = entry.getKey();
             T opFromBatch = entry.getValue();
             
-            Optional<T> existingOpInDb = get(c);
+            Optional<T> existingOpInDb = get(address);
             T newValForDb;
             
             if(existingOpInDb.isPresent()) {
@@ -40,14 +42,14 @@ public class MapDbHarness<T extends Op> implements DbHarness<T> {
             }
             
             
-            byte[] mapKey = c.toKey(ArrayUtils.EMPTY_BYTE_ARRAY);
+            byte[] mapKey = address.toKey(dimensions);
             map.put(new BoxedByteArray(mapKey), newValForDb.serialize());
         }
     }
 
     @Override
-    public Optional<T> get(Coords c) throws IOException {
-        byte[] mapKey = c.toKey(ArrayUtils.EMPTY_BYTE_ARRAY);
+    public Optional<T> get(ExplodedAddress address) throws IOException {
+        byte[] mapKey = address.toKey(dimensions);
         byte[] bytes = map.get(new BoxedByteArray(mapKey));
         if(bytes == null) {
             return Optional.absent();
@@ -57,7 +59,7 @@ public class MapDbHarness<T extends Op> implements DbHarness<T> {
     }
 
     @Override
-    public List<Optional<T>> multiGet(List<Coords> coordsList) throws IOException {
+    public List<Optional<T>> multiGet(List<ExplodedAddress> addresses) throws IOException {
         throw new NotImplementedException();
     }
     

@@ -1,16 +1,17 @@
 package com.urbanairship.datacube;
 
-import java.util.HashMap;
 import java.util.Map;
 
+import com.google.common.collect.Maps;
+
 public class Batch<T extends Op> {
-    private final Map<Coords,T> map;
+    private final Map<ExplodedAddress,T> map;
     
     Batch() {
-        this.map = new HashMap<Coords,T>();
+        this.map = Maps.newHashMap();
     }
     
-    Batch(Map<Coords,T> map) {
+    Batch(Map<ExplodedAddress,T> map) {
         this.map = map;
     }
     
@@ -18,9 +19,9 @@ public class Batch<T extends Op> {
         this.putAll(b.getMap());
     }
     
-    public void putAll(Map<Coords,T> other) {
-        for(Map.Entry<Coords,T> entry: other.entrySet()) {
-            Coords c = entry.getKey();
+    public void putAll(Map<ExplodedAddress,T> other) {
+        for(Map.Entry<ExplodedAddress,T> entry: other.entrySet()) {
+            ExplodedAddress c = entry.getKey();
             T alreadyExistingVal = map.get(entry.getKey());
             T newVal;
             if(alreadyExistingVal == null) {
@@ -33,7 +34,11 @@ public class Batch<T extends Op> {
         }
     }
     
-    public Map<Coords,T> getMap() {
+    public Map<ExplodedAddress,T> getMap() {
         return map;
+    }
+    
+    public String toString() {
+        return map.toString();
     }
 }

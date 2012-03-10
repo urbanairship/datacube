@@ -10,7 +10,7 @@ import com.google.common.base.Optional;
 public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
     
     @Override
-    public Optional<T> get(Coords c) throws IOException {
+    public Optional<T> get(ExplodedAddress c) throws IOException {
         throw new NotImplementedException();
     }
 
@@ -20,7 +20,7 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
     }
     
     @Override
-    public List<Optional<T>> multiGet(List<Coords> coordsList) throws IOException {
+    public List<Optional<T>> multiGet(List<ExplodedAddress> addresses) throws IOException {
         throw new NotImplementedException();
     }
 }

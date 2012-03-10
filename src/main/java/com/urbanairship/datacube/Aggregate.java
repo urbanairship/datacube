@@ -5,7 +5,7 @@ import org.apache.commons.lang.NotImplementedException;
 
 
 /**
- * Use this class to describe an aggregate value that you want the datacube to keep.
+ * Use this class to describe an aggregate coord that you want the datacube to keep.
  * 
  * For example, if your counting events with the dimensions (color, size, flavor), there will be no 
  * way to get a total count for given color unless you use an Aggregate.
