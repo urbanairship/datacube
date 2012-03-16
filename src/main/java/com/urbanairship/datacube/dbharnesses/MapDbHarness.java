@@ -18,8 +18,8 @@ import com.urbanairship.datacube.CasRetriesExhausted;
 import com.urbanairship.datacube.DbHarness;
 import com.urbanairship.datacube.Deserializer;
 import com.urbanairship.datacube.Dimension;
+import com.urbanairship.datacube.IdService;
 import com.urbanairship.datacube.Op;
-import com.urbanairship.datacube.DbHarness.CommitType;
 
 /**
  * For testing, this is is a backing store for a cube that lives in memory. It saves us from 
@@ -33,14 +33,17 @@ public class MapDbHarness<T extends Op> implements DbHarness<T> {
     private final Deserializer<T> deserializer;
     private final CommitType commitType;
     private final int casRetries;
+    private final IdService idService;
     
     public MapDbHarness(List<Dimension<?>> dimensions, ConcurrentMap<BoxedByteArray,byte[]> map, 
-            Deserializer<T> deserializer, CommitType commitType, int casRetries) {
+            Deserializer<T> deserializer, CommitType commitType, int casRetries, 
+            IdService idService) {
         this.dimensions = dimensions;
         this.map = map;
         this.deserializer = deserializer;
         this.commitType = commitType;
         this.casRetries = casRetries;
+        this.idService = idService;
         if(commitType != CommitType.OVERWRITE && commitType != CommitType.READ_COMBINE_CAS) {
             throw new IllegalArgumentException("MapDbHarness doesn't support commit type " + 
                     commitType);
@@ -53,7 +56,7 @@ public class MapDbHarness<T extends Op> implements DbHarness<T> {
             Address address = entry.getKey();
             T opFromBatch = entry.getValue();
 
-            BoxedByteArray mapKey = new BoxedByteArray(address.toKey(dimensions));
+            BoxedByteArray mapKey = new BoxedByteArray(address.toKey(dimensions, idService));
             
             if(commitType == CommitType.READ_COMBINE_CAS) {
                 int casRetriesRemaining = casRetries;
@@ -120,8 +123,8 @@ public class MapDbHarness<T extends Op> implements DbHarness<T> {
         }
     }
     
-    private Optional<byte[]> getRaw(Address address) {
-        byte[] mapKey = address.toKey(dimensions);
+    private Optional<byte[]> getRaw(Address address) throws IOException {
+        byte[] mapKey = address.toKey(dimensions, idService);
         byte[] bytes = map.get(new BoxedByteArray(mapKey));
         if(log.isDebugEnabled()) {
             log.debug("getRaw for key " + Hex.encodeHexString(mapKey) + " returned " + 

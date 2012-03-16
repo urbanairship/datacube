@@ -10,9 +10,15 @@ package com.urbanairship.datacube;
  * datapoints in that dimension. On the other hand, to store the name of a city, you would need
  * more bytes to encode it since there are many cities.
  * 
- * Implementations are not expected to be thread safe.
+ * Implementations are not expected to be thread safe. However, multiple ID services may access
+ * the same backing storage simultaneously, so some kind of concurrency control is required when
+ * assigning IDs. It's not OK for the same input to be translated differently; if a
+ * particular input translates into a particular unique ID once, it must translate in the same
+ * way everywhere else forever. Also, a unqiue ID must never be reused for different inputs. This 
+ * means you must use locks, transactions, or compare-and-swap on your database when assigning 
+ * IDs.
  */
 
 public interface IdService {
-    public byte[] getId(Dimension<?> dimension, byte[] bytes, int len);
+    public byte[] getId(Dimension<?> dimension, byte[] bytes);
 }

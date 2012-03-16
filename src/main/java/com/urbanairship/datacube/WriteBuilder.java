@@ -22,7 +22,8 @@ public class WriteBuilder {
         // resources by not evaluating bucket types that won't be stored.
         for(BucketType bucketType: bucketTypesToEvaluate) {
             byte[] bucket = bucketer.bucketForWrite(coord, bucketType).serialize();
-            if(bucket.length != expectedBucketLen) {
+            
+            if(bucket.length != expectedBucketLen && !dimension.getDoIdSubstitution()) {
                 throw new IllegalArgumentException("Bucket serialized to " + bucket.length + 
                         " bytes but should have been " + expectedBucketLen + " bytes");
             }

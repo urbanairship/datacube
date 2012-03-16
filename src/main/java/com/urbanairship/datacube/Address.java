@@ -1,5 +1,6 @@
 package com.urbanairship.datacube;
 
+import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.List;
@@ -48,7 +49,7 @@ public class Address {
     /**
      * Get a byte array encoding the buckets of this cell in the Cube. For internal use only.
      */
-    public byte[] toKey(List<Dimension<?>> dimensions) {
+    public byte[] toKey(List<Dimension<?>> dimensions, IdService idService) throws IOException {
         boolean sawOnlyWildcardsSoFar = true;
         List<byte[]> reversedKeyElems = Lists.newArrayListWithCapacity(dimensions.size());
         
@@ -71,10 +72,18 @@ public class Address {
             } else {
                 sawOnlyWildcardsSoFar = false;
                 
-                if(bucketAndCoord.bucket.length != thisDimBucketLen) {
-                    throw new IllegalArgumentException("Field length was wrong (after bucketing). " +
-                            " For dimension " + dimension + ", expected length " + 
-                            dimension.getNumFieldBytes() + " but was " + bucketAndCoord.bucket.length);
+                byte[] elem;
+                if(idService == null || !dimension.getDoIdSubstitution()) {
+                    elem = bucketAndCoord.bucket;
+                } else {
+                    elem = idService.getId(dimension, bucketAndCoord.bucket); // throws IOException
+                }
+                
+                if(elem.length != thisDimBucketLen) {
+                    throw new IllegalArgumentException("Field length was wrong (after bucketing " + 
+                            " and unique ID substitution). For dimension " + dimension + 
+                            ", expected length " + dimension.getNumFieldBytes() + " but was " + 
+                            bucketAndCoord.bucket.length);
                 }
                 
                 byte[] bucketTypeId = bucketAndCoord.bucketType.getUniqueId(); 

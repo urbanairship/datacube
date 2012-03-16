@@ -17,6 +17,7 @@ import com.urbanairship.datacube.DbHarness.CommitType;
 import com.urbanairship.datacube.bucketers.HourDayMonthBucketer;
 import com.urbanairship.datacube.dbharnesses.MapDbHarness;
 import com.urbanairship.datacube.dbharnesses.MapDbHarness.BoxedByteArray;
+import com.urbanairship.datacube.idservices.MapIdService;
 import com.urbanairship.datacube.ops.LongOp;
 import com.urbanairship.datacube.serializables.EnumSerializable;
 
@@ -54,20 +55,20 @@ public class CompleteExampleTest {
                     case PORTLAND:
                     case SALEM:
                         // These cities are in Oregon
-                        return new EnumSerializable(UsState.OREGON, 4);
+                        return new EnumSerializable(UsState.OREGON, 1);
                     case SANFRANCISCO:
                     case SACRAMENTO:
                         // These cities are in California
-                        return new EnumSerializable(UsState.CALIFORNIA, 4);
+                        return new EnumSerializable(UsState.CALIFORNIA, 1);
                     case OLYMPIA:
                     case SEATTLE:
                         // These cities are in Washington
-                        return new EnumSerializable(UsState.WASHINGTON, 4);
+                        return new EnumSerializable(UsState.WASHINGTON, 1);
                     default:
                         throw new RuntimeException("Unknown city " + city);
                     }
                 } else if(bucketType == usCity) {
-                    return new EnumSerializable(city, 4);
+                    return new EnumSerializable(city, 1);
                 } else {
                     throw new RuntimeException("Unknown bucket type " + bucketType);
                 }
@@ -76,9 +77,9 @@ public class CompleteExampleTest {
             @Override
             public CSerializable bucketForRead(Object coordinateField, BucketType bucketType) {
                 if(coordinateField instanceof City) {
-                    return new EnumSerializable((City)coordinateField, 4);
+                    return new EnumSerializable((City)coordinateField, 1);
                 } else if(coordinateField instanceof UsState) {
-                    return new EnumSerializable((UsState)coordinateField, 4);
+                    return new EnumSerializable((UsState)coordinateField, 1);
                 } else {
                     throw new RuntimeException("Unrecognized object of type " + 
                             coordinateField.getClass().getName());
@@ -105,15 +106,15 @@ public class CompleteExampleTest {
                     switch(deviceType) {
                     case HTC_MYTOUCH:
                     case SAMSUNG_GALAXY:
-                        return new EnumSerializable(OsManufacturer.ANDROID, 4);
+                        return new EnumSerializable(OsManufacturer.ANDROID, 1);
                     case IPAD:
                     case IPHONE: 
-                        return new EnumSerializable(OsManufacturer.APPLE, 4);
+                        return new EnumSerializable(OsManufacturer.APPLE, 1);
                     default:
                         throw new RuntimeException("Unknown device " + deviceType);
                     }
                 } else if(bucketType == deviceName) {
-                    return new EnumSerializable(deviceType, 4);
+                    return new EnumSerializable(deviceType, 1);
                 } else {
                     throw new RuntimeException("Unknown bucket type " + bucketType);
                 }
@@ -122,9 +123,9 @@ public class CompleteExampleTest {
             @Override
             public CSerializable bucketForRead(Object coordinateField, BucketType bucketType) {
                 if(coordinateField instanceof DeviceType) {
-                    return new EnumSerializable((DeviceType)coordinateField, 4);
+                    return new EnumSerializable((DeviceType)coordinateField, 1);
                 } else if(coordinateField instanceof OsManufacturer) {
-                    return new EnumSerializable((OsManufacturer)coordinateField, 4);
+                    return new EnumSerializable((OsManufacturer)coordinateField, 1);
                 } else {
                     throw new RuntimeException("Unexpected coordinate class " + 
                             coordinateField.getClass());
@@ -168,7 +169,7 @@ public class CompleteExampleTest {
         DataCube<LongOp> dataCube = new DataCube<LongOp>(dimensions, rollups);
         ConcurrentMap<BoxedByteArray,byte[]> backingMap = Maps.newConcurrentMap();
         DbHarness<LongOp> dbHarness = new MapDbHarness<LongOp>(dimensions, backingMap, 
-                LongOp.DESERIALIZER, CommitType.READ_COMBINE_CAS, 3);
+                LongOp.DESERIALIZER, CommitType.READ_COMBINE_CAS, 3, new MapIdService());
         DataCubeIo<LongOp> dataCubeIo = new DataCubeIo<LongOp>(dataCube, dbHarness, 1);
         
         public void addEvent(DeviceType deviceType, City city, DateTime when) throws IOException {

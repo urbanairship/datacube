@@ -62,7 +62,7 @@ public class Dimension<F> {
         return name;
     }
     
-    int getNumFieldBytes() {
+    public int getNumFieldBytes() {
         return numFieldBytes;
     }
     
@@ -74,7 +74,7 @@ public class Dimension<F> {
         return bucketer;
     }
     
-    boolean getDoIdSubstitution() {
+    public boolean getDoIdSubstitution() {
         return doIdSubstitution;
     }
     

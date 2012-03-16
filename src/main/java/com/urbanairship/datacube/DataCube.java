@@ -37,7 +37,7 @@ public class DataCube<T extends Op> {
 
     /**
      * @param See {@link Dimension} 
-     * @param rollups desc
+     * @param rollups {@link Rollup}
      */
     public DataCube(List<Dimension<?>> dims, List<Rollup> rollups) {
         this.dims = dims;
