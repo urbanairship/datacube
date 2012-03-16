@@ -1,20 +1,31 @@
 package com.urbanairship.datacube;
 
+import java.util.List;
 
-public class Dimension {
+/**
+ * Describes a high-level dimension of the hypercube. For example, "time", "location",
+ * and "color" would be possible dimensions.
+ * 
+ * @param <F> the type of the coordinates for this dimension. For example, a time dimension
+ * might use the type DateTime or Long for its coordinates. As another example, a location 
+ * dimension might use a custom LatLong type as its input coordinate. This is the type that will be passed as input 
+ * to the bucketer for this dimension.
+ */
+public class Dimension<F> {
     private final String name;
-    private final Bucketer bucketer;
+    private final Bucketer<F> bucketer;
     private final boolean doIdSubstitution; 
     private final int numFieldBytes;
     private final int bucketPrefixSize;
+    private final boolean isBucketed;
     
     /**
-     * For dimensions where a single input coord affects multiple buckets within that dimension.
+     * For dimensions where a single input bucket affects multiple buckets within that dimension.
      * For example, a single input data point might affect hourly, daily, and monthly counts.
      * 
-     * @param doIdSubstitution whether to use the immutable coord->uniqueId substition service
+     * @param doIdSubstitution whether to use the immutable bucket->uniqueId substition service
      */
-    public Dimension(String name, Bucketer bucketer, 
+    public Dimension(String name, Bucketer<F> bucketer, 
             boolean doIdSubstitution, int fieldBytes) {
         this.name = name;
         this.bucketer = bucketer;
@@ -22,9 +33,15 @@ public class Dimension {
         this.numFieldBytes = fieldBytes;
         
         // Make sure all bucket unique id prefixes have the same length
-        if(bucketer != null) {
-            Integer previousLen = null;
-            for(BucketType bucketType: bucketer.getBucketTypes()) {
+        Integer previousLen = null;
+        List<BucketType> bucketTypes = bucketer.getBucketTypes();
+        if(bucketTypes.size() == 0) {
+            throw new IllegalArgumentException("Invalid bucketer. There must at least one bucket type");
+        } else if(bucketTypes.size() == 1 || bucketTypes.get(0) == BucketType.IDENTITY) {
+            isBucketed = false;
+            bucketPrefixSize = 0;
+        } else {
+            for(BucketType bucketType: bucketTypes) {
                 int thisBucketLen = bucketType.getUniqueId().length;
                 if(previousLen == null) {
                     previousLen = thisBucketLen;
@@ -37,8 +54,7 @@ public class Dimension {
                 }
             }
             bucketPrefixSize = previousLen;
-        } else {
-            bucketPrefixSize = 0;
+            isBucketed = true;
         }
     }
     
@@ -46,11 +62,13 @@ public class Dimension {
      * For simple dimensions without bucketing. For example, if you're counting people by zip code,
      * a single person lives in a single zip code, and not multiple zip codes.
      *
-     * @param doIdSubstitution whether to use the immutable coord->uniqueId substition service
+     * @param doIdSubstitution whether to use the immutable bucket->uniqueId substition service
      */
-    public Dimension(String name, boolean doIdSubstitution, int fieldBytes) {
-        this(name, Bucketer.IDENTITY, doIdSubstitution, fieldBytes);
-    }
+//    public static Dimension<CSerializable> newUnBucketedDimension(String name, 
+//            boolean doIdSubstitution, int fieldBytes) {
+//        return new Dimension<CSerializable>(name, Bucketer.IDENTITY, doIdSubstitution, fieldBytes);
+//    }
+    
     
     public String getName() {
         return name;
@@ -64,7 +82,7 @@ public class Dimension {
         return name;
     }
     
-    Bucketer getBucketer() {
+    Bucketer<F> getBucketer() {
         return bucketer;
     }
     
@@ -74,5 +92,9 @@ public class Dimension {
     
     int getBucketPrefixSize() {
         return bucketPrefixSize;
+    }
+    
+    boolean isBucketed() {
+        return isBucketed;
     }
 }

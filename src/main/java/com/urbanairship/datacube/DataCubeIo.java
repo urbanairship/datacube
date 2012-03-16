@@ -39,9 +39,12 @@ public class DataCubeIo<T extends Op> {
         }
     }
     
+    /**
+     * @return absent if the bucket doesn't exist, or the bucket if it does.
+     */
     public Optional<T> get(ReadAddress addr) throws IOException {
-        ExplodedAddress bucketed = cube.bucketize(addr);
-        return db.get(bucketed);
+        cube.checkValidReadOrThrow(addr);
+        return db.get(addr);
     }
     
     synchronized public void flush() throws IOException {
@@ -53,5 +56,4 @@ public class DataCubeIo<T extends Op> {
     synchronized void clearBatch() {
         batchInProgress = new Batch<T>();
     }
-    
 }

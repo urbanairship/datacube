@@ -8,7 +8,7 @@ package com.urbanairship.datacube;
  * Different identifier lengths can be used to save space. For example, if you have a dimension
  * that stores a boolean, it can only have two distinct values, so you only need one byte to encode
  * datapoints in that dimension. On the other hand, for a timestamp you may need a large number of
- * bytes to encode every unique coord.
+ * bytes to encode every unique bucket.
  * 
  * Each identifier length has its own space of identifiers. For example, the result of getId(purple,8)
  * is totally unrelated to the result of getId(purple,4).

@@ -1,18 +1,24 @@
 package com.urbanairship.datacube;
 
-public class ReadBuilder {
+public class ReadAddressBuilder {
     private final ReadAddress address = new ReadAddress();
     boolean built = false;
-    
-    public final ReadBuilder at(Dimension dimension, byte[] coordinate) {
+
+    public <O> ReadAddressBuilder at(Dimension<?> dimension, O coordinate) {
         address.at(dimension, coordinate);
         return this;
+        
     }
 
-    public final ReadBuilder at(Dimension dimension, BucketType bucketType, byte[] coordinate) {
+    public <O> ReadAddressBuilder at(Dimension<?> dimension, BucketType bucketType, O coordinate) {
         address.at(dimension, bucketType, coordinate);
         return this;
     }
+    
+//    public final ReadAddressBuilder atWildcard(Dimension dimension) {
+//        address.atWildcard(dimension);
+//        return this;
+//    }
     
     public ReadAddress build() {
         if(built) {

@@ -5,6 +5,7 @@ package com.urbanairship.datacube;
  */
 public class LongOp implements Op {
     private final long val;
+    public static final LongOpDeserializer DESERIALIZER = new LongOpDeserializer(); 
     
     public LongOp(long val) {
         this.val = val;
@@ -28,6 +29,11 @@ public class LongOp implements Op {
     }
 
     public static class LongOpDeserializer implements Deserializer<LongOp> {
+        /**
+         * Not instantiable, use the singleton in LongOp.DESERIALIZER. It's thread-safe.
+         */
+        protected LongOpDeserializer() { }
+        
         @Override
         public LongOp fromBytes(byte[] bytes) {
             return new LongOp(Util.bytesToLong(bytes));

@@ -4,8 +4,12 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentMap;
 
+import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.lang.NotImplementedException;
+import org.apache.log4j.LogManager;
+import org.apache.log4j.Logger;
 
 import com.google.common.base.Optional;
 
@@ -14,52 +18,116 @@ import com.google.common.base.Optional;
  * DB just to test the cube logic.
  */
 public class MapDbHarness<T extends Op> implements DbHarness<T> {
-    private final List<Dimension> dimensions;
-    private final Map<BoxedByteArray,byte[]> map;
-    private final Deserializer<T> deserializer;
+    private final static Logger log = LogManager.getLogger(MapDbHarness.class);
     
-    public MapDbHarness(List<Dimension> dimensions, Map<BoxedByteArray,byte[]> map, 
-            Deserializer<T> deserializer) {
+    private final List<Dimension<?>> dimensions;
+    private final ConcurrentMap<BoxedByteArray,byte[]> map;
+    private final Deserializer<T> deserializer;
+    private final CommitType commitType;
+    private final int casRetries;
+    
+    public MapDbHarness(List<Dimension<?>> dimensions, ConcurrentMap<BoxedByteArray,byte[]> map, 
+            Deserializer<T> deserializer, CommitType commitType, int casRetries) {
         this.dimensions = dimensions;
         this.map = map;
         this.deserializer = deserializer;
+        this.commitType = commitType;
+        this.casRetries = casRetries;
+        if(commitType != CommitType.OVERWRITE && commitType != CommitType.READ_COMBINE_CAS) {
+            throw new IllegalArgumentException("MapDbHarness doesn't support commit type " + 
+                    commitType);
+        }
     }
-    
     @Override
     public void runBatch(Batch<T> batch) throws IOException {
         
-        for(Map.Entry<ExplodedAddress,T> entry: batch.getMap().entrySet()) {
-            ExplodedAddress address = entry.getKey();
+        for(Map.Entry<Address,T> entry: batch.getMap().entrySet()) {
+            Address address = entry.getKey();
             T opFromBatch = entry.getValue();
+
+            BoxedByteArray mapKey = new BoxedByteArray(address.toKey(dimensions));
             
-            Optional<T> existingOpInDb = get(address);
-            T newValForDb;
-            
-            if(existingOpInDb.isPresent()) {
-                newValForDb = (T) ((existingOpInDb.get()).combine(opFromBatch));
+            if(commitType == CommitType.READ_COMBINE_CAS) {
+                int casRetriesRemaining = casRetries;
+                do {
+                    Optional<byte[]> oldBytes = getRaw(address);
+                    
+                    T newOp;
+                    if(oldBytes.isPresent()) {
+                        T oldOp = deserializer.fromBytes(oldBytes.get());
+                        newOp = (T)opFromBatch.combine(oldOp);
+                        if(log.isDebugEnabled()) {
+                            log.debug("Combined " + oldOp + " and " +  opFromBatch + " into " +
+                                    newOp);
+                        }
+                    } else {
+                        newOp = opFromBatch;
+                    }
+                    
+                    if(oldBytes.isPresent()) {
+                        // Compare and swap, if the key is still mapped to the same byte array.
+                        if(map.replace(mapKey, oldBytes.get(), newOp.serialize())) {
+                            if(log.isDebugEnabled()) {
+                                log.debug("Successful CAS overwrite at key " + 
+                                        Hex.encodeHexString(mapKey.bytes)  + " with " + 
+                                        Hex.encodeHexString(newOp.serialize()));
+                            }
+                            break;
+                        }
+                    } else {
+                        // Compare and swap, if the key is still absent from the map.
+                        if(map.putIfAbsent(mapKey, newOp.serialize()) == null) {
+                            // null is returned when there was no existing mapping for the 
+                            // given key, which is the success case.
+                            if(log.isDebugEnabled()) {
+                                log.debug("Successful CAS insert without existing value for key " + 
+                                        Hex.encodeHexString(mapKey.bytes) + " with " + 
+                                        Hex.encodeHexString(newOp.serialize()));
+                            }
+                            break;
+                        }
+                    }
+                } while (casRetriesRemaining-- > 0);
+                if(casRetriesRemaining == -1) {
+                    throw new CasRetriesExhausted();
+                }
+            } else if(commitType == CommitType.OVERWRITE) {
+                map.put(mapKey, opFromBatch.serialize());
+                if(log.isDebugEnabled()) {
+                    log.debug("Write of key " + Hex.encodeHexString(mapKey.bytes));
+                }
             } else {
-                newValForDb = opFromBatch;
+                throw new AssertionError("Unsupported commit type: " + commitType);
             }
-            
-            
-            byte[] mapKey = address.toKey(dimensions);
-            map.put(new BoxedByteArray(mapKey), newValForDb.serialize());
         }
     }
 
     @Override
-    public Optional<T> get(ExplodedAddress address) throws IOException {
-        byte[] mapKey = address.toKey(dimensions);
-        byte[] bytes = map.get(new BoxedByteArray(mapKey));
-        if(bytes == null) {
+    public Optional<T> get(Address address) throws IOException {
+        Optional<byte[]> bytes = getRaw(address);
+        if(bytes.isPresent()) {
+            return Optional.of(deserializer.fromBytes(bytes.get()));
+        } else {
             return Optional.absent();
         }
-        
-        return Optional.of(deserializer.fromBytes(bytes));
+    }
+    
+    private Optional<byte[]> getRaw(Address address) {
+        byte[] mapKey = address.toKey(dimensions);
+        byte[] bytes = map.get(new BoxedByteArray(mapKey));
+        if(log.isDebugEnabled()) {
+            log.debug("getRaw for key " + Hex.encodeHexString(mapKey) + " returned " + 
+                    Arrays.toString(bytes));
+        }
+        if(bytes == null) {
+            return Optional.absent();
+        } else {
+            return Optional.of(bytes);
+        }
     }
 
     @Override
-    public List<Optional<T>> multiGet(List<ExplodedAddress> addresses) throws IOException {
+    public List<Optional<T>> multiGet(List<Address> addresses) throws IOException {
         throw new NotImplementedException();
     }
     

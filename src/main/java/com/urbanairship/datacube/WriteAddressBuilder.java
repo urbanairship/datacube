@@ -1,10 +1,14 @@
 package com.urbanairship.datacube;
 
-public class WriteBuilder {
-    private final WriteAddress address = new WriteAddress();
+public class WriteAddressBuilder {
+    private final WriteAddress address;
     private boolean built = false;
     
-    public WriteBuilder at(Dimension dimension, byte[] coordinate) {
+    public WriteAddressBuilder(DataCube<?> cube) {
+        this.address = new WriteAddress(cube);
+    }
+    
+    public <F> WriteAddressBuilder at(Dimension<F> dimension, F coordinate) {
         address.at(dimension, coordinate);
         return this;
     }

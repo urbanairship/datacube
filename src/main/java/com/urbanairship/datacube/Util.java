@@ -21,4 +21,15 @@ public class Util {
         
         return ByteBuffer.wrap(bytes).getLong();
     }
+    
+    public static byte[] intToBytes(int x) {
+        ByteBuffer bb = ByteBuffer.allocate(4);
+        bb.putInt(x);
+        return bb.array();
+    }
+
+    public static int bytesToInt(byte[] bytes) {
+        return ByteBuffer.wrap(bytes).getInt();
+    }
+
 }

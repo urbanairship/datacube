@@ -1,157 +1,133 @@
 package com.urbanairship.datacube;
 
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Set;
 
-import org.apache.commons.lang.NotImplementedException;
+import org.apache.log4j.LogManager;
+import org.apache.log4j.Logger;
 
-import com.google.common.base.Optional;
-import com.google.common.collect.Lists;
+import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Maps;
+import com.google.common.collect.Multimap;
+import com.google.common.collect.Sets;
 
+/**
+ * A hypercube abstraction for storing number-like data. Good for slicing counters by any
+ * number of dimensions.
+ * @param <T> the type of values stored in the cube. For example, a long counter could be
+ * stored as a LongOp.
+ */
 public class DataCube<T extends Op> {
-//    private final String name;
-    private final List<Dimension> dims;
-    private final Optional<List<Aggregate>> aggregates;
-    
+    private static final Logger log = LogManager.getLogger(DataCube.class);
+
+    private final List<Dimension<?>> dims;
+    private final List<Rollup> rollups;
+    private final Multimap<Dimension<?>,BucketType> bucketsOfInterest;
+    private final Set<Set<DimensionAndBucketType>> validAddressSet;
+
     /**
      * Use this constructor when you don't aggregate counters over multiple dimensions.
      */
-    public DataCube(List<Dimension> dims) {
-        this.dims = dims;
-        this.aggregates = Optional.absent();
+    public DataCube(List<Dimension<?>> dims) {
+        this(dims, null);
     }
-    
-    public DataCube(String name, List<Dimension> dims, List<Aggregate> aggregates) {
-        this.dims = dims;
-        this.aggregates = Optional.of(aggregates);
-    }
-    
-    public Batch<T> getWrites(UnexplodedAddress address, T op) {
-        int numDimensions = dims.size();
-        
-        // Find the cross product of all bucketed values ... brace yourself
-        List<List<BucketTypeAndCoord>> explodedCoords = Lists.newArrayList();
-        for(int i=0; i<numDimensions; i++) {
-            // Get all the buckets to write to in this single dimension
-            Dimension dimension = dims.get(i);
-            byte[] inputCoordThisDimension = address.get(dimension);
-            
-            List<BucketTypeAndCoord> bucketsThisDimension = Lists.newArrayList();
-            Bucketer bucketer = dimension.getBucketer();
-            for(BucketType bucketType: bucketer.getBucketTypes()) {
-                byte[] bucket = bucketer.getBucket(inputCoordThisDimension, bucketType);
-                bucketsThisDimension.add(new BucketTypeAndCoord(bucketType, bucket));
-            }
-            explodedCoords.add(bucketsThisDimension);
-        }
-        
-        System.err.println("Bucket values: " + explodedCoords);
-        
-        int[] bucketCursors = new int[numDimensions];
-        
-        List<ExplodedAddress> explodedAddresses = Lists.newArrayList();
-        
-        while(true) {
-            ExplodedAddress explodedAddress = new ExplodedAddress();
-            boolean finished = false;
-            for(int dimIdx=0; dimIdx<numDimensions; dimIdx++) {
-                int cursorThisDim = bucketCursors[dimIdx];
-                explodedAddress.at(dims.get(dimIdx), explodedCoords.get(dimIdx).get(cursorThisDim));
-                
-            }
-            explodedAddresses.add(explodedAddress);
-        
-            // Advance cursors to the next tuple in the cross product
-            for(int i=0; i<bucketCursors.length; i++) {
-                bucketCursors[i] += 1;
-                if(bucketCursors[i] == explodedCoords.get(i).size()) {
-                    if(i == numDimensions-1) {
-                        finished = true;
-                        break;
-                    }
-                    bucketCursors[i] = 0;
-                } else {
-                    break;
-                }
-            }
-            if(finished) {
-                break;
-            }
-        }
 
-//        for(Dimension dimension: dims) {
-//            Bucketer bucketer = dimension.getBucketer();
-//            if(bucketer != null) {
-//                /* This dimension has a bucketer. Each cell we were planning to write to will be turned
-//                 * into multiple cells, one for each bucket returned by the bucketer.
-//                 * 
-//                 * For example, suppose we're counting events by hour, day, and month. When we get
-//                 * the event with the coordinates (2012-3-8-12:30:05, purple), this needs to be 
-//                 * exploded into the three buckets (hourly_march_8_2012_12oclock, purple), 
-//                 * (daily_march_8_2012, purple) and (monthly_march_2012, purple).
-//                 */
-//                List<Address> newExplodedAddresses = new ArrayList<Address>();
-//                for(Address oldAddress: explodedAddresses) {
-//                    byte[] coord = oldAddress.get(dimension);
-//                    for(Entry<BucketType,byte[]> e: bucketer.getBucketForCoord(coord).entrySet()) {
-//                        BucketType bucketType = e.getKey();
-//                        byte[] newCoord = e.getValue();
-//                        // This single Address is turning into multiple exploded Address's, one for
-//                        // each bucket.
-//                        System.err.println("Unbucketed val " + Arrays.toString(coord) +
-//                                " turned into bucket " + Arrays.toString(newCoord));
-//                        
-//                        // The new coordinates in this dimension are the BucketType id followed
-//                        // by the bucketed coord
-//                        Address addressAfterExplosion = new Address(oldAddress);
-//                        addressAfterExplosion.atCoord(dimension, ArrayUtils.addAll(
-//                                bucketType.getUniqueId(), newCoord));
-//                        
-//                        newExplodedAddresses.add(addressAfterExplosion);
-//                    }
-//                }
-//                explodedAddresses = newExplodedAddresses;
-//            }
-//        }
-        
-        System.out.println("Complete exploded addresses: " + explodedAddresses);
-        
-        // TODO Bucketize into potentially multiple buckets
-        
-        // TODO add aggregate cells
-        
-        if(aggregates.isPresent()) {
-            throw new NotImplementedException();
+    /**
+     * @param See {@link Dimension} 
+     * @param rollups desc
+     */
+    public DataCube(List<Dimension<?>> dims, List<Rollup> rollups) {
+        this.dims = dims;
+        this.rollups = rollups;
+        this.validAddressSet = Sets.newHashSet();
+
+        bucketsOfInterest = HashMultimap.create();
+
+        for(Rollup rollup: rollups) {
+            for(DimensionAndBucketType dimAndBucketType: rollup.getComponents()) {
+                bucketsOfInterest.put(dimAndBucketType.dimension, dimAndBucketType.bucketType);
+            }
+            validAddressSet.add(rollup.getComponents());
         }
-        
-        Map<ExplodedAddress,T> newBatchMap = Maps.newHashMap();
-        for(ExplodedAddress explodedAddress: explodedAddresses) {
-            newBatchMap.put(explodedAddress, op);
-        }
-        return new Batch<T>(newBatchMap);
     }
-    
-    public List<Dimension> getDimensions() {
+
+    /**
+     * Get a batch of writes that, when applied to the database, will make the change given by
+     * "op".
+     */
+    public Batch<T> getWrites(WriteAddress address, T op) {
+        Map<Address,T> outputMap = Maps.newHashMap(); 
+        
+        for(Rollup rollup: rollups) {
+            Address outputAddress = new Address();
+            
+            // Start out with all dimensions wildcard, overwrite with other values later
+            for(Dimension<?> dimension: dims) {
+                outputAddress.at(dimension, BucketTypeAndBucket.WILDCARD);
+            }
+            
+            for(DimensionAndBucketType dimAndBucketType: rollup.getComponents()) {
+                Dimension<?> dimension = dimAndBucketType.dimension;
+                BucketType bucketType = dimAndBucketType.bucketType;
+                byte[] bucket = address.getBuckets().get(dimAndBucketType);
+                outputAddress.at(dimension, bucketType, bucket);
+            }
+            outputMap.put(outputAddress, op);
+        }
+        
+        return new Batch<T>(outputMap);
+    }
+
+    public List<Dimension<?>> getDimensions() {
         return dims;
     }
-    
-    public ExplodedAddress bucketize(ExplodedAddress addr) {
-        ExplodedAddress bucketed = new ExplodedAddress();
-        for(Dimension dimension: dims) {
-            BucketTypeAndCoord beforeBucketing = addr.get(dimension);
-            if(beforeBucketing == null) {
-                throw new IllegalArgumentException("Address had no coordinate for dimension " + 
-                        dimension);
+
+    /**
+     * @throws IllegalArgumentException if addr isn't in the cube.
+     */
+    void checkValidReadOrThrow(Address addr) {
+        Set<DimensionAndBucketType> dimsAndBucketsSpecified = new HashSet<DimensionAndBucketType>(addr.getCoordinates().size());
+
+        // Find out which dimensions have literal values (not wildcards)
+        for(Entry<Dimension<?>,BucketTypeAndBucket> e: addr.getCoordinates().entrySet()) {
+            BucketTypeAndBucket bucketTypeAndCoord = e.getValue();
+            if(bucketTypeAndCoord == BucketTypeAndBucket.WILDCARD) {
+                continue;
             }
-            BucketType bucketType = beforeBucketing.bucketType;
-            bucketed.at(dimension, bucketType, 
-                    dimension.getBucketer().getBucket(beforeBucketing.coord, bucketType));
+            
+            Dimension<?> dimension = e.getKey();
+            BucketType bucketType = bucketTypeAndCoord.bucketType;
+            
+            dimsAndBucketsSpecified.add(new DimensionAndBucketType(dimension, bucketType));
         }
-        return bucketed;
+
+        // Make sure that the requested address exists in this cube (is touched by some rollup)
+        if(validAddressSet.contains(dimsAndBucketsSpecified)) {
+            return;
+        }
+
+        // The value the user asked for isn't written by this cube
+        StringBuilder errMsg = new StringBuilder();
+        errMsg.append("Won't query with the dimensions given, since there are no rollups that store that ");
+        errMsg.append("value. You gave dimensions: ");
+        errMsg.append(dimsAndBucketsSpecified);
+        errMsg.append(". To query, you must provide one of these complete sets of dimensions and buckets: (");
+        boolean firstLoop = true;
+        for(Rollup rollup: rollups) {
+            if(!firstLoop) { 
+                errMsg.append(",");
+            }
+            firstLoop = false;
+            errMsg.append(rollup.getComponents());
+        }
+        errMsg.append(")");
+        throw new IllegalArgumentException(errMsg.toString());
     }
-    
-//    private static boolean advance(int[] cursors) {
-//        
-//    }
+
+    Multimap<Dimension<?>,BucketType> getBucketsOfInterest() {
+        return bucketsOfInterest;
+    }
 }
