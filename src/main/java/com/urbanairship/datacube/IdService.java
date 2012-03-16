@@ -10,9 +10,6 @@ package com.urbanairship.datacube;
  * datapoints in that dimension. On the other hand, for a timestamp you may need a large number of
  * bytes to encode every unique bucket.
  * 
- * Each identifier length has its own space of identifiers. For example, the result of getId(purple,8)
- * is totally unrelated to the result of getId(purple,4).
- * 
  * To save space, we don't store the actual cube coordinates inside row keys. If the coordinates are
  * (purple, tuesday, 1000), 
  */

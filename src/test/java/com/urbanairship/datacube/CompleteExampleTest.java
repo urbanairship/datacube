@@ -20,19 +20,24 @@ import com.urbanairship.datacube.MapDbHarness.BoxedByteArray;
  * An example of using all the DataCube features at the same time.
  */
 public class CompleteExampleTest {
-    /**
-     * We're going to count mobile devices by type, location, and timestamp.
-     */
-
     enum DeviceType {IPHONE, IPAD, HTC_MYTOUCH, SAMSUNG_GALAXY}
     enum City {PORTLAND, SALEM, SANFRANCISCO, SACRAMENTO, OLYMPIA, SEATTLE}
 
     enum OsManufacturer {ANDROID, APPLE}
     enum UsState {OREGON, CALIFORNIA, WASHINGTON}
     
+    /**
+     * This is a wrapper around a DataCube that we're going to use to count mobile devices by 
+     * type, location, and timestamp. We'll be able to get slices/rollup counts by arbitrary
+     * dimensions and buckets (how many events match arbitrary criteria X). 
+     */
     static class MobileCountCube {
         Bucketer<DateTime> timeBucketer = new HourDayMonthBucketer();
     
+        /**
+         * Bucketize cities into two buckets: (1) the state they belong to and (2) their
+         * literal city name
+         */
         static class LocationBucketer implements Bucketer<City> {
             static BucketType usState = new BucketType("us_state", new byte[]{1});
             static BucketType usCity = new BucketType("city", new byte[]{2});
@@ -81,6 +86,10 @@ public class CompleteExampleTest {
             }
         };
         
+        /**
+         * Bucketize mobile devices into two bucket types: (1) the literal device type (e.g.
+         * ipad, mytouch) and (2) the OS manufacturer (apple, android)
+         */
         public static class DeviceBucketer implements Bucketer<DeviceType> {
             static BucketType deviceName = new BucketType("device_name", new byte[] {1});
             static BucketType osType = new BucketType("os", new byte[] {2});
@@ -123,6 +132,10 @@ public class CompleteExampleTest {
             }
         }
         
+        /*
+         * Define the DataCube. This requires defining all the dimensions and defining the ways
+         * that we want to roll up the counts (e.g. keep an aggregate count for each hour).
+         */
         Dimension<DateTime> time = new Dimension<DateTime>("time", new HourDayMonthBucketer(), false, 8);
         Dimension<DeviceType> device = new Dimension<DeviceType>("device", new DeviceBucketer(), true, 4);
         Dimension<City> location = new Dimension<City>("location", new LocationBucketer(), true, 4);
@@ -154,21 +167,15 @@ public class CompleteExampleTest {
         DataCubeIo<LongOp> dataCubeIo = new DataCubeIo<LongOp>(dataCube, dbHarness, 1);
         
         public void addEvent(DeviceType deviceType, City city, DateTime when) throws IOException {
-            dataCubeIo.write(new LongOp(1), new WriteAddressBuilder(dataCube)
+            dataCubeIo.write(new LongOp(1), new WriteBuilder(dataCube)
                     .at(time, when)
                     .at(device, deviceType)
-                    .at(location, city)
-                    .build());
-        }
-        
-        public Optional<LongOp> read(ReadAddress address) throws IOException {
-            return dataCubeIo.get(address);
+                    .at(location, city));
         }
         
         public long getStateCount(UsState usState) throws IOException {
             Optional<LongOp> opt = dataCubeIo.get(new ReadAddressBuilder()
-                    .at(location, LocationBucketer.usState, usState)
-                    .build());
+                    .at(location, LocationBucketer.usState, usState));
             if(!opt.isPresent()) {
                 return 0;
             } else {
@@ -179,8 +186,7 @@ public class CompleteExampleTest {
         public long getCityManufacturerCount(City city, OsManufacturer manufacturer) throws IOException {
             Optional<LongOp> opt = dataCubeIo.get(new ReadAddressBuilder()
                     .at(device, DeviceBucketer.osType, OsManufacturer.APPLE)
-                    .at(location, LocationBucketer.usCity, City.PORTLAND)
-                    .build());
+                    .at(location, LocationBucketer.usCity, City.PORTLAND));
             
             if(!opt.isPresent()) {
                 return 0L;
@@ -192,8 +198,7 @@ public class CompleteExampleTest {
         public long getDeviceDayCount(DeviceType deviceType, DateTime day) throws IOException {
             Optional<LongOp> opt = dataCubeIo.get(new ReadAddressBuilder()
                     .at(device, DeviceBucketer.deviceName, deviceType)
-                    .at(time, HourDayMonthBucketer.days, day)
-                    .build());
+                    .at(time, HourDayMonthBucketer.days, day));
             
             if(!opt.isPresent()) {
                 return 0L;
@@ -204,8 +209,7 @@ public class CompleteExampleTest {
         
         public long getHourCount(DateTime hour) throws IOException {
             Optional<LongOp> opt = dataCubeIo.get(new ReadAddressBuilder()
-                    .at(time, HourDayMonthBucketer.hours, hour)
-                    .build());
+                    .at(time, HourDayMonthBucketer.hours, hour));
 
             if(!opt.isPresent()) {
                 return 0L;
@@ -215,7 +219,7 @@ public class CompleteExampleTest {
         }
         
         public long getAllEventsCount() throws IOException {
-            Optional<LongOp> opt = dataCubeIo.get(new ReadAddress());
+            Optional<LongOp> opt = dataCubeIo.get(new ReadAddressBuilder());
             if(!opt.isPresent()) {
                 return 0L;
             } else {
@@ -227,8 +231,7 @@ public class CompleteExampleTest {
             Optional<LongOp> opt = dataCubeIo.get(new ReadAddressBuilder()
                     .at(time, HourDayMonthBucketer.months, month)
                     .at(location, LocationBucketer.usState, state)
-                    .at(device, DeviceBucketer.osType, os)
-                    .build());
+                    .at(device, DeviceBucketer.osType, os));
 
             if(!opt.isPresent()) {
                 return 0L;

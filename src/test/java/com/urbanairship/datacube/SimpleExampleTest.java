@@ -23,7 +23,6 @@ public class SimpleExampleTest {
     private static final Dimension<DateTime> time = new Dimension<DateTime>("time", hourDayMonthBucketer, false, 8);
     private static final Dimension<String> zipcode = new Dimension<String>("zipcode", new StringToBytesBucketer(), 
             true, 5);
-//    static final Dimension<CSerializable> zipcode = Dimension.newUnBucketedDimension("zipcode", true, 5);
 
     private static ConcurrentMap<BoxedByteArray,byte[]> backingMap = 
             new ConcurrentHashMap<BoxedByteArray,byte[]>();
@@ -59,36 +58,36 @@ public class SimpleExampleTest {
         DateTime now = new DateTime(DateTimeZone.UTC);
         
         // Do an increment of 5 for a certain time and zipcode
-        cubeIo.write(new LongOp(5), new WriteAddressBuilder(cube)
+        cubeIo.write(new LongOp(5), new WriteBuilder(cube)
                 .at(time, now)
-                .at(zipcode, "97201").build());
+                .at(zipcode, "97201"));
         
         // Do an increment of 10 for the same zipcode in a different hour of the same day
         DateTime differentHour = now.withHourOfDay((now.getHourOfDay()+1)%24);
-        cubeIo.write(new LongOp(10), new WriteAddressBuilder(cube)
+        cubeIo.write(new LongOp(10), new WriteBuilder(cube)
                 .at(time, differentHour)
-                .at(zipcode, "97201").build());
+                .at(zipcode, "97201"));
 
         System.err.println("Done inserting");
         
         // Read back the value that we wrote for the current hour, should be 5 
         Optional<LongOp> thisHourCount = cubeIo.get(new ReadAddressBuilder()
                 .at(time, HourDayMonthBucketer.hours, now)
-                .at(zipcode, "97201").build());
+                .at(zipcode, "97201"));
         Assert.assertTrue(thisHourCount.isPresent());
         Assert.assertEquals(5L, thisHourCount.get().getValue());
         
         // Read back the value we wrote for the other hour, should be 10
         Optional<LongOp> differentHourCount = cubeIo.get(new ReadAddressBuilder()
                 .at(time, HourDayMonthBucketer.hours, differentHour)
-                .at(zipcode, "97201").build());
+                .at(zipcode, "97201"));
         Assert.assertTrue(differentHourCount.isPresent());
         Assert.assertEquals(10L, differentHourCount.get().getValue());
 
         // The total for today should be the sum of the two increments
         Optional<LongOp> todayCount = cubeIo.get(new ReadAddressBuilder()
                 .at(time, HourDayMonthBucketer.days, now)
-                .at(zipcode, "97201").build());
+                .at(zipcode, "97201"));
         Assert.assertTrue(todayCount.isPresent());
         Assert.assertEquals(15L, todayCount.get().getValue());
     }

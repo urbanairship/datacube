@@ -4,6 +4,10 @@ import java.io.IOException;
 
 import com.google.common.base.Optional;
 
+/**
+ * A DataCube does no IO, it merely returns batches that can be executed. This class wraps
+ * around a DataCube and does IO against a storage engine.
+ */
 public class DataCubeIo<T extends Op> {
     private final DbHarness<T> db;
     private final DataCube<T> cube;
@@ -18,20 +22,20 @@ public class DataCubeIo<T extends Op> {
         this.batchSize = batchSize;
     }
     
-    private void updateBatchInMemory(WriteAddress addr, T op) {
-        Batch<T> newBatch = cube.getWrites(addr, op);
+    private void updateBatchInMemory(WriteBuilder writeBuilder, T op) {
+        Batch<T> newBatch = cube.getWrites(writeBuilder, op);
         batchInProgress.putAll(newBatch);
         numUpdatesSinceFlush++;
     }
     
-    synchronized public void writeNoFlush(WriteAddress c, T op) {
+    synchronized public void writeNoFlush(WriteBuilder c, T op) {
         updateBatchInMemory(c, op);
     }
     
     /**
      * Do some writes into the in-memory batch, possibly flushing to the backing database.
      */
-    synchronized public void write(T op, WriteAddress c) throws IOException {
+    synchronized public void write(T op, WriteBuilder c) throws IOException {
         updateBatchInMemory(c, op);
         
         if(numUpdatesSinceFlush >= batchSize) {
@@ -42,9 +46,13 @@ public class DataCubeIo<T extends Op> {
     /**
      * @return absent if the bucket doesn't exist, or the bucket if it does.
      */
-    public Optional<T> get(ReadAddress addr) throws IOException {
+    public Optional<T> get(Address addr) throws IOException {
         cube.checkValidReadOrThrow(addr);
         return db.get(addr);
+    }
+    
+    public Optional<T> get(ReadAddressBuilder readBuilder) throws IOException {
+        return this.get(readBuilder.build());
     }
     
     synchronized public void flush() throws IOException {

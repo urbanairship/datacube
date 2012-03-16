@@ -1,10 +1,14 @@
 package com.urbanairship.datacube;
 
-import java.io.UnsupportedEncodingException;
 import java.util.List;
 
 import com.google.common.collect.ImmutableList;
 
+/**
+ * You can use this bucketer to avoid writing your own, in the case where:
+ *  - You have a cube coordinate that's a String
+ *  - You want the bucketer to pass through the String unchanged as the bucket
+ */
 public class StringToBytesBucketer implements Bucketer<String> {
     private static final StringToBytesBucketer instance = new StringToBytesBucketer();
     
@@ -19,11 +23,7 @@ public class StringToBytesBucketer implements Bucketer<String> {
     }
 
     private CSerializable bucket(String coordinateField, BucketType bucketType) {
-        try {
-            return new BytesSerializable(coordinateField.getBytes("UTF8"));
-        } catch (UnsupportedEncodingException e) {
-            throw new RuntimeException(e);
-        }        
+        return new StringSerializable(coordinateField);
     }
     
     @Override

@@ -39,11 +39,6 @@ public class HourDayMonthBucketer implements Bucketer<DateTime> {
     public List<BucketType> getBucketTypes() {
         return ImmutableList.of(hours, days, months);
     }
-
-//    @Override
-//    public Class<DateTime> getInputFieldClass() {
-//        return DateTime.class;
-//    }
     
     public static DateTime hourFloor(DateTime dt) {
         return dt.withMillisOfSecond(0).withSecondOfMinute(0).withMinuteOfHour(0);

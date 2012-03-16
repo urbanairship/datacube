@@ -18,26 +18,41 @@ public class Rollup {
         this.components = new HashSet<DimensionAndBucketType>(components); // defensive copy
     }
     
+    /**
+     * Convenient wrapper around {@link #Rollup(Set)} that builds a set for you.
+     */
     public Rollup(Dimension<?> d, BucketType bt) {
         this(ImmutableSet.of(new DimensionAndBucketType(d, bt)));
     }
     
+    /**
+     * Convenient wrapper around {@link #Rollup(Set)} that builds a set for you.
+     */
     public Rollup(Dimension<?> d1, BucketType bt1, Dimension<?> d2, BucketType bt2) {
         this(ImmutableSet.of(new DimensionAndBucketType(d1, bt1),
                 new DimensionAndBucketType(d2, bt2)));
     }
 
+    /**
+     * Convenient wrapper around {@link #Rollup(Set)} that builds a set for you.
+     */
     public Rollup(Dimension<?> d1, BucketType bt1, Dimension<?> d2, BucketType bt2,
             Dimension<?> d3, BucketType bt3) {
         this(ImmutableSet.of(new DimensionAndBucketType(d1, bt1),
                 new DimensionAndBucketType(d2, bt2), new DimensionAndBucketType(d3, bt3)));
     }
     
+    /**
+     * Convenient wrapper around {@link #Rollup(Set)} that builds a set for you.
+     */
     public Rollup(Dimension<?> d1, Dimension<?> d2) {
         this(ImmutableSet.of(new DimensionAndBucketType(d1, BucketType.IDENTITY),
                 new DimensionAndBucketType(d2, BucketType.IDENTITY)));
     }
     
+    /**
+     * Convenient wrapper around {@link #Rollup(Set)} that builds a set for you.
+     */
     public Rollup(Dimension<?> d1, Dimension<?> d2, BucketType bt2) {
         this(ImmutableSet.of(new DimensionAndBucketType(d1, BucketType.IDENTITY),
                 new DimensionAndBucketType(d2, bt2)));

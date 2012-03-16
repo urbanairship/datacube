@@ -58,7 +58,7 @@ public class DataCube<T extends Op> {
      * Get a batch of writes that, when applied to the database, will make the change given by
      * "op".
      */
-    public Batch<T> getWrites(WriteAddress address, T op) {
+    public Batch<T> getWrites(WriteBuilder writeBuilder, T op) {
         Map<Address,T> outputMap = Maps.newHashMap(); 
         
         for(Rollup rollup: rollups) {
@@ -72,7 +72,7 @@ public class DataCube<T extends Op> {
             for(DimensionAndBucketType dimAndBucketType: rollup.getComponents()) {
                 Dimension<?> dimension = dimAndBucketType.dimension;
                 BucketType bucketType = dimAndBucketType.bucketType;
-                byte[] bucket = address.getBuckets().get(dimAndBucketType);
+                byte[] bucket = writeBuilder.getBuckets().get(dimAndBucketType);
                 outputAddress.at(dimension, bucketType, bucket);
             }
             outputMap.put(outputAddress, op);

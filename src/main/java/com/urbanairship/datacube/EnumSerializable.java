@@ -2,6 +2,10 @@ package com.urbanairship.datacube;
 
 import java.util.Arrays;
 
+/**
+ * When using an enum as a dimension coordinate type, this wrapper eliminates the boilerplate
+ * of serializing it to an ordinal. Use this in your bucketer.
+ */
 public class EnumSerializable implements CSerializable {
     private final int ordinal;
     private final int numFieldBytes;

@@ -6,18 +6,15 @@ import java.util.Map;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Multimap;
 
-/**
- * If you're an API client, you probably want to use {@link WriteAddressBuilder} instead.
- */
-public class WriteAddress {
-    private final Map<DimensionAndBucketType,byte[]> buckets = Maps.newHashMap(); 
+public class WriteBuilder {
     private final Multimap<Dimension<?>,BucketType> bucketsOfInterest;
-    
-    public WriteAddress(DataCube<?> cube) {
+    private final Map<DimensionAndBucketType,byte[]> buckets = Maps.newHashMap(); 
+
+    public WriteBuilder(DataCube<?> cube) {
         this.bucketsOfInterest = cube.getBucketsOfInterest();
     }
     
-    public <O> void at(Dimension<O> dimension, O coord) {
+    public <O> WriteBuilder at(Dimension<O> dimension, O coord) {
         int expectedBucketLen = dimension.getNumFieldBytes(); 
         Bucketer<O> bucketer = dimension.getBucketer();
         Collection<BucketType> bucketTypesToEvaluate = bucketsOfInterest.get(dimension);
@@ -31,25 +28,11 @@ public class WriteAddress {
             }
             buckets.put(new DimensionAndBucketType(dimension, bucketType), bucket);
         }
+        return this;
     }
     
-    Map<DimensionAndBucketType,byte[]> getBuckets() {
+    public Map<DimensionAndBucketType,byte[]> getBuckets() {
         return buckets;
     }
     
-//    public <O> void at(Dimension<?> dimension, BucketType bucketType, O bucket) {
-//        super.at(dimension, bucketType, 
-//                dimension.getBucketer().bucketForRead(bucket, bucketType).serialize());
-//    }
-    
-    
-    
-//    public <F> void at(Dimension<F> dimension, F bucket) {
-//        this.at(dimension, BucketType.IDENTITY, bucket);
-//    }
-//    
-//    public <F> void at(Dimension<F> dimension, BucketType bucketType, F bucket) {
-//        CSerializable bucket = dimension.getBucketer().bucketForWrite(bucket, bucketType);
-//        super.at(dimension, BucketType.IDENTITY, bucket.serialize());
-//    }
 }

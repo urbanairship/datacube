@@ -1,5 +1,10 @@
 package com.urbanairship.datacube;
 
+import java.io.UnsupportedEncodingException;
+
+/**
+ * Use this in your bucketer if you want to use Strings as dimension coordinates.
+ */
 public class StringSerializable implements CSerializable {
     private final String s;
     
@@ -9,6 +14,10 @@ public class StringSerializable implements CSerializable {
 
     @Override
     public byte[] serialize() {
-        return s.getBytes();
+        try {
+            return s.getBytes("UTF8");
+        } catch (UnsupportedEncodingException e) {
+            throw new RuntimeException(e);
+        }
     }
 }

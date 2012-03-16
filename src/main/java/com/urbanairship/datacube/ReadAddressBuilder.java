@@ -1,26 +1,25 @@
 package com.urbanairship.datacube;
 
+/**
+ * Use this to specify the location of a cell to read from a datacube.
+ */
 public class ReadAddressBuilder {
-    private final ReadAddress address = new ReadAddress();
+    private final Address address = new Address();
     boolean built = false;
 
     public <O> ReadAddressBuilder at(Dimension<?> dimension, O coordinate) {
-        address.at(dimension, coordinate);
+        this.at(dimension, BucketType.IDENTITY, coordinate);
         return this;
-        
     }
 
-    public <O> ReadAddressBuilder at(Dimension<?> dimension, BucketType bucketType, O coordinate) {
-        address.at(dimension, bucketType, coordinate);
+    public <O> ReadAddressBuilder at(Dimension<?> dimension, BucketType bucketType, O coord) {
+        Bucketer<?> bucketer = dimension.getBucketer();
+        byte[] bucket = bucketer.bucketForRead(coord, bucketType).serialize();
+        address.at(dimension, bucketType, bucket);
         return this;
     }
     
-//    public final ReadAddressBuilder atWildcard(Dimension dimension) {
-//        address.atWildcard(dimension);
-//        return this;
-//    }
-    
-    public ReadAddress build() {
+    public Address build() {
         if(built) {
             throw new RuntimeException("Already built");
         }

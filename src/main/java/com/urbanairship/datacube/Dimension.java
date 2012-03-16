@@ -58,18 +58,6 @@ public class Dimension<F> {
         }
     }
     
-    /**
-     * For simple dimensions without bucketing. For example, if you're counting people by zip code,
-     * a single person lives in a single zip code, and not multiple zip codes.
-     *
-     * @param doIdSubstitution whether to use the immutable bucket->uniqueId substition service
-     */
-//    public static Dimension<CSerializable> newUnBucketedDimension(String name, 
-//            boolean doIdSubstitution, int fieldBytes) {
-//        return new Dimension<CSerializable>(name, Bucketer.IDENTITY, doIdSubstitution, fieldBytes);
-//    }
-    
-    
     public String getName() {
         return name;
     }

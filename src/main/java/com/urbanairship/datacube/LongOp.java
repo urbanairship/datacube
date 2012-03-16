@@ -18,11 +18,6 @@ public class LongOp implements Op {
         return new LongOp(val + ((LongOp)otherOp).val);
     }
     
-//    @Override
-//    public Optional<Op> attemptCombine(Op otherOp) {
-//        return Optional.absent();
-//    }
-
     @Override
     public byte[] serialize() {
         return Util.longToBytes(val);

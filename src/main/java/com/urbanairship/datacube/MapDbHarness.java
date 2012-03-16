@@ -14,8 +14,8 @@ import org.apache.log4j.Logger;
 import com.google.common.base.Optional;
 
 /**
- * For testing, this is is a backing store for a cube that lives in memory. Saves us from calling a
- * DB just to test the cube logic.
+ * For testing, this is is a backing store for a cube that lives in memory. It saves us from 
+ * calling a DB just to test the cube logic.
  */
 public class MapDbHarness<T extends Op> implements DbHarness<T> {
     private final static Logger log = LogManager.getLogger(MapDbHarness.class);
