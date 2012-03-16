@@ -1,4 +1,6 @@
-package com.urbanairship.datacube;
+package com.urbanairship.datacube.serializables;
+
+import com.urbanairship.datacube.CSerializable;
 
 public class BytesSerializable implements CSerializable {
     private final byte[] bytes;

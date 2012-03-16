@@ -14,7 +14,12 @@ import org.junit.Test;
 import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
 import com.urbanairship.datacube.DbHarness.CommitType;
-import com.urbanairship.datacube.MapDbHarness.BoxedByteArray;
+import com.urbanairship.datacube.bucketers.HourDayMonthBucketer;
+import com.urbanairship.datacube.bucketers.StringToBytesBucketer;
+import com.urbanairship.datacube.dbharnesses.MapDbHarness;
+import com.urbanairship.datacube.dbharnesses.MapDbHarness.BoxedByteArray;
+import com.urbanairship.datacube.ops.LongOp;
+
 
 public class SimpleExampleTest {
     // Describes how time is bucketed into hours, days, and months 

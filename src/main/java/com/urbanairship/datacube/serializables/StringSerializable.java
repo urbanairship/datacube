@@ -1,6 +1,8 @@
-package com.urbanairship.datacube;
+package com.urbanairship.datacube.serializables;
 
 import java.io.UnsupportedEncodingException;
+
+import com.urbanairship.datacube.CSerializable;
 
 /**
  * Use this in your bucketer if you want to use Strings as buckets.

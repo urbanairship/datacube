@@ -1,15 +1,20 @@
-package com.urbanairship.datacube;
+package com.urbanairship.datacube.bucketers;
 
 import java.util.List;
 
 import org.joda.time.DateTime;
 
+
 import com.google.common.collect.ImmutableList;
+import com.urbanairship.datacube.BucketType;
+import com.urbanairship.datacube.Bucketer;
+import com.urbanairship.datacube.CSerializable;
+import com.urbanairship.datacube.serializables.LongSerializable;
 
 public class HourDayMonthBucketer implements Bucketer<DateTime> {
-    static final BucketType hours = new BucketType("hour", new byte[]{1}); 
-    static final BucketType days = new BucketType("day", new byte[]{2});
-    static final BucketType months = new BucketType("month", new byte[]{3});
+    public static final BucketType hours = new BucketType("hour", new byte[]{1}); 
+    public static final BucketType days = new BucketType("day", new byte[]{2});
+    public static final BucketType months = new BucketType("month", new byte[]{3});
     
     @Override
     public CSerializable bucketForWrite(DateTime coordinateField, BucketType bucketType) {

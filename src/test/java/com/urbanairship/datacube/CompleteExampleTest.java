@@ -14,7 +14,12 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Maps;
 import com.urbanairship.datacube.DbHarness.CommitType;
-import com.urbanairship.datacube.MapDbHarness.BoxedByteArray;
+import com.urbanairship.datacube.bucketers.HourDayMonthBucketer;
+import com.urbanairship.datacube.dbharnesses.MapDbHarness;
+import com.urbanairship.datacube.dbharnesses.MapDbHarness.BoxedByteArray;
+import com.urbanairship.datacube.ops.LongOp;
+import com.urbanairship.datacube.serializables.EnumSerializable;
+
 
 /**
  * An example of using all the DataCube features at the same time.

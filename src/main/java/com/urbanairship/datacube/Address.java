@@ -6,14 +6,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
-import org.apache.log4j.LogManager;
-import org.apache.log4j.Logger;
-
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
-class Address {
-    private static final Logger log = LogManager.getLogger(Address.class);
+public class Address {
+//    private static final Logger log = LogManager.getLogger(Address.class);
     
     private final Map<Dimension<?>,BucketTypeAndBucket> buckets;
     
@@ -51,7 +48,7 @@ class Address {
     /**
      * Get a byte array encoding the buckets of this cell in the Cube. For internal use only.
      */
-    byte[] toKey(List<Dimension<?>> dimensions) {
+    public byte[] toKey(List<Dimension<?>> dimensions) {
         boolean sawOnlyWildcardsSoFar = true;
         List<byte[]> reversedKeyElems = Lists.newArrayListWithCapacity(dimensions.size());
         

@@ -1,4 +1,4 @@
-package com.urbanairship.datacube;
+package com.urbanairship.datacube.dbharnesses;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -12,6 +12,14 @@ import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
 
 import com.google.common.base.Optional;
+import com.urbanairship.datacube.Address;
+import com.urbanairship.datacube.Batch;
+import com.urbanairship.datacube.CasRetriesExhausted;
+import com.urbanairship.datacube.DbHarness;
+import com.urbanairship.datacube.Deserializer;
+import com.urbanairship.datacube.Dimension;
+import com.urbanairship.datacube.Op;
+import com.urbanairship.datacube.DbHarness.CommitType;
 
 /**
  * For testing, this is is a backing store for a cube that lives in memory. It saves us from 

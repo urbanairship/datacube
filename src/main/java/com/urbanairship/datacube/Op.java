@@ -1,5 +1,7 @@
 package com.urbanairship.datacube;
 
+import com.urbanairship.datacube.ops.LongOp;
+
 
 /**
  * A cell mutation or cell bucket. For example, a cube storing counters would contain Ops that 

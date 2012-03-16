@@ -1,8 +1,13 @@
-package com.urbanairship.datacube;
+package com.urbanairship.datacube.bucketers;
 
 import java.util.List;
 
+
 import com.google.common.collect.ImmutableList;
+import com.urbanairship.datacube.BucketType;
+import com.urbanairship.datacube.Bucketer;
+import com.urbanairship.datacube.CSerializable;
+import com.urbanairship.datacube.serializables.StringSerializable;
 
 /**
  * You can use this bucketer to avoid writing your own, in the case where:

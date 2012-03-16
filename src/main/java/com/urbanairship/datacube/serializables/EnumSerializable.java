@@ -1,6 +1,9 @@
-package com.urbanairship.datacube;
+package com.urbanairship.datacube.serializables;
 
 import java.util.Arrays;
+
+import com.urbanairship.datacube.CSerializable;
+import com.urbanairship.datacube.Util;
 
 /**
  * When using an enum as a dimension bucket type, this wrapper eliminates the boilerplate

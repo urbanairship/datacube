@@ -1,4 +1,8 @@
-package com.urbanairship.datacube;
+package com.urbanairship.datacube.ops;
+
+import com.urbanairship.datacube.Deserializer;
+import com.urbanairship.datacube.Op;
+import com.urbanairship.datacube.Util;
 
 /**
  * Cube oplog mutation type for storing a long counter.

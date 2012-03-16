@@ -1,4 +1,7 @@
-package com.urbanairship.datacube;
+package com.urbanairship.datacube.serializables;
+
+import com.urbanairship.datacube.CSerializable;
+import com.urbanairship.datacube.Util;
 
 /**
  * Use this in your bucketer if you're using longs as dimension coordinates.
