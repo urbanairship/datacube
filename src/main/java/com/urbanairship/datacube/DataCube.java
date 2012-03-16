@@ -89,10 +89,10 @@ public class DataCube<T extends Op> {
      * @throws IllegalArgumentException if addr isn't in the cube.
      */
     void checkValidReadOrThrow(Address addr) {
-        Set<DimensionAndBucketType> dimsAndBucketsSpecified = new HashSet<DimensionAndBucketType>(addr.getCoordinates().size());
+        Set<DimensionAndBucketType> dimsAndBucketsSpecified = new HashSet<DimensionAndBucketType>(addr.getBuckets().size());
 
         // Find out which dimensions have literal values (not wildcards)
-        for(Entry<Dimension<?>,BucketTypeAndBucket> e: addr.getCoordinates().entrySet()) {
+        for(Entry<Dimension<?>,BucketTypeAndBucket> e: addr.getBuckets().entrySet()) {
             BucketTypeAndBucket bucketTypeAndCoord = e.getValue();
             if(bucketTypeAndCoord == BucketTypeAndBucket.WILDCARD) {
                 continue;

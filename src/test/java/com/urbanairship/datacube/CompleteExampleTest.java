@@ -267,11 +267,11 @@ public class CompleteExampleTest {
         long appleCountPortland = mobileCube.getCityManufacturerCount(City.PORTLAND, OsManufacturer.APPLE);
         Assert.assertEquals(2L, appleCountPortland);
         
-        // There were three events from android devices in Portland
+        // There were 2 events from android devices in Portland
         long androidCountPortland = mobileCube.getCityManufacturerCount(City.PORTLAND, OsManufacturer.ANDROID);
         Assert.assertEquals(2L, androidCountPortland);
         
-        // There were 4 events in Oregon
+        // There were 5 events in Oregon
         long oregonCount = mobileCube.getStateCount(UsState.OREGON);
         Assert.assertEquals(5L, oregonCount);
         

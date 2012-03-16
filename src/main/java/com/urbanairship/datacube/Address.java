@@ -15,13 +15,13 @@ import com.google.common.collect.Maps;
 class Address {
     private static final Logger log = LogManager.getLogger(Address.class);
     
-    private final Map<Dimension<?>,BucketTypeAndBucket> coordinates;
+    private final Map<Dimension<?>,BucketTypeAndBucket> buckets;
     
     private static final byte[] WILDCARD_FIELD = new byte[] {0};
     private static final byte[] NON_WILDCARD_FIELD = new byte[] {1};
     
     public Address() {
-        coordinates = Maps.newHashMap();
+        buckets = Maps.newHashMap();
     }
     
     public void at(Dimension<?> dimension, byte[] value) {
@@ -32,24 +32,24 @@ class Address {
         at(dimension, BucketType.IDENTITY, value);
     }
     
-    void at(Dimension<?> dimension, BucketType bucketType, byte[] coordinate) {
-        coordinates.put(dimension, new BucketTypeAndBucket(bucketType, coordinate));
+    void at(Dimension<?> dimension, BucketType bucketType, byte[] bucket) {
+        buckets.put(dimension, new BucketTypeAndBucket(bucketType, bucket));
     }
     
     void at(Dimension<?> dimension, BucketTypeAndBucket bucketAndCoord) {
-        coordinates.put(dimension, bucketAndCoord);
+        buckets.put(dimension, bucketAndCoord);
     }
     
     public BucketTypeAndBucket get(Dimension<?> dimension) {
-        return coordinates.get(dimension);
+        return buckets.get(dimension);
     }
     
-    Map<Dimension<?>,BucketTypeAndBucket> getCoordinates() {
-        return coordinates;
+    Map<Dimension<?>,BucketTypeAndBucket> getBuckets() {
+        return buckets;
     }
     
     /**
-     * Get a byte array encoding the coordinates of this cell in the Cube. For internal use only.
+     * Get a byte array encoding the buckets of this cell in the Cube. For internal use only.
      */
     byte[] toKey(List<Dimension<?>> dimensions) {
         boolean sawOnlyWildcardsSoFar = true;
@@ -59,7 +59,7 @@ class Address {
         // The reasoning for this is complicated, please see design docs.
         for(int i=dimensions.size()-1; i >= 0; i--) {
             Dimension<?> dimension = dimensions.get(i);
-            BucketTypeAndBucket bucketAndCoord = coordinates.get(dimension);
+            BucketTypeAndBucket bucketAndCoord = buckets.get(dimension);
             
             int thisDimBucketLen = dimension.getNumFieldBytes();
             int thisDimBucketTypeLen = dimension.getBucketPrefixSize();
@@ -117,7 +117,7 @@ class Address {
         StringBuilder sb = new StringBuilder();
         sb.append("(");
         boolean firstLoop = true;
-        for(Entry<Dimension<?>,BucketTypeAndBucket> e: coordinates.entrySet()) {
+        for(Entry<Dimension<?>,BucketTypeAndBucket> e: buckets.entrySet()) {
             if(!firstLoop) {
                 sb.append(", ");
             }

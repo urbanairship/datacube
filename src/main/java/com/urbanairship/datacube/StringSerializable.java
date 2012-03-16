@@ -3,7 +3,7 @@ package com.urbanairship.datacube;
 import java.io.UnsupportedEncodingException;
 
 /**
- * Use this in your bucketer if you want to use Strings as dimension coordinates.
+ * Use this in your bucketer if you want to use Strings as buckets.
  */
 public class StringSerializable implements CSerializable {
     private final String s;

@@ -13,7 +13,7 @@ public interface Bucketer<F> {
      * bucketer for the location dimension might return "oregon" when asked for the State bucket
      * type.
      */
-    public CSerializable bucketForWrite(F coordinateField, BucketType bucketType);
+    public CSerializable bucketForWrite(F coordinate, BucketType bucketType);
 
     /**
      * When reading from the cube, the reader specifies some coordinates from which to read.
@@ -21,7 +21,7 @@ public interface Bucketer<F> {
      * coordinates. For example, if the reader asks for hourly counts (the Hourly BucketType) and 
      * passes a timestamp, the bucketer could return the timestamp rounded down to the hour floor.
      */
-    public CSerializable bucketForRead(Object coordinateField, BucketType bucketType);
+    public CSerializable bucketForRead(Object coordinate, BucketType bucketType);
 
     /**
      * Return all bucket types that exist in this dimension. The bucketer should be able to

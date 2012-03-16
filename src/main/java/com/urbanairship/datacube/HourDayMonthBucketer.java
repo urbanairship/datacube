@@ -12,8 +12,8 @@ public class HourDayMonthBucketer implements Bucketer<DateTime> {
     static final BucketType months = new BucketType("month", new byte[]{3});
     
     @Override
-    public CSerializable bucketForWrite(DateTime dt, BucketType bucketType) {
-        return bucket(dt, bucketType);
+    public CSerializable bucketForWrite(DateTime coordinateField, BucketType bucketType) {
+        return bucket(coordinateField, bucketType);
     }
 
     @Override
