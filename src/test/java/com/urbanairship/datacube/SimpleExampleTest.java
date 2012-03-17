@@ -17,7 +17,7 @@ import com.urbanairship.datacube.DbHarness.CommitType;
 import com.urbanairship.datacube.bucketers.HourDayMonthBucketer;
 import com.urbanairship.datacube.bucketers.StringToBytesBucketer;
 import com.urbanairship.datacube.dbharnesses.MapDbHarness;
-import com.urbanairship.datacube.dbharnesses.MapDbHarness.BoxedByteArray;
+import com.urbanairship.datacube.idservices.CachingIdService;
 import com.urbanairship.datacube.idservices.MapIdService;
 import com.urbanairship.datacube.ops.LongOp;
 
@@ -51,8 +51,9 @@ public class SimpleExampleTest {
                 dayRollup);
         
         cube = new DataCube<LongOp>(dimensions, rollups);
+        IdService idService = new CachingIdService(5, new MapIdService());
         dbHarness = new MapDbHarness<LongOp>(dimensions, backingMap, LongOp.DESERIALIZER, 
-                CommitType.READ_COMBINE_CAS, 3, new MapIdService());
+                CommitType.READ_COMBINE_CAS, 3, idService);
         cubeIo = new DataCubeIo<LongOp>(cube, dbHarness, 1);
     }
     

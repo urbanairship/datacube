@@ -16,7 +16,7 @@ import com.google.common.collect.Maps;
 import com.urbanairship.datacube.DbHarness.CommitType;
 import com.urbanairship.datacube.bucketers.HourDayMonthBucketer;
 import com.urbanairship.datacube.dbharnesses.MapDbHarness;
-import com.urbanairship.datacube.dbharnesses.MapDbHarness.BoxedByteArray;
+import com.urbanairship.datacube.idservices.CachingIdService;
 import com.urbanairship.datacube.idservices.MapIdService;
 import com.urbanairship.datacube.ops.LongOp;
 import com.urbanairship.datacube.serializables.EnumSerializable;
@@ -168,8 +168,9 @@ public class CompleteExampleTest {
         
         DataCube<LongOp> dataCube = new DataCube<LongOp>(dimensions, rollups);
         ConcurrentMap<BoxedByteArray,byte[]> backingMap = Maps.newConcurrentMap();
+        IdService idService = new CachingIdService(4, new MapIdService());
         DbHarness<LongOp> dbHarness = new MapDbHarness<LongOp>(dimensions, backingMap, 
-                LongOp.DESERIALIZER, CommitType.READ_COMBINE_CAS, 3, new MapIdService());
+                LongOp.DESERIALIZER, CommitType.READ_COMBINE_CAS, 3, idService);
         DataCubeIo<LongOp> dataCubeIo = new DataCubeIo<LongOp>(dataCube, dbHarness, 1);
         
         public void addEvent(DeviceType deviceType, City city, DateTime when) throws IOException {

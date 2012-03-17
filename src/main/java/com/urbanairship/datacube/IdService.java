@@ -1,5 +1,7 @@
 package com.urbanairship.datacube;
 
+import java.io.IOException;
+
 /**
  * A service for translating byte[]s consistently into unique IDs. If the given byte[] has been 
  * seen before, the same identifier will be returned as the previous call. If this is the first 
@@ -20,5 +22,5 @@ package com.urbanairship.datacube;
  */
 
 public interface IdService {
-    public byte[] getId(Dimension<?> dimension, byte[] bytes);
+    public byte[] getId(Dimension<?> dimension, byte[] bytes) throws IOException;
 }

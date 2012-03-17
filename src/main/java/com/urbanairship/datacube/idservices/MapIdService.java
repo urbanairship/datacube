@@ -8,10 +8,10 @@ import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
 
 import com.google.common.collect.Maps;
+import com.urbanairship.datacube.BoxedByteArray;
 import com.urbanairship.datacube.Dimension;
 import com.urbanairship.datacube.IdService;
 import com.urbanairship.datacube.Util;
-import com.urbanairship.datacube.dbharnesses.MapDbHarness.BoxedByteArray;
 
 /**
  * An implementation of IdService that's backed by an in-memory map instead of a database.

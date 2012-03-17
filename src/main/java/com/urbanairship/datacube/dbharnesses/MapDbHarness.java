@@ -14,6 +14,7 @@ import org.apache.log4j.Logger;
 import com.google.common.base.Optional;
 import com.urbanairship.datacube.Address;
 import com.urbanairship.datacube.Batch;
+import com.urbanairship.datacube.BoxedByteArray;
 import com.urbanairship.datacube.CasRetriesExhausted;
 import com.urbanairship.datacube.DbHarness;
 import com.urbanairship.datacube.Deserializer;
@@ -140,23 +141,6 @@ public class MapDbHarness<T extends Op> implements DbHarness<T> {
     @Override
     public List<Optional<T>> multiGet(List<Address> addresses) throws IOException {
         throw new NotImplementedException();
-    }
-    
-    public static class BoxedByteArray {
-        private final byte[] bytes;
-        
-        public BoxedByteArray(byte[] bytes) {
-            this.bytes = bytes;
-        }
-        
-        public int hashCode() {
-            return Arrays.hashCode(bytes);
-        }
-        
-        @Override
-        public boolean equals(Object o) {
-            return Arrays.equals(bytes, ((BoxedByteArray)o).bytes);
-        }
     }
 
 }
