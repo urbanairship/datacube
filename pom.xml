@@ -137,14 +137,14 @@
       <groupId>org.apache.hbase</groupId>
       <artifactId>hbase</artifactId>
       <version>0.90.4</version>
-      <scope>test</scope>
     </dependency>
 
     <dependency>
       <groupId>org.apache.hbase</groupId>
-      <artifactId>hbase-tests</artifactId>
+      <artifactId>hbase</artifactId>
       <version>0.90.4</version>
       <scope>test</scope>
+      <classifier>tests</classifier>
     </dependency>
 
    <!-- Needed for HBase minicluster testing, for MiniDFSCluster -->
