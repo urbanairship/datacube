@@ -15,8 +15,8 @@ import com.google.common.collect.Multimap;
 import com.google.common.collect.Sets;
 
 /**
- * A hypercube abstraction for storing number-like data. Good for slicing counters by any
- * number of dimensions.
+ * A hypercube abstraction for storing number-like data. Good for storing counts of events
+ * matching various criteria.
  * @param <T> the type of values stored in the cube. For example, a long counter could be
  * stored as a LongOp.
  */
@@ -46,6 +46,11 @@ public class DataCube<T extends Op> {
 
         bucketsOfInterest = HashMultimap.create();
 
+        if(dims.size() > Short.MAX_VALUE) {
+            throw new IllegalArgumentException("May not have more than " + Short.MAX_VALUE + 
+                    " dimensions");
+        }
+        
         for(Rollup rollup: rollups) {
             for(DimensionAndBucketType dimAndBucketType: rollup.getComponents()) {
                 bucketsOfInterest.put(dimAndBucketType.dimension, dimAndBucketType.bucketType);
@@ -62,7 +67,7 @@ public class DataCube<T extends Op> {
         Map<Address,T> outputMap = Maps.newHashMap(); 
         
         for(Rollup rollup: rollups) {
-            Address outputAddress = new Address();
+            Address outputAddress = new Address(this);
             
             // Start out with all dimensions wildcard, overwrite with other values later
             for(Dimension<?> dimension: dims) {

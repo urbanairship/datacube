@@ -28,7 +28,7 @@ public class DataCubeIo<T extends Op> {
         numUpdatesSinceFlush++;
     }
     
-    synchronized public void writeNoFlush(WriteBuilder c, T op) {
+    synchronized public void writeNoFlush(T op, WriteBuilder c) {
         updateBatchInMemory(c, op);
     }
     

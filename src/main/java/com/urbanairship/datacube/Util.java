@@ -19,7 +19,7 @@ public class Util {
     
     /**
      * Call this if you have a byte array to convert to long, but your array might need
-     * to be left-padded with zeros. 
+     * to be left-padded with zeros (if it is less than 8 bytes long). 
      */
     public static long bytesToLongPad(byte[] bytes) {
         final int padZeros = Math.max(8-bytes.length, 0);
@@ -42,4 +42,12 @@ public class Util {
         return ByteBuffer.wrap(bytes).getInt();
     }
 
+    public static byte[] leastSignificantBytes(long l, int numBytes) {
+        byte[] all8Bytes = Util.longToBytes(l);
+        return trailingBytes(all8Bytes, numBytes);
+    }
+
+    public static byte[] trailingBytes(byte[] bs, int numBytes) {
+        return Arrays.copyOfRange(bs, bs.length-numBytes, bs.length);
+    }
 }
