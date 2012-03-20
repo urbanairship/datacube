@@ -13,13 +13,14 @@ import com.google.common.collect.Maps;
 public class Address {
 //    private static final Logger log = LogManager.getLogger(Address.class);
     
-    private final Map<Dimension<?>,BucketTypeAndBucket> buckets;
+    private final Map<Dimension<?>,BucketTypeAndBucket> buckets = Maps.newHashMap();
+    private final DataCube<?> cube;
     
     private static final byte[] WILDCARD_FIELD = new byte[] {0};
     private static final byte[] NON_WILDCARD_FIELD = new byte[] {1};
     
-    public Address() {
-        buckets = Maps.newHashMap();
+    public Address(DataCube<?> cube) {
+        this.cube = cube;
     }
     
     public void at(Dimension<?> dimension, byte[] value) {
@@ -49,7 +50,9 @@ public class Address {
     /**
      * Get a byte array encoding the buckets of this cell in the Cube. For internal use only.
      */
-    public byte[] toKey(List<Dimension<?>> dimensions, IdService idService) throws IOException {
+    public byte[] toKey(IdService idService) throws IOException {
+        List<Dimension<?>> dimensions = cube.getDimensions();
+        
         boolean sawOnlyWildcardsSoFar = true;
         List<byte[]> reversedKeyElems = Lists.newArrayListWithCapacity(dimensions.size());
         
@@ -76,7 +79,9 @@ public class Address {
                 if(idService == null || !dimension.getDoIdSubstitution()) {
                     elem = bucketAndCoord.bucket;
                 } else {
-                    elem = idService.getId(dimension, bucketAndCoord.bucket); // throws IOException
+                    int dimensionNum = cube.getDimensions().indexOf(dimension);
+                    elem = idService.getId(dimensionNum, bucketAndCoord.bucket, 
+                            dimension.getNumFieldBytes()); // throws IOException
                 }
                 
                 if(elem.length != thisDimBucketLen) {

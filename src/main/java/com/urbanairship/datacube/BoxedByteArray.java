@@ -3,11 +3,9 @@ package com.urbanairship.datacube;
 import java.util.Arrays;
 
 import org.apache.commons.codec.binary.Hex;
-import org.apache.log4j.LogManager;
-import org.apache.log4j.Logger;
 
 public class BoxedByteArray {
-    private static final Logger log = LogManager.getLogger(BoxedByteArray.class);
+//    private static final Logger log = LogManager.getLogger(BoxedByteArray.class);
     
     public final byte[] bytes;
     

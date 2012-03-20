@@ -18,7 +18,6 @@ import com.urbanairship.datacube.BoxedByteArray;
 import com.urbanairship.datacube.CasRetriesExhausted;
 import com.urbanairship.datacube.DbHarness;
 import com.urbanairship.datacube.Deserializer;
-import com.urbanairship.datacube.Dimension;
 import com.urbanairship.datacube.IdService;
 import com.urbanairship.datacube.Op;
 
@@ -29,17 +28,15 @@ import com.urbanairship.datacube.Op;
 public class MapDbHarness<T extends Op> implements DbHarness<T> {
     private final static Logger log = LogManager.getLogger(MapDbHarness.class);
     
-    private final List<Dimension<?>> dimensions;
     private final ConcurrentMap<BoxedByteArray,byte[]> map;
     private final Deserializer<T> deserializer;
     private final CommitType commitType;
     private final int casRetries;
     private final IdService idService;
     
-    public MapDbHarness(List<Dimension<?>> dimensions, ConcurrentMap<BoxedByteArray,byte[]> map, 
+    public MapDbHarness(/*List<Dimension<?>> dimensions, */ConcurrentMap<BoxedByteArray,byte[]> map, 
             Deserializer<T> deserializer, CommitType commitType, int casRetries, 
             IdService idService) {
-        this.dimensions = dimensions;
         this.map = map;
         this.deserializer = deserializer;
         this.commitType = commitType;
@@ -57,7 +54,7 @@ public class MapDbHarness<T extends Op> implements DbHarness<T> {
             Address address = entry.getKey();
             T opFromBatch = entry.getValue();
 
-            BoxedByteArray mapKey = new BoxedByteArray(address.toKey(dimensions, idService));
+            BoxedByteArray mapKey = new BoxedByteArray(address.toKey(/*dimensions,*/ idService));
             
             if(commitType == CommitType.READ_COMBINE_CAS) {
                 int casRetriesRemaining = casRetries;
@@ -125,7 +122,7 @@ public class MapDbHarness<T extends Op> implements DbHarness<T> {
     }
     
     private Optional<byte[]> getRaw(Address address) throws IOException {
-        byte[] mapKey = address.toKey(dimensions, idService);
+        byte[] mapKey = address.toKey(/*dimensions, */idService);
         byte[] bytes = map.get(new BoxedByteArray(mapKey));
         if(log.isDebugEnabled()) {
             log.debug("getRaw for key " + Hex.encodeHexString(mapKey) + " returned " + 

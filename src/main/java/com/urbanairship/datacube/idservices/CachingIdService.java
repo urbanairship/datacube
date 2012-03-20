@@ -14,7 +14,6 @@ import com.google.common.cache.LoadingCache;
 import com.google.common.cache.RemovalListener;
 import com.google.common.cache.RemovalNotification;
 import com.urbanairship.datacube.BoxedByteArray;
-import com.urbanairship.datacube.Dimension;
 import com.urbanairship.datacube.IdService;
 
 /**
@@ -27,28 +26,29 @@ import com.urbanairship.datacube.IdService;
 public class CachingIdService implements IdService {
     private final static Logger log = LogManager.getLogger(CachingIdService.class);
     
-    private final LoadingCache<DimensionAndBytes,byte[]> readThroughCache;
+    private final LoadingCache<Key,byte[]> readThroughCache;
     
     public CachingIdService(int numCached, final IdService wrappedIdService) {
         readThroughCache = CacheBuilder.newBuilder()
                 .maximumSize(numCached)
                 // We expect cache eviction to occur most often due to the size limit. However
-                // we also add a time limit so old eunused entries won't sit around on the
+                // we also add a time limit so old unused entries won't sit around on the
                 // heap forever.
                 .expireAfterAccess(1, TimeUnit.HOURS)
-                .removalListener(new RemovalListener<DimensionAndBytes,byte[]>() {
+                .removalListener(new RemovalListener<Key,byte[]>() {
                     @Override
-                    public void onRemoval(RemovalNotification<DimensionAndBytes, byte[]> notification) {
+                    public void onRemoval(RemovalNotification<Key, byte[]> notification) {
                         if(log.isDebugEnabled()) {
                             log.debug("Evicting cache key " + notification.getKey() + ", value " + 
                                     Hex.encodeHexString(notification.getValue()));
                         }
                     }
                 })
-                .build(new CacheLoader<DimensionAndBytes,byte[]>() {
+                .build(new CacheLoader<Key,byte[]>() {
                     @Override
-                    public byte[] load(final DimensionAndBytes key) throws IOException  {
-                        byte[] uniqueId = wrappedIdService.getId(key.dimension, key.bytes.bytes);
+                    public byte[] load(final Key key) throws IOException  {
+                        byte[] uniqueId = wrappedIdService.getId(key.dimensionNum, 
+                                key.bytes.bytes, key.idLength);
                         if(log.isDebugEnabled()) {
                             log.debug("Cache loader for key " + key + " returning " +
                                     Hex.encodeHexString(uniqueId));
@@ -60,10 +60,10 @@ public class CachingIdService implements IdService {
     
     
     @Override
-    public byte[] getId(Dimension<?> dimension, byte[] bytes) throws IOException {
+    public byte[] getId(int dimensionNum, byte[] bytes, int numIdBytes) throws IOException {
         try {
-            return readThroughCache.get(new DimensionAndBytes(dimension,
-                    new BoxedByteArray(bytes)));
+            return readThroughCache.get(new Key(dimensionNum, new BoxedByteArray(bytes), 
+                    numIdBytes));
         } catch (ExecutionException e) {
             Throwable cause = e.getCause();
             if(cause instanceof IOException) {
@@ -75,35 +75,47 @@ public class CachingIdService implements IdService {
                 
     }
     
-    private class DimensionAndBytes {
-        private final Dimension<?> dimension;
+    private class Key {
+        private final int dimensionNum;
         private final BoxedByteArray bytes;
+        private final int idLength;
         
-        public DimensionAndBytes(Dimension<?> dimension, BoxedByteArray bytes) {
-            this.dimension = dimension;
+        public Key(int dimensionNum, BoxedByteArray bytes, int idLength) {
+            this.dimensionNum = dimensionNum;
             this.bytes = bytes;
+            this.idLength = idLength;
         }
-        
+
+        public String toString() {
+            StringBuilder sb = new StringBuilder();
+            sb.append("(");
+            sb.append(dimensionNum);
+            sb.append(",");
+            sb.append(bytes);
+            sb.append(")");
+            return sb.toString();
+        }
+
         @Override
         public int hashCode() {
             final int prime = 31;
             int result = 1;
             result = prime * result + getOuterType().hashCode();
             result = prime * result + ((bytes == null) ? 0 : bytes.hashCode());
-            result = prime * result + ((dimension == null) ? 0 : dimension.hashCode());
+            result = prime * result + dimensionNum;
+            result = prime * result + idLength;
             return result;
         }
-        
+
         @Override
         public boolean equals(Object obj) {
-//            log.error("*** equals running with this=" + this + " and other=" + obj);
             if (this == obj)
                 return true;
             if (obj == null)
                 return false;
             if (getClass() != obj.getClass())
                 return false;
-            DimensionAndBytes other = (DimensionAndBytes) obj;
+            Key other = (Key) obj;
             if (!getOuterType().equals(other.getOuterType()))
                 return false;
             if (bytes == null) {
@@ -111,26 +123,15 @@ public class CachingIdService implements IdService {
                     return false;
             } else if (!bytes.equals(other.bytes))
                 return false;
-            if (dimension == null) {
-                if (other.dimension != null)
-                    return false;
-            } else if (!dimension.equals(other.dimension))
+            if (dimensionNum != other.dimensionNum)
+                return false;
+            if (idLength != other.idLength)
                 return false;
             return true;
         }
+
         private CachingIdService getOuterType() {
             return CachingIdService.this;
         }
-        
-        public String toString() {
-            StringBuilder sb = new StringBuilder();
-            sb.append("(");
-            sb.append(dimension);
-            sb.append(",");
-            sb.append(bytes);
-            sb.append(")");
-            return sb.toString();
-        }
-        
     }
 }

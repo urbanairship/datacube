@@ -4,8 +4,12 @@ package com.urbanairship.datacube;
  * Use this to specify the location of a cell to read from a datacube.
  */
 public class ReadAddressBuilder {
-    private final Address address = new Address();
+    private final Address address;
     boolean built = false;
+    
+    public ReadAddressBuilder(DataCube<?> cube) {
+        address = new Address(cube);
+    }
 
     public <O> ReadAddressBuilder at(Dimension<?> dimension, O coordinate) {
         this.at(dimension, BucketType.IDENTITY, coordinate);
