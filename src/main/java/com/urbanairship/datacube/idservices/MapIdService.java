@@ -9,7 +9,6 @@ import org.apache.log4j.Logger;
 
 import com.google.common.collect.Maps;
 import com.urbanairship.datacube.BoxedByteArray;
-import com.urbanairship.datacube.Dimension;
 import com.urbanairship.datacube.IdService;
 import com.urbanairship.datacube.Util;
 
@@ -20,32 +19,23 @@ import com.urbanairship.datacube.Util;
 public class MapIdService implements IdService {
     private static final Logger log = LogManager.getLogger(MapIdService.class);
     
-    private final Map<Dimension<?>,Map<BoxedByteArray,Long>> idMap = Maps.newHashMap();
-    private final Map<Dimension<?>,Long> nextIds = Maps.newHashMap();
+    private final Map<Integer,Map<BoxedByteArray,Long>> idMap = Maps.newHashMap();
+    private final Map<Integer,Long> nextIds = Maps.newHashMap();
     
     @Override
-    public byte[] getId(Dimension<?> dimension, byte[] bytes) {
-        if(!dimension.getDoIdSubstitution()) {
-            throw new RuntimeException("Substitution is not enabled for the dimension " + 
-                    dimension);
-        }
-            
-        int numFieldBytes = dimension.getNumFieldBytes(); 
+    public byte[] getId(int dimensionNum, byte[] bytes, int numBytes) {
+        Validate.validateDimensionNum(numBytes);
+        Validate.validateNumIdBytes(numBytes);
         
-        if(numFieldBytes > 8) {
-            throw new IllegalArgumentException("ID lengths > 8 are not supported. Do you " +
-                    "really need more than 2^64 unique identifiers?");
-        }
-
-        Map<BoxedByteArray,Long> idMapForDimension = idMap.get(dimension);
+        Map<BoxedByteArray,Long> idMapForDimension = idMap.get(dimensionNum);
         
         if(idMapForDimension == null) {
             // This is the first request for this dimension. Create a new map for the dimension.
             if(log.isDebugEnabled()) {
-                log.debug("Creating new id map for dimension " + dimension);
+                log.debug("Creating new id map for dimension " + dimensionNum);
             }
             idMapForDimension = Maps.newHashMap();
-            idMap.put(dimension, idMapForDimension);
+            idMap.put(dimensionNum, idMapForDimension);
         }
         
         BoxedByteArray inputBytes = new BoxedByteArray(bytes);
@@ -53,35 +43,28 @@ public class MapIdService implements IdService {
         
         if(id == null) { 
             // We have never seen this input before. Assign it a new ID. 
-            
-            id = nextIds.get(dimension);
-            
+            id = nextIds.get(dimensionNum);
             if(id == null) {
                 // We've never assigned an ID for this dimension+length. Start at 0.
                 id = 0L;
             }
-
  
             // Remember this ID assignment, future requests should get the same ID
             idMapForDimension.put(inputBytes, id);
  
             // The next ID assigned for this dimension should be one greater than this one
             long nextId = id+1L;
-            if(nextId == 0) { // IDs wrapped around and would reuse ID 0 if we didn't abort
-                throw new RuntimeException("All unique IDs have been assigned!?!?");
-            }
-            nextIds.put(dimension, nextId);
-
+            nextIds.put(dimensionNum, nextId);
         }
         
         byte[] idBytesNotTruncated = Util.longToBytes(id);
-        byte[] idBytesTruncated = Arrays.copyOfRange(idBytesNotTruncated, 8-numFieldBytes, 8);
+        byte[] idBytesTruncated = Arrays.copyOfRange(idBytesNotTruncated, 8-numBytes, 8);
         assert Util.bytesToLongPad(idBytesNotTruncated) == Util.bytesToLongPad(idBytesTruncated);
-        assert idBytesTruncated.length == numFieldBytes;
+        assert idBytesTruncated.length == numBytes;
         
         if(log.isDebugEnabled()) {
             log.debug("Returning unique ID " + Hex.encodeHexString(idBytesTruncated) + 
-                    " for dimension " + dimension + " input " + Hex.encodeHexString(bytes));
+                    " for dimension " + dimensionNum + " input " + Hex.encodeHexString(bytes));
         }
         return idBytesTruncated;
     }

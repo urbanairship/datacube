@@ -46,6 +46,11 @@ public class DataCube<T extends Op> {
 
         bucketsOfInterest = HashMultimap.create();
 
+        if(dims.size() > Short.MAX_VALUE) {
+            throw new IllegalArgumentException("May not have more than " + Short.MAX_VALUE + 
+                    " dimensions");
+        }
+        
         for(Rollup rollup: rollups) {
             for(DimensionAndBucketType dimAndBucketType: rollup.getComponents()) {
                 bucketsOfInterest.put(dimAndBucketType.dimension, dimAndBucketType.bucketType);

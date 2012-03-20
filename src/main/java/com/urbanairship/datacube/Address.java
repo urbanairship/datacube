@@ -79,7 +79,9 @@ public class Address {
                 if(idService == null || !dimension.getDoIdSubstitution()) {
                     elem = bucketAndCoord.bucket;
                 } else {
-                    elem = idService.getId(dimension, bucketAndCoord.bucket); // throws IOException
+                    int dimensionNum = cube.getDimensions().indexOf(dimension);
+                    elem = idService.getId(dimensionNum, bucketAndCoord.bucket, 
+                            dimension.getNumFieldBytes()); // throws IOException
                 }
                 
                 if(elem.length != thisDimBucketLen) {

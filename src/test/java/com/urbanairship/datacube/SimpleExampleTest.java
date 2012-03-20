@@ -27,6 +27,6 @@ public class SimpleExampleTest {
         DbHarness<LongOp> dbHarness = new MapDbHarness<LongOp>(backingMap, 
                 LongOp.DESERIALIZER, CommitType.READ_COMBINE_CAS, 3, idService);
         
-        Tests.basicTest(dbHarness);
+        DbHarnessTests.basicTest(dbHarness);
     }
 }
