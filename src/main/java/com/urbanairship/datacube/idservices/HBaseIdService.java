@@ -145,7 +145,6 @@ public class HBaseIdService implements IdService {
         if(log.isDebugEnabled()) {
             log.debug("Allocated new id " + id);
         }
-
         
         final long maxId = LongMath.pow(2L, numIdBytes * 8);
         if(id > maxId) {
