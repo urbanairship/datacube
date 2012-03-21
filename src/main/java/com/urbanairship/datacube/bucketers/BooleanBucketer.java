@@ -10,7 +10,10 @@ import com.urbanairship.datacube.serializables.LongSerializable;
 import java.util.List;
 
 /**
- *
+ *  BooleanBucketer
+ *  You can use this bucketer for cases where:
+ *  - You have a cube coordinate that is boolean
+ *  - You want to store that boolean as a byte[0] for false or a byte[1] for true.
  */
 
 public class BooleanBucketer implements Bucketer<Boolean> {
