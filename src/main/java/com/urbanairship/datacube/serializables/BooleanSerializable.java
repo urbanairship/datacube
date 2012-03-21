@@ -6,18 +6,20 @@ import com.urbanairship.datacube.CSerializable;
 *   Use this in your bucketer if you're using booleans as dimension coordinates.
  */
 public class BooleanSerializable implements CSerializable{
-    private final Boolean bool;
+    private final boolean bool;
+    private static final byte[] FALSE_SERIAL = new byte[]{0};
+    private static final byte[] TRUE_SERIAL = new byte[]{1};
 
-    public BooleanSerializable(Boolean bool){
+    public BooleanSerializable(boolean bool){
         this.bool = bool;
     }
 
     @Override
     public byte[] serialize() {
-        byte[] value = new byte[0];
         if (this.bool){
-            value = new byte[1];
+            return TRUE_SERIAL;
+        } else {
+            return FALSE_SERIAL;
         }
-        return value;
     }
 }

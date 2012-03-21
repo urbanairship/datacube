@@ -5,7 +5,6 @@ import com.urbanairship.datacube.BucketType;
 import com.urbanairship.datacube.Bucketer;
 import com.urbanairship.datacube.CSerializable;
 import com.urbanairship.datacube.serializables.BooleanSerializable;
-import com.urbanairship.datacube.serializables.LongSerializable;
 
 import java.util.List;
 
