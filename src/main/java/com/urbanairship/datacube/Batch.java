@@ -27,7 +27,7 @@ public class Batch<T extends Op> {
             if(alreadyExistingVal == null) {
                 newVal = entry.getValue();
             } else {
-                newVal = (T)alreadyExistingVal.combine(entry.getValue());
+                newVal = (T)alreadyExistingVal.add(entry.getValue());
             }
             this.map.put(c, newVal);
         }

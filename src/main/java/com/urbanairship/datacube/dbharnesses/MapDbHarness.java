@@ -64,7 +64,7 @@ public class MapDbHarness<T extends Op> implements DbHarness<T> {
                     T newOp;
                     if(oldBytes.isPresent()) {
                         T oldOp = deserializer.fromBytes(oldBytes.get());
-                        newOp = (T)opFromBatch.combine(oldOp);
+                        newOp = (T)opFromBatch.add(oldOp);
                         if(log.isDebugEnabled()) {
                             log.debug("Combined " + oldOp + " and " +  opFromBatch + " into " +
                                     newOp);
@@ -89,7 +89,7 @@ public class MapDbHarness<T extends Op> implements DbHarness<T> {
                             // null is returned when there was no existing mapping for the 
                             // given key, which is the success case.
                             if(log.isDebugEnabled()) {
-                                log.debug("Successful CAS insert without existing value for key " + 
+                                log.debug("Successful CAS insert without existing key for key " + 
                                         Hex.encodeHexString(mapKey.bytes) + " with " + 
                                         Hex.encodeHexString(newOp.serialize()));
                             }

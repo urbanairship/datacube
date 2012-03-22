@@ -15,7 +15,8 @@ public class LongOp implements Op {
         this.val = val;
     }
 
-    public Op combine(Op otherOp) {
+    @Override
+    public Op add(Op otherOp) {
         if(!(otherOp instanceof LongOp)) {
             throw new RuntimeException();
         }
@@ -23,16 +24,44 @@ public class LongOp implements Op {
     }
     
     @Override
+    public Op subtract(Op otherOp) {
+        return new LongOp(this.val - ((LongOp)otherOp).val);
+    }
+
+    /**
+     * Eclipse auto-generated
+     */
+    @Override
+    public int hashCode() {
+        final int prime = 31;
+        int result = 1;
+        result = prime * result + (int) (val ^ (val >>> 32));
+        return result;
+    }
+
+    /**
+     * Eclipse auto-generated
+     */
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj)
+            return true;
+        if (obj == null)
+            return false;
+        if (getClass() != obj.getClass())
+            return false;
+        LongOp other = (LongOp) obj;
+        if (val != other.val)
+            return false;
+        return true;
+    }
+
+    @Override
     public byte[] serialize() {
         return Util.longToBytes(val);
     }
 
     public static class LongOpDeserializer implements Deserializer<LongOp> {
-        /**
-         * Not instantiable, use the singleton in LongOp.DESERIALIZER. It's thread-safe.
-         */
-        protected LongOpDeserializer() { }
-        
         @Override
         public LongOp fromBytes(byte[] bytes) {
             return new LongOp(Util.bytesToLong(bytes));

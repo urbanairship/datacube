@@ -45,8 +45,8 @@ public interface IdService {
         }
         
         public static void validateNumIdBytes(int numIdBytes) {
-            if(numIdBytes <= 0 || numIdBytes > 8) {
-                throw new IllegalArgumentException("Strange numIdBytes value " + numIdBytes);
+            if(numIdBytes <= 0 || numIdBytes > 7) {
+                throw new IllegalArgumentException("Strange numIdBytes key " + numIdBytes);
             }
         }
     }

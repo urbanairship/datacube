@@ -20,7 +20,7 @@ import com.urbanairship.datacube.IdService;
  * An IdService that wraps around another IdService and caches its results. Calls to getId() are
  * served from the cache if present, or passed on to the wrapped IdService if not present.
  * 
- * Since input->uniqueID mappings areimmutable and consistent between nodes, we don't have to
+ * Since input->uniqueID mappings are immutable and consistent between nodes, we don't have to
  * deal with invalidation, so caching is straightforward.
  */
 public class CachingIdService implements IdService {
