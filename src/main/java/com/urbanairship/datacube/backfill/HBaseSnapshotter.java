@@ -8,16 +8,23 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.hbase.HColumnDescriptor;
+import org.apache.hadoop.hbase.HTableDescriptor;
 import org.apache.hadoop.hbase.KeyValue;
+import org.apache.hadoop.hbase.TableExistsException;
+import org.apache.hadoop.hbase.client.HBaseAdmin;
 import org.apache.hadoop.hbase.client.HTable;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.client.ResultScanner;
 import org.apache.hadoop.hbase.client.Scan;
 import org.apache.hadoop.hbase.io.ImmutableBytesWritable;
+import org.apache.hadoop.hbase.io.hfile.Compression.Algorithm;
 import org.apache.hadoop.hbase.mapreduce.HFileOutputFormat;
 import org.apache.hadoop.hbase.mapreduce.LoadIncrementalHFiles;
 import org.apache.hadoop.hbase.mapreduce.TableMapReduceUtil;
 import org.apache.hadoop.hbase.mapreduce.TableMapper;
+import org.apache.hadoop.hbase.regionserver.StoreFile.BloomType;
+import org.apache.hadoop.hbase.util.Pair;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
@@ -38,14 +45,20 @@ public class HBaseSnapshotter implements Runnable {
     private final byte[] cf;
     private final Configuration conf;
     private final Path hfileOutputPath;
+    private final boolean okIfTableExists;
 
+    /**
+     * @param okIfTableExists if the destination table already exists, and this bool is false,
+     * then there will be a TableExistsException.
+     */
     public HBaseSnapshotter(Configuration conf, byte[] sourceTable, byte[] cf,
-            byte[] destTable, Path hfileOutputPath) {
+            byte[] destTable, Path hfileOutputPath, boolean okIfTableExists) {
         this.sourceTableName = sourceTable;
         this.destTableName = destTable;
         this.conf = conf;
         this.hfileOutputPath = hfileOutputPath;
         this.cf = cf;
+        this.okIfTableExists = okIfTableExists;
     }
 
     /**
@@ -63,18 +76,32 @@ public class HBaseSnapshotter implements Runnable {
     
     public boolean runWithCheckedExceptions() throws IOException, InterruptedException {
         HTable destHTable = null;
+        HTable sourceHTable = null;
         ResultScanner destScanner = null;
         try {
             Job job = new Job(conf);
-            destHTable = new HTable(conf, destTableName);
             
-            destScanner = destHTable.getScanner(cf);
-            if(destScanner.iterator().hasNext()) {
-                destScanner.close();
-                log.error("Snapshotter won't run because destination CF isn't empty");
-                return false;
+            sourceHTable = new HTable(conf, sourceTableName);
+            Pair<byte[][],byte[][]> regionStartsEnds = sourceHTable.getStartEndKeys();
+            
+            HBaseAdmin admin = new HBaseAdmin(conf);
+            if(admin.tableExists(destTableName)) {
+                if(!okIfTableExists) {
+                    throw new TableExistsException(new String(destTableName) + " already exists");
+                }
+            } else {
+                createSnapshotTable(conf, destTableName, 
+                        BackfillUtil.getSplitKeys(regionStartsEnds), cf);                
             }
-            destScanner.close();
+           
+            destHTable = new HTable(conf, destTableName);
+//            destScanner = destHTable.getScanner(cf);
+//            if(destScanner.iterator().hasNext()) {
+//                destScanner.close();
+//                log.error("Snapshotter won't run because destination CF isn't empty");
+//                return false;
+//            }
+//            destScanner.close();
             
             job.setJobName("DataCube HBase snapshotter");
             HFileOutputFormat.configureIncrementalLoad(job, destHTable);
@@ -120,12 +147,11 @@ public class HBaseSnapshotter implements Runnable {
                 throw new RuntimeException(errMsg);
             }
             
+            
             destScanner = destHTable.getScanner(cf);
             if(!destScanner.iterator().hasNext()) {
                 log.warn("Destination CF was empty after snapshotting");
             }
-            destScanner.close();
-            
             return true;
         } catch (ClassNotFoundException e) { // Mapreduce throws this
             throw new RuntimeException(e);
@@ -136,9 +162,23 @@ public class HBaseSnapshotter implements Runnable {
             if (destHTable != null) {
                 destHTable.close();
             }
+            if(sourceHTable != null) {
+                sourceHTable.close();
+            }
         }
     }
-        
+    
+    private static void createSnapshotTable(Configuration conf, byte[] tableName, byte[][] splitKeys,
+            byte[] cf) throws IOException {
+        HBaseAdmin hba = new HBaseAdmin(conf);
+        HColumnDescriptor cfDesc = new HColumnDescriptor(cf);
+        cfDesc.setBloomFilterType(BloomType.NONE);
+        cfDesc.setMaxVersions(1);
+        cfDesc.setCompressionType(Algorithm.NONE); // TODO change to snappy in 0.92
+        HTableDescriptor tableDesc = new HTableDescriptor(tableName);
+        tableDesc.addFamily(cfDesc);
+        hba.createTable(tableDesc, splitKeys);
+    }   
     
     public static class ResultToKvsMapper extends TableMapper<ImmutableBytesWritable,KeyValue> {
         @Override
@@ -150,4 +190,6 @@ public class HBaseSnapshotter implements Runnable {
             }
         }
     }
+    
+    
 }

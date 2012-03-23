@@ -3,10 +3,13 @@ package com.urbanairship.datacube.backfill;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 
+import org.apache.commons.lang.ArrayUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.client.HTable;
 import org.apache.hadoop.hbase.client.Scan;
+import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.hadoop.hbase.util.Pair;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.lib.output.NullOutputFormat;
@@ -23,6 +26,8 @@ import com.urbanairship.datacube.collectioninputformat.CollectionInputFormat;
  *  (3) Merge the snapshot, the backfill table, and the live cube, making changes to the live cube.
  *  
  *  This MR job does step 3.
+ *  
+ *  TODO InputSplit locality for mapreduce
  */
 public class HBaseBackfillMerger implements Runnable {
     private static final Logger log = LogManager.getLogger(HBaseBackfillMerger.class);
@@ -34,15 +39,23 @@ public class HBaseBackfillMerger implements Runnable {
     static final String CONFKEY_DESERIALIZER = "hbasebackfiller.deserializerClassName";
     
     private final Configuration conf;
+    private final byte[] cubeNameKeyPrefix; 
     private final byte[] liveCubeTableName;
     private final byte[] snapshotTableName;
     private final byte[] backfilledTableName;
     private final byte[] cf;
     private final Class<? extends Deserializer<?>> opDeserializer;
     
-    public HBaseBackfillMerger(Configuration conf, byte[] liveCubeTableName, byte[] snapshotTableName,
-            byte[] backfilledTableName, byte[] cf, Class<? extends Deserializer<?>> opDeserializer) {
+    private static final byte ff = (byte)0xFF;
+    private static final byte[] fiftyBytesFF = new byte[] {ff, ff, ff, ff, ff, ff, ff, ff, ff, ff, ff,
+            ff, ff, ff, ff, ff, ff, ff, ff, ff, ff, ff, ff, ff, ff, ff, ff, ff, ff, ff, ff, ff, ff,
+            ff, ff, ff, ff, ff, ff, ff, ff, ff, ff, ff, ff, ff, ff, ff, ff, ff};
+    
+    public HBaseBackfillMerger(Configuration conf, byte[] cubeNameKeyPrefix, byte[] liveCubeTableName, 
+            byte[] snapshotTableName, byte[] backfilledTableName, byte[] cf, 
+            Class<? extends Deserializer<?>> opDeserializer) {
         this.conf = conf;
+        this.cubeNameKeyPrefix = cubeNameKeyPrefix;
         this.liveCubeTableName = liveCubeTableName;
         this.snapshotTableName = snapshotTableName;
         this.backfilledTableName = backfilledTableName;
@@ -69,9 +82,14 @@ public class HBaseBackfillMerger implements Runnable {
             Job job = new Job(conf);
             backfilledHTable = new HTable(conf, backfilledTableName);
             
+            
+            Pair<byte[][],byte[][]> allRegionsStartAndEndKeys = backfilledHTable.getStartEndKeys();
+            byte[][] internalSplitKeys = BackfillUtil.getSplitKeys(allRegionsStartAndEndKeys);
+            Collection<Scan> scans = scansThisCubeOnly(cubeNameKeyPrefix, internalSplitKeys);
+            
             // Get the scans that will cover this table, and store them in the job configuration to be used
             // as input splits.
-            Collection<Scan> scans = getScans(backfilledHTable);
+            
             if(log.isDebugEnabled()) {
                 log.debug("Scans: " + scans);
             }
@@ -109,26 +127,82 @@ public class HBaseBackfillMerger implements Runnable {
     }
     
     /**
-     * Get a collection of Scans, one per region, that cover the entire table.
+     * Get a collection of Scans, one per region, that cover the range of the table having the given
+     * key prefix. Thes will be used as the map task input splits.
      */
-    public static Collection<Scan> getScans(HTable hTable) throws IOException {
-        Pair<byte[][],byte[][]> startAndEndKeys = hTable.getStartEndKeys();
-        byte[][] startKeys = startAndEndKeys.getFirst();
-        byte[][] endKeys = startAndEndKeys.getSecond();
+    public static List<Scan> scansThisCubeOnly(byte[] keyPrefix, 
+            byte[][] splitKeys) throws IOException {
+        Scan copyScan = new Scan();
+        copyScan.setCaching(5000);
+        copyScan.setCacheBlocks(false);
         
-        if(startKeys.length != endKeys.length) {
-            throw new RuntimeException("Expected same number of start keys and end keys");
-        }
+        // Hack: generate a key that probably comes after all this cube's keys but doesn't include any
+        // keys not belonging to this cube.
+        byte[] keyAfterCube = ArrayUtils.addAll(keyPrefix, fiftyBytesFF);
         
-        Collection<Scan> scans = new ArrayList<Scan>(startKeys.length); 
-        for(int i=0; i<startKeys.length; i++) {
-            Scan scan = new Scan();
-            scan.setStartRow(startKeys[i]);
-            scan.setStopRow(endKeys[i]);
-            scan.setCacheBlocks(false);
-            scan.setCaching(5000);
-            scans.add(scan);
+        List<Scan> scans = new ArrayList<Scan>();
+        Scan scanUnderConstruction = new Scan(copyScan);
+        
+        for(byte[] splitKey: splitKeys) {
+            scanUnderConstruction.setStopRow(splitKey);
+
+            // Coerce scan to only touch keys belonging to this cube
+            Scan truncated = truncateScan(scanUnderConstruction, keyPrefix, keyAfterCube);
+            if(truncated != null) {
+                scans.add(truncated);
+            }
+
+            scanUnderConstruction = new Scan(copyScan);
+            scanUnderConstruction.setStartRow(splitKey);
         }
+
+        // There's another region from last split key to the end of the table.
+        Scan truncated = truncateScan(scanUnderConstruction, keyPrefix, keyAfterCube);
+        if(truncated != null) {
+            scans.add(truncated);
+        }
+
         return scans;
+    }
+    
+    /**
+     * Given a scan and a key range, return a new Scan whose range is truncated to only include keys in 
+     * that range. Returns null if the Scan does not overlap the given range. 
+     */
+    private static final Scan truncateScan(Scan scan, byte[] rangeStart, byte[] rangeEnd) {
+        byte[] scanStart = scan.getStartRow();
+        byte[] scanEnd = scan.getStopRow();
+        
+        if(scanEnd.length > 0 && bytesCompare(scanEnd, rangeStart) <= 0) {
+            // The entire scan range is before the entire cube key range
+            return null;
+        } else if(scanStart.length > 0 && bytesCompare(scanStart, rangeEnd) >= 0) {
+            // The entire scan range is after the entire cube key range
+            return null;
+        } else {
+            // Now we now that the scan range at least partially overlaps the cube key range.
+            Scan truncated;
+            try {
+                truncated = new Scan(scan); // make a copy, don't modify input scan
+            } catch (IOException e) {
+                throw new RuntimeException(); // This is not plausible
+            }
+            
+            if(scanStart.length == 0 || bytesCompare(rangeStart, scanStart) > 0) {
+                // The scan includes extra keys at the beginning that are not part of the cube. Move 
+                // the scan start point so that it only touches keys belonging to the cube.
+                truncated.setStartRow(rangeStart);
+            }
+            if(scanEnd.length == 0 || bytesCompare(rangeEnd, scanEnd) < 0) {
+                // The scan includes extra keys at the end that are not part of the cube. Move the
+                // scan end point so it only touches keys belonging to the cube.
+                truncated.setStopRow(rangeEnd);
+            }
+            return truncated;
+        }
+    }
+    
+    private static int bytesCompare(byte[] key1, byte[] key2) {
+        return Bytes.BYTES_RAWCOMPARATOR.compare(key1, key2);
     }
 }
