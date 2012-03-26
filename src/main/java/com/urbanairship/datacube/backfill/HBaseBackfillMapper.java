@@ -63,10 +63,6 @@ public class HBaseBackfillMapper extends Mapper<Scan,NullWritable,NullWritable,N
             Iterator<Result> snapshotIterator = snapshotScanner.iterator();
             Iterator<Result> backfilledIterator = backfilledScanner.iterator();
             
-            // Use batched writes for our updates to the live cube
-            liveCubeHTable.setAutoFlush(false);
-            liveCubeHTable.setWriteBufferSize(16 * 1024 * 1024);
-            
             MergeIterator<Result> mergeIt = new MergeIterator<Result>(ResultComparator.INSTANCE, 
                     ImmutableList.of(liveCubeIterator, snapshotIterator, backfilledIterator));
             
@@ -107,9 +103,6 @@ public class HBaseBackfillMapper extends Mapper<Scan,NullWritable,NullWritable,N
                     throw new RuntimeException("Unknown action");
                 }
             }
-            
-            // We're done. Flush any batched writes to the live cube
-            liveCubeHTable.flushCommits();
         } finally {
             if(liveCubeScanner != null) {
                 liveCubeScanner.close();

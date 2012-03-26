@@ -95,13 +95,6 @@ public class HBaseSnapshotter implements Runnable {
             }
            
             destHTable = new HTable(conf, destTableName);
-//            destScanner = destHTable.getScanner(cf);
-//            if(destScanner.iterator().hasNext()) {
-//                destScanner.close();
-//                log.error("Snapshotter won't run because destination CF isn't empty");
-//                return false;
-//            }
-//            destScanner.close();
             
             job.setJobName("DataCube HBase snapshotter");
             HFileOutputFormat.configureIncrementalLoad(job, destHTable);
