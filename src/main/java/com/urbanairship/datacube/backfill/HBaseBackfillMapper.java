@@ -244,16 +244,24 @@ public class HBaseBackfillMapper extends Mapper<Scan,NullWritable,NullWritable,N
         }
         
         // Case: snapshot empty, backfill empty, liveCube empty
-        // No such case, we won't be called, merge iterator doesn't run for nonexistent rows
-
+        // No such case, we won't be called, merge iterator doesn't return nonexistent rows
+        else if (snapshotOp == null && backfilledOp == null && liveCubeOp == null) {
+            throw new RuntimeException("This shouldn't happen, at least one of the ops must be " +
+                    "non-null");
+        }
+        
         // Case: snapshot exists, backfill exists, liveCube empty
         // Error, row should be in live cube if it's in the snapshot
+        else if (snapshotOp != null && backfilledOp != null && liveCubeOp == null) {
+            throw new RuntimeException("Row shouldn't have disappeared from live cube during " +
+            		"snapshotting, something weird is going on. (case 1)");
+        }
         
         // Case: snapshot exists, backfill empty, liveCube empty
         // Error, row should be in live cube if it's in the snapshot
-
         else {
-            throw new RuntimeException("Logic error, oops lol");
+            throw new RuntimeException("Row shouldn't have disappeared from live cube during " +
+                    "snapshotting, something weird is going on. (case 2)");
         }
     }
     
