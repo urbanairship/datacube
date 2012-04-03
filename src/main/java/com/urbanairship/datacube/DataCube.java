@@ -83,6 +83,7 @@ public class DataCube<T extends Op> {
                 byte[] bucket = writeBuilder.getBuckets().get(dimAndBucketType);
                 outputAddress.at(dimension, bucketType, bucket);
             }
+            
             outputMap.put(outputAddress, op);
         }
         

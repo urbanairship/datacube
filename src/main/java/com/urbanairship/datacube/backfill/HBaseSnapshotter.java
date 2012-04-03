@@ -46,19 +46,26 @@ public class HBaseSnapshotter implements Runnable {
     private final Configuration conf;
     private final Path hfileOutputPath;
     private final boolean okIfTableExists;
+    private final byte[] startKey;
+    private final byte[] stopKey;
 
     /**
      * @param okIfTableExists if the destination table already exists, and this bool is false,
      * then there will be a TableExistsException.
+     * @param startKey if non-null, the HBase scan will use this key as its start row
+     * @param stopKey if non-null, the HBase scan will use this key as its stop row 
      */
     public HBaseSnapshotter(Configuration conf, byte[] sourceTable, byte[] cf,
-            byte[] destTable, Path hfileOutputPath, boolean okIfTableExists) {
+            byte[] destTable, Path hfileOutputPath, boolean okIfTableExists, byte[] startKey,
+            byte[] stopKey) {
         this.sourceTableName = sourceTable;
         this.destTableName = destTable;
         this.conf = conf;
         this.hfileOutputPath = hfileOutputPath;
         this.cf = cf;
         this.okIfTableExists = okIfTableExists;
+        this.startKey = startKey;
+        this.stopKey = stopKey;
     }
 
     /**
@@ -95,19 +102,26 @@ public class HBaseSnapshotter implements Runnable {
             }
            
             destHTable = new HTable(conf, destTableName);
-            
-            job.setJobName("DataCube HBase snapshotter");
-            HFileOutputFormat.configureIncrementalLoad(job, destHTable);
-            HFileOutputFormat.setOutputPath(job, hfileOutputPath);
-            
+
             Scan scan = new Scan();
             scan.setCaching(5000);
             scan.addFamily(cf);
+            if(startKey != null) {
+                scan.setStartRow(startKey);
+            }
+            if(stopKey != null) {
+                scan.setStopRow(stopKey);
+            }
             
             TableMapReduceUtil.initTableMapperJob(new String(sourceTableName), scan,
                     ResultToKvsMapper.class, ImmutableBytesWritable.class, KeyValue.class, 
                     job);
-     
+
+            job.setJobName("DataCube HBase snapshotter");
+            job.setJarByClass(HBaseSnapshotter.class);
+            HFileOutputFormat.configureIncrementalLoad(job, destHTable);
+            HFileOutputFormat.setOutputPath(job, hfileOutputPath);
+            
             job.getConfiguration().set("mapred.map.tasks.speculative.execution", "false");
             job.getConfiguration().set("mapred.reduce.tasks.speculative.execution", "false");
             
@@ -183,6 +197,4 @@ public class HBaseSnapshotter implements Runnable {
             }
         }
     }
-    
-    
 }

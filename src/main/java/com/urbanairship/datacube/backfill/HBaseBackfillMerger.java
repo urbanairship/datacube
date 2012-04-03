@@ -82,7 +82,6 @@ public class HBaseBackfillMerger implements Runnable {
             Job job = new Job(conf);
             backfilledHTable = new HTable(conf, backfilledTableName);
             
-            
             Pair<byte[][],byte[][]> allRegionsStartAndEndKeys = backfilledHTable.getStartEndKeys();
             byte[][] internalSplitKeys = BackfillUtil.getSplitKeys(allRegionsStartAndEndKeys);
             Collection<Scan> scans = scansThisCubeOnly(cubeNameKeyPrefix, internalSplitKeys);

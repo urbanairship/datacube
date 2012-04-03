@@ -1,6 +1,5 @@
 package com.urbanairship.datacube.bucketers;
 
-import java.util.Arrays;
 import java.util.List;
 
 import com.google.common.collect.ImmutableList;
@@ -24,7 +23,7 @@ public class EnumToOrdinalBucketer<T extends Enum<?>>  implements Bucketer<T> {
                     " with the default identity bucketer");
         }
         int ordinal = coordinate.ordinal();
-        byte[] bytes = Arrays.copyOf(Util.intToBytes(ordinal), numBytes);
+        byte[] bytes = Util.trailingBytes(Util.intToBytes(ordinal), numBytes);
         
         return new BytesSerializable(bytes);
     }

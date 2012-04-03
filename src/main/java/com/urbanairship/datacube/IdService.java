@@ -15,9 +15,9 @@ import java.io.IOException;
  * Implementations can assume that numIdBytes will never change over the life of a cube for a
  * given dimension.
  * 
- * Implementations are not expected to be thread safe. However, multiple ID services may access
- * the same backing storage simultaneously, so some kind of concurrency control is required when
- * assigning IDs. It's not OK for the same input to be translated differently; if a
+ * Implementations are required to be thread safe. Also, implementations must assume that other JVMs
+ * will be sharing the underlying database, so some kind of external concurrency control is required 
+ * when assigning IDs. It's not OK for the same input to be translated differently; if a
  * particular input translates into a particular unique ID once, it must translate in the same
  * way everywhere else forever. Also, a unqiue ID must never be reused for different inputs. This 
  * means you must use locks, transactions, or compare-and-swap on your database when assigning 

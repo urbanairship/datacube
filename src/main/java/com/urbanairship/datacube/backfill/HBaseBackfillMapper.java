@@ -198,7 +198,7 @@ public class HBaseBackfillMapper extends Mapper<Scan,NullWritable,NullWritable,N
         //    new value is backfill
         // Else:
         //    new value is (live-snap) + backfill
-        if(liveCubeOp != null && backfilledOp != null && liveCubeOp != null) {
+        if(snapshotOp != null && backfilledOp != null && liveCubeOp != null) {
             if(liveCubeOp.equals(snapshotOp)) {
                 return new ActionRowKeyAndOp(Action.OVERWRITE, rowKey, backfilledOp);
             }

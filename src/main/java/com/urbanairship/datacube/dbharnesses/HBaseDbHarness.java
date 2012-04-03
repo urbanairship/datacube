@@ -49,7 +49,9 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
     public Optional<T> get(Address c) throws IOException {
         final byte[] rowKey = ArrayUtils.addAll(uniqueCubeName, c.toKey(idService));
         
-        Result result = WithHTable.get(pool, tableName, new Get(rowKey));
+        Get get = new Get(rowKey);
+        get.addFamily(cf);
+        Result result = WithHTable.get(pool, tableName, get);
         if(result == null || result.isEmpty()) {
             log.debug("Returning absent for address " + c);
             return Optional.absent();

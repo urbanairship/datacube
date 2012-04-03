@@ -1,7 +1,6 @@
 package com.urbanairship.datacube;
 
 import java.io.IOException;
-import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 
@@ -51,14 +50,12 @@ public class HBaseBackfillerTest {
     
     @BeforeClass
     public static void setupCluster() throws Exception {
-        // HBaseTestingUtility will NPE unless we set this
-        Configuration conf = new Configuration();
-        conf.set("hadoop.log.dir", "/tmp/test_logs");
-
-        hbaseTestUtil = new HBaseTestingUtility(conf);
-        
+        hbaseTestUtil = new HBaseTestingUtility();
         hbaseTestUtil.startMiniCluster();
+        
+        TestUtil.preventMiniClusterNPE(hbaseTestUtil);
         hbaseTestUtil.startMiniMapReduceCluster();
+
         cubeHTable = hbaseTestUtil.createTable(CUBE_DATA_TABLE, CF);
         backfilledHTable = hbaseTestUtil.createTable(BACKFILLED_TABLE, CF);
         idServiceLookupHTable = hbaseTestUtil.createTable(IDSERVICE_COUNTER_TABLE, CF);
@@ -69,6 +66,7 @@ public class HBaseBackfillerTest {
     public static void teardownCluster() throws Exception {
         hbaseTestUtil.shutdownMiniMapReduceCluster();
         hbaseTestUtil.shutdownMiniCluster();
+        TestUtil.cleanupHadoopLogs();
     }
     
     /**
@@ -90,13 +88,13 @@ public class HBaseBackfillerTest {
         
         // Snapshot the source table
         Assert.assertTrue(new HBaseSnapshotter(conf, CUBE_DATA_TABLE, CF, SNAPSHOT_DEST_TABLE,
-                new Path("hdfs:///test_hfiles"), false).runWithCheckedExceptions());
+                new Path("hdfs:///test_hfiles"), false, null, null).runWithCheckedExceptions());
         // The snapshot should be equal to the source table
         assertTablesEqual(conf, CUBE_DATA_TABLE, SNAPSHOT_DEST_TABLE);
         
         // Simulate a backfill by copying the live cube
         Assert.assertTrue(new HBaseSnapshotter(conf, CUBE_DATA_TABLE, CF, BACKFILLED_TABLE,
-                new Path("hdfs:///test_hfiles"), true).runWithCheckedExceptions());
+                new Path("hdfs:///test_hfiles"), true, null, null).runWithCheckedExceptions());
         
         // Since the backfilled table is identical to the snapshot, there should be no changes to the
         // live production table
@@ -125,7 +123,7 @@ public class HBaseBackfillerTest {
         
         // Copy the source table using the snapshotter
         Assert.assertTrue(new HBaseSnapshotter(conf, CUBE_DATA_TABLE, CF, SNAPSHOT_DEST_TABLE,
-                new Path("hdfs:///test_hfiles"), false).runWithCheckedExceptions());
+                new Path("hdfs:///test_hfiles"), false, null, null).runWithCheckedExceptions());
         
         // The snapshot should be equal to the source table
         assertTablesEqual(conf, CUBE_DATA_TABLE, SNAPSHOT_DEST_TABLE);
@@ -184,11 +182,11 @@ public class HBaseBackfillerTest {
         
         // Snapshot the source table
         Assert.assertTrue(new HBaseSnapshotter(conf, CUBE_DATA_TABLE, CF, SNAPSHOT_DEST_TABLE,
-                new Path("hdfs:///test_hfiles"), false).runWithCheckedExceptions());
+                new Path("hdfs:///test_hfiles"), false, null, null).runWithCheckedExceptions());
 
         // Simulate a backfill by copying the live cube
         Assert.assertTrue(new HBaseSnapshotter(conf, CUBE_DATA_TABLE, CF, BACKFILLED_TABLE,
-                new Path("hdfs:///test_hfiles"), true).runWithCheckedExceptions());
+                new Path("hdfs:///test_hfiles"), true, null, null).runWithCheckedExceptions());
         
         // Simulate two writes to the live table that wouldn't be seen by the app as it backfills.
         // This is like a client doing a write concurrently with a backfill.
