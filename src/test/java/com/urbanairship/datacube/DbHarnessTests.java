@@ -55,8 +55,6 @@ public class DbHarnessTests {
                 .at(time, differentHour)
                 .at(zipcode, "97201"));
 
-        System.err.println("Done inserting");
-        
         // Read back the value that we wrote for the current hour, should be 5 
         Optional<LongOp> thisHourCount = cubeIo.get(new ReadAddressBuilder(cube)
                 .at(time, HourDayMonthBucketer.hours, now)

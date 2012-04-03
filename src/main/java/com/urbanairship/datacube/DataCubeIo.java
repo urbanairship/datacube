@@ -6,7 +6,7 @@ import com.google.common.base.Optional;
 
 /**
  * A DataCube does no IO, it merely returns batches that can be executed. This class wraps
- * around a DataCube and does IO against a storage engine.
+ * around a DataCube and does IO against a storage backend.
  */
 public class DataCubeIo<T extends Op> {
     private final DbHarness<T> db;

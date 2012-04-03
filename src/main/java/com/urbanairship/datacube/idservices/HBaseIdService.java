@@ -138,14 +138,13 @@ public class HBaseIdService implements IdService {
          * same. This exclusion prevents unused IDs from being allocated if multiple threads
          * allocate an ID concurrently.
          * 
-         * Now we assign an ID by taking the next value of the counter for this dimension.
+         * Now we assign an ID by taking the next key of the counter for this dimension.
          */
         byte[] counterKey = makeCounterKey(dimensionNum);
         final long id = WithHTable.increment(pool, counterTable, counterKey, cf, QUALIFIER, 1L);
         if(log.isDebugEnabled()) {
             log.debug("Allocated new id " + id);
         }
-
         
         final long maxId = LongMath.pow(2L, numIdBytes * 8);
         if(id > maxId) {

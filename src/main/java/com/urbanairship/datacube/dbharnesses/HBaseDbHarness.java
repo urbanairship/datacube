@@ -32,7 +32,7 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
     private final byte[] cf;
     private final IdService idService;
     
-    private final static byte[] QUALIFIER = ArrayUtils.EMPTY_BYTE_ARRAY;
+    public final static byte[] QUALIFIER = ArrayUtils.EMPTY_BYTE_ARRAY;
     
     public HBaseDbHarness(Configuration hadoopConf, byte[] uniqueCubeName, byte[] tableName, 
             byte[] cf, Deserializer<T> deserializer, IdService idService) throws IOException{
@@ -49,13 +49,15 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
     public Optional<T> get(Address c) throws IOException {
         final byte[] rowKey = ArrayUtils.addAll(uniqueCubeName, c.toKey(idService));
         
-        Result result = WithHTable.get(pool, tableName, new Get(rowKey));
+        Get get = new Get(rowKey);
+        get.addFamily(cf);
+        Result result = WithHTable.get(pool, tableName, get);
         if(result == null || result.isEmpty()) {
             log.debug("Returning absent for address " + c);
             return Optional.absent();
         } else {
             T deserialized = deserializer.fromBytes(result.value());
-            log.debug("Returning value for address " + c + ": " + deserialized);
+            log.debug("Returning key for address " + c + ": " + deserialized);
             return Optional.of(deserialized);
         }
     }
@@ -76,7 +78,7 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
 
         T valToWrite;
         if(preexistingValInDb.isPresent()) {
-            valToWrite = (T)(preexistingValInDb.get().combine(op));
+            valToWrite = (T)(preexistingValInDb.get().add(op));
         } else {
             valToWrite = op;
         }

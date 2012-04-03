@@ -34,7 +34,7 @@ public class MapDbHarness<T extends Op> implements DbHarness<T> {
     private final int casRetries;
     private final IdService idService;
     
-    public MapDbHarness(/*List<Dimension<?>> dimensions, */ConcurrentMap<BoxedByteArray,byte[]> map, 
+    public MapDbHarness(ConcurrentMap<BoxedByteArray,byte[]> map, 
             Deserializer<T> deserializer, CommitType commitType, int casRetries, 
             IdService idService) {
         this.map = map;
@@ -54,7 +54,7 @@ public class MapDbHarness<T extends Op> implements DbHarness<T> {
             Address address = entry.getKey();
             T opFromBatch = entry.getValue();
 
-            BoxedByteArray mapKey = new BoxedByteArray(address.toKey(/*dimensions,*/ idService));
+            BoxedByteArray mapKey = new BoxedByteArray(address.toKey(idService));
             
             if(commitType == CommitType.READ_COMBINE_CAS) {
                 int casRetriesRemaining = casRetries;
@@ -64,7 +64,7 @@ public class MapDbHarness<T extends Op> implements DbHarness<T> {
                     T newOp;
                     if(oldBytes.isPresent()) {
                         T oldOp = deserializer.fromBytes(oldBytes.get());
-                        newOp = (T)opFromBatch.combine(oldOp);
+                        newOp = (T)opFromBatch.add(oldOp);
                         if(log.isDebugEnabled()) {
                             log.debug("Combined " + oldOp + " and " +  opFromBatch + " into " +
                                     newOp);
@@ -89,7 +89,7 @@ public class MapDbHarness<T extends Op> implements DbHarness<T> {
                             // null is returned when there was no existing mapping for the 
                             // given key, which is the success case.
                             if(log.isDebugEnabled()) {
-                                log.debug("Successful CAS insert without existing value for key " + 
+                                log.debug("Successful CAS insert without existing key for key " + 
                                         Hex.encodeHexString(mapKey.bytes) + " with " + 
                                         Hex.encodeHexString(newOp.serialize()));
                             }
@@ -122,7 +122,7 @@ public class MapDbHarness<T extends Op> implements DbHarness<T> {
     }
     
     private Optional<byte[]> getRaw(Address address) throws IOException {
-        byte[] mapKey = address.toKey(/*dimensions, */idService);
+        byte[] mapKey = address.toKey(idService);
         byte[] bytes = map.get(new BoxedByteArray(mapKey));
         if(log.isDebugEnabled()) {
             log.debug("getRaw for key " + Hex.encodeHexString(mapKey) + " returned " + 
