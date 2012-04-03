@@ -78,7 +78,7 @@ public class HBaseBackfillIntegrationTest {
             Optional<LongOp> countOpt = dataCubeIo.get(new ReadAddressBuilder(oldCube)
                 .at(timeDimension, HourDayMonthBucketer.days, day));
             if(countOpt.isPresent()) {
-                return countOpt.get().getValue();
+                return countOpt.get().getLong();
             } else {
                 return 0L;
             }
@@ -88,7 +88,7 @@ public class HBaseBackfillIntegrationTest {
             Optional<LongOp> countOpt = dataCubeIo.get(new ReadAddressBuilder(oldCube)
                 .at(timeDimension, HourDayMonthBucketer.hours, hour));
             if(countOpt.isPresent()) {
-                return countOpt.get().getValue();
+                return countOpt.get().getLong();
             } else {
                 return 0L;
             }
@@ -116,7 +116,7 @@ public class HBaseBackfillIntegrationTest {
                     .at(timeDimension, HourDayMonthBucketer.hours, hour)
                     .at(colorDimension, color));
             if(countOpt.isPresent()) {
-                return countOpt.get().getValue();
+                return countOpt.get().getLong();
             } else {
                 return 0L;
             }
@@ -126,7 +126,7 @@ public class HBaseBackfillIntegrationTest {
             Optional<LongOp> countOpt = dataCubeIo.get(new ReadAddressBuilder(newCube)
                 .at(timeDimension, HourDayMonthBucketer.hours, hour));
             if(countOpt.isPresent()) {
-                return countOpt.get().getValue();
+                return countOpt.get().getLong();
             } else {
                 return 0L;
             }
@@ -136,7 +136,7 @@ public class HBaseBackfillIntegrationTest {
             Optional<LongOp> countOpt = dataCubeIo.get(new ReadAddressBuilder(newCube)
                 .at(timeDimension, HourDayMonthBucketer.days, day));
             if(countOpt.isPresent()) {
-                return countOpt.get().getValue();
+                return countOpt.get().getLong();
             } else {
                 return 0L;
             }

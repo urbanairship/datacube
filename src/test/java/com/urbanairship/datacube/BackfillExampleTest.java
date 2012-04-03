@@ -100,7 +100,7 @@ public class BackfillExampleTest {
             Optional<LongOp> countOpt = dataCubeIo.get(new ReadAddressBuilder(dataCube)
                 .at(timeDimension, HourDayMonthBucketer.days, day));
             if(countOpt.isPresent()) {
-                return countOpt.get().getValue();
+                return countOpt.get().getLong();
             } else {
                 return 0L;
             }
@@ -110,7 +110,7 @@ public class BackfillExampleTest {
             Optional<LongOp> countOpt = dataCubeIo.get(new ReadAddressBuilder(dataCube)
                 .at(timeDimension, HourDayMonthBucketer.hours, hour));
             if(countOpt.isPresent()) {
-                return countOpt.get().getValue();
+                return countOpt.get().getLong();
             } else {
                 return 0L;
             }

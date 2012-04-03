@@ -9,7 +9,8 @@ import com.google.common.collect.Multimap;
 public class WriteBuilder {
     private final Multimap<Dimension<?>,BucketType> bucketsOfInterest;
     private final Map<DimensionAndBucketType,byte[]> buckets = Maps.newHashMap(); 
-
+    private Map<RollupFilter,Object> filterAttachments = Maps.newHashMap();
+    
     public WriteBuilder(DataCube<?> cube) {
         this.bucketsOfInterest = cube.getBucketsOfInterest();
     }
@@ -30,6 +31,19 @@ public class WriteBuilder {
             buckets.put(new DimensionAndBucketType(dimension, bucketType), bucket);
         }
         return this;
+    }
+    
+    /**
+     * Attach an arbitrary object to this write. This object will be presented to the rollup
+     * filters, so they can use it to make filtering decisions.
+     */
+    public WriteBuilder attachForRollupFilter(RollupFilter rollupFilter, Object attachment) {
+        filterAttachments.put(rollupFilter, attachment);
+        return this;
+    }
+    
+    Map<RollupFilter,Object> getRollupFilterAttachments() {
+        return filterAttachments;
     }
     
     public Map<DimensionAndBucketType,byte[]> getBuckets() {
