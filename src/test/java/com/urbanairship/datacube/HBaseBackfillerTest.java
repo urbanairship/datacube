@@ -201,9 +201,9 @@ public class HBaseBackfillerTest {
         // After everyhing's done, the two writes that occurred concurrently with the backfill
         // should be seen in the live table. coord1 should be 5+6=11 and coord2 should be 7.
         Assert.assertEquals(11L, 
-                cubeIo.get(new ReadAddressBuilder(cube).at(onlyDimension, "coord1")).get().getValue());
+                cubeIo.get(new ReadAddressBuilder(cube).at(onlyDimension, "coord1")).get().getLong());
         Assert.assertEquals(7L, 
-                cubeIo.get(new ReadAddressBuilder(cube).at(onlyDimension, "coord2")).get().getValue());
+                cubeIo.get(new ReadAddressBuilder(cube).at(onlyDimension, "coord2")).get().getLong());
     }
 
     public static void assertTablesEqual(Configuration conf, byte[] leftTableName, 

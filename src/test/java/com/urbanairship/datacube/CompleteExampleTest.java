@@ -186,7 +186,7 @@ public class CompleteExampleTest {
             if(!opt.isPresent()) {
                 return 0;
             } else {
-                return opt.get().getValue();
+                return opt.get().getLong();
             }
         }
         
@@ -198,7 +198,7 @@ public class CompleteExampleTest {
             if(!opt.isPresent()) {
                 return 0L;
             } else {
-                return opt.get().getValue();
+                return opt.get().getLong();
             }
         }
         
@@ -210,7 +210,7 @@ public class CompleteExampleTest {
             if(!opt.isPresent()) {
                 return 0L;
             } else {
-                return opt.get().getValue();
+                return opt.get().getLong();
             }
         }
         
@@ -221,7 +221,7 @@ public class CompleteExampleTest {
             if(!opt.isPresent()) {
                 return 0L;
             } else {
-                return opt.get().getValue();
+                return opt.get().getLong();
             }
         }
         
@@ -230,7 +230,7 @@ public class CompleteExampleTest {
             if(!opt.isPresent()) {
                 return 0L;
             } else {
-                return opt.get().getValue();
+                return opt.get().getLong();
             }
         }
         
@@ -243,7 +243,7 @@ public class CompleteExampleTest {
             if(!opt.isPresent()) {
                 return 0L;
             } else {
-                return opt.get().getValue();
+                return opt.get().getLong();
             }
         }
     }

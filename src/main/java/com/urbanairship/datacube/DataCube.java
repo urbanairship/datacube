@@ -9,6 +9,7 @@ import java.util.Set;
 import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
 
+import com.google.common.base.Optional;
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Multimap;
@@ -27,6 +28,7 @@ public class DataCube<T extends Op> {
     private final List<Rollup> rollups;
     private final Multimap<Dimension<?>,BucketType> bucketsOfInterest;
     private final Set<Set<DimensionAndBucketType>> validAddressSet;
+    private final Map<Rollup,RollupFilter> filters = Maps.newHashMap();
 
     /**
      * @param See {@link Dimension} 
@@ -84,7 +86,19 @@ public class DataCube<T extends Op> {
                 outputAddress.at(dimension, bucketType, bucket);
             }
             
-            outputMap.put(outputAddress, op);
+            
+            boolean shouldWrite = true;
+            
+            RollupFilter rollupFilter = filters.get(rollup); 
+            if(rollupFilter != null) {
+                Object attachment = writeBuilder.getRollupFilterAttachments().get(rollupFilter);
+                Optional<Object> attachmentOpt = Optional.fromNullable(attachment);
+                shouldWrite = rollupFilter.filter(outputAddress, attachmentOpt);
+            }
+            
+            if(shouldWrite) {
+                outputMap.put(outputAddress, op);
+            }
         }
         
         return new Batch<T>(outputMap);
@@ -139,4 +153,9 @@ public class DataCube<T extends Op> {
     Multimap<Dimension<?>,BucketType> getBucketsOfInterest() {
         return bucketsOfInterest;
     }
+    
+    public void addFilter(Rollup rollup, RollupFilter filter) {
+        filters.put(rollup, filter);
+    }
+    
 }

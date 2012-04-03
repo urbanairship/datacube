@@ -12,6 +12,9 @@ public class ReadAddressBuilder {
     }
 
     public <O> ReadAddressBuilder at(Dimension<?> dimension, O coordinate) {
+        if(dimension.isBucketed()) {
+            throw new IllegalArgumentException("This dimension requires you to specify a bucketType");
+        }
         this.at(dimension, BucketType.IDENTITY, coordinate);
         return this;
     }
