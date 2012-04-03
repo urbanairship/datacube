@@ -7,6 +7,8 @@ import com.google.common.base.Optional;
 /**
  * A DataCube does no IO, it merely returns batches that can be executed. This class wraps
  * around a DataCube and does IO against a storage backend.
+ * 
+ * Thread safe. Writes can block for a long time if another thread is flushing to the database.
  */
 public class DataCubeIo<T extends Op> {
     private final DbHarness<T> db;
@@ -16,6 +18,8 @@ public class DataCubeIo<T extends Op> {
     private Batch<T> batchInProgress = new Batch<T>();
     private int numUpdatesSinceFlush = 0;
 
+    private final Object lock = new Object();
+    
     public DataCubeIo(DataCube<T> cube, DbHarness<T> db, int batchSize) {
         this.cube = cube;
         this.db = db;
@@ -24,22 +28,26 @@ public class DataCubeIo<T extends Op> {
     
     private void updateBatchInMemory(WriteBuilder writeBuilder, T op) {
         Batch<T> newBatch = cube.getWrites(writeBuilder, op);
-        batchInProgress.putAll(newBatch);
-        numUpdatesSinceFlush++;
+        synchronized (lock) {
+            batchInProgress.putAll(newBatch);
+            numUpdatesSinceFlush++;
+        }
     }
     
-    synchronized public void writeNoFlush(T op, WriteBuilder c) {
+    public void writeNoFlush(T op, WriteBuilder c) {
         updateBatchInMemory(c, op);
     }
     
     /**
      * Do some writes into the in-memory batch, possibly flushing to the backing database.
      */
-    synchronized public void write(T op, WriteBuilder c) throws IOException {
+    public void write(T op, WriteBuilder c) throws IOException {
         updateBatchInMemory(c, op);
         
-        if(numUpdatesSinceFlush >= batchSize) {
-            flush();
+        synchronized (lock) {
+            if(numUpdatesSinceFlush >= batchSize) {
+                flush();
+            }
         }
     }
     
@@ -55,13 +63,13 @@ public class DataCubeIo<T extends Op> {
         return this.get(readBuilder.build());
     }
     
-    synchronized public void flush() throws IOException {
-        db.runBatch(batchInProgress);
-        numUpdatesSinceFlush = 0;
-        batchInProgress = new Batch<T>();
-    }
-    
-    synchronized void clearBatch() {
-        batchInProgress = new Batch<T>();
+    public void flush() throws IOException {
+        synchronized (lock) {
+            // We hold the lock while doing database IO. If the DB takes a long time,
+            // then other threads may block for a long time.
+            db.runBatch(batchInProgress);
+            numUpdatesSinceFlush = 0;
+            batchInProgress = new Batch<T>();
+        }
     }
 }
