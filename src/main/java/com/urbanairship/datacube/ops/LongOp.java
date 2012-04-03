@@ -72,7 +72,7 @@ public class LongOp implements Op {
         return Long.toString(val);
     }
     
-    public long getValue() {
+    public long getLong() {
         return val;
     }
 }

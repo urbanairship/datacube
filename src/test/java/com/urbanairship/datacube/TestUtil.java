@@ -6,7 +6,7 @@ import java.io.IOException;
 import org.apache.commons.io.FileUtils;
 import org.apache.hadoop.hbase.HBaseTestingUtility;
 
-public class TestUtil {
+public abstract class TestUtil {
     public static final String HADOOP_LOG_DIR = "/tmp/datacube_hadoop_logs";
     
     public static void preventMiniClusterNPE(HBaseTestingUtility hbaseTestUtil) {

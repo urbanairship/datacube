@@ -60,20 +60,20 @@ public class DbHarnessTests {
                 .at(time, HourDayMonthBucketer.hours, now)
                 .at(zipcode, "97201"));
         Assert.assertTrue(thisHourCount.isPresent());
-        Assert.assertEquals(5L, thisHourCount.get().getValue());
+        Assert.assertEquals(5L, thisHourCount.get().getLong());
         
         // Read back the value we wrote for the other hour, should be 10
         Optional<LongOp> differentHourCount = cubeIo.get(new ReadAddressBuilder(cube)
                 .at(time, HourDayMonthBucketer.hours, differentHour)
                 .at(zipcode, "97201"));
         Assert.assertTrue(differentHourCount.isPresent());
-        Assert.assertEquals(10L, differentHourCount.get().getValue());
+        Assert.assertEquals(10L, differentHourCount.get().getLong());
 
         // The total for today should be the sum of the two increments
         Optional<LongOp> todayCount = cubeIo.get(new ReadAddressBuilder(cube)
                 .at(time, HourDayMonthBucketer.days, now)
                 .at(zipcode, "97201"));
         Assert.assertTrue(todayCount.isPresent());
-        Assert.assertEquals(15L, todayCount.get().getValue());
+        Assert.assertEquals(15L, todayCount.get().getLong());
     }
 }
