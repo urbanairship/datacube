@@ -6,10 +6,9 @@ import java.util.List;
  * Describes a high-level dimension of the hypercube. For example, "time", "location",
  * and "color" would be possible dimensions.
  * 
- * @param <F> the type of the coordinates for this dimension. For example, a time dimension
- * might use the type DateTime or Long for its coordinates. As another example, a location 
- * dimension might use a custom LatLong type as its input coordinate. This is the type that will be passed as input 
- * to the bucketer for this dimension.
+ * @param <F> the type of the coordinates for this dimension. For example, a time dimension might use the type 
+ * DateTime or Long for its coordinates. As another example, a location dimension might use a custom LatLong type 
+ * as its input coordinate. This is the type that will be passed as input to the bucketer for this dimension.
  */
 public class Dimension<F> {
     private final String name;

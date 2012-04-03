@@ -29,13 +29,6 @@ public class DataCube<T extends Op> {
     private final Set<Set<DimensionAndBucketType>> validAddressSet;
 
     /**
-     * Use this constructor when you don't aggregate counters over multiple dimensions.
-     */
-    public DataCube(List<Dimension<?>> dims) {
-        this(dims, null);
-    }
-
-    /**
      * @param See {@link Dimension} 
      * @param rollups {@link Rollup}
      */
@@ -53,6 +46,16 @@ public class DataCube<T extends Op> {
         
         for(Rollup rollup: rollups) {
             for(DimensionAndBucketType dimAndBucketType: rollup.getComponents()) {
+                if(!dims.contains(dimAndBucketType.dimension)) {
+                    throw new IllegalArgumentException("Rollup dimension " + 
+                            dimAndBucketType.dimension + " is not a dimension in this cube");
+                }
+                
+                if(!dimAndBucketType.dimension.getBucketer().getBucketTypes().contains(dimAndBucketType.bucketType)) {
+                    throw new IllegalArgumentException("Rollup specified bucket type " + 
+                            dimAndBucketType.bucketType + " which doesn't exist for dimension " +
+                            dimAndBucketType.dimension);
+                }
                 bucketsOfInterest.put(dimAndBucketType.dimension, dimAndBucketType.bucketType);
             }
             validAddressSet.add(rollup.getComponents());
@@ -80,6 +83,7 @@ public class DataCube<T extends Op> {
                 byte[] bucket = writeBuilder.getBuckets().get(dimAndBucketType);
                 outputAddress.at(dimension, bucketType, bucket);
             }
+            
             outputMap.put(outputAddress, op);
         }
         

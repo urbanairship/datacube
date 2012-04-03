@@ -21,6 +21,13 @@ public class Rollup {
     /**
      * Convenient wrapper around {@link #Rollup(Set)} that builds a set for you.
      */
+    public Rollup(Dimension<?> d) {
+        this(ImmutableSet.of(new DimensionAndBucketType(d, BucketType.IDENTITY)));
+    }
+    
+    /**
+     * Convenient wrapper around {@link #Rollup(Set)} that builds a set for you.
+     */
     public Rollup(Dimension<?> d, BucketType bt) {
         this(ImmutableSet.of(new DimensionAndBucketType(d, bt)));
     }

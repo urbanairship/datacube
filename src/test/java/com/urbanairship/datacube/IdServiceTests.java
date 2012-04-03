@@ -19,7 +19,6 @@ public class IdServiceTests {
             byte[] newId = idService.getId(0, Util.longToBytes(i), numFieldBytes);
             Assert.assertEquals(numFieldBytes, newId.length);
             BoxedByteArray newBox = new BoxedByteArray(newId);
-            System.err.println("Adding box " + newBox);
             Assert.assertTrue("ID was repeated: " + newBox, idsSeen.add(newBox));
         }
         
