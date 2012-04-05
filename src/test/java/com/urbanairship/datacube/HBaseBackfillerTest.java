@@ -306,6 +306,7 @@ public class HBaseBackfillerTest {
         int count = 0;
         while(it.hasNext()) {
            count++;
+           it.next();
         }
         return count; 
     }
