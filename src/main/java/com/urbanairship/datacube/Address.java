@@ -7,6 +7,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
+import org.apache.commons.codec.binary.Hex;
+
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
@@ -98,7 +100,7 @@ public class Address {
                             " but the bucket prefix was " + Arrays.toString(bucketTypeId) +
                             " which had length" + bucketTypeId.length);
                 }
-                reversedKeyElems.add(bucketAndCoord.bucket);
+                reversedKeyElems.add(elem);
                 reversedKeyElems.add(bucketTypeId);
                 reversedKeyElems.add(NON_WILDCARD_FIELD);
             }
