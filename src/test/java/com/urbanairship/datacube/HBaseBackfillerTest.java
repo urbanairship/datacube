@@ -305,8 +305,7 @@ public class HBaseBackfillerTest {
     private static int iteratorCount(Iterator<?> it) {
         int count = 0;
         while(it.hasNext()) {
-            System.err.println(it.next());
-            count++;
+           count++;
         }
         return count; 
     }

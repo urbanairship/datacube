@@ -13,6 +13,7 @@ public interface RollupFilter {
      * {@link WriteBuilder#attachForRollupFilter(RollupFilter, Object)}, it will be passed to
      * the RollupFilter. This is a good way to provide a userid to check for uniqueness, for
      * example.
+     * @return whether the write should proceed (false to drop the write for this address).
      */
     public boolean filter(Address address, Optional<Object> attachment);
 }

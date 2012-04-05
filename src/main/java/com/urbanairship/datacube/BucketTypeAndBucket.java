@@ -8,7 +8,7 @@ import org.apache.commons.lang.ArrayUtils;
  * 
  * For example, bucket type "city" and bucket "portland."
  */
-class BucketTypeAndBucket {
+public class BucketTypeAndBucket {
     static final BucketTypeAndBucket WILDCARD = new BucketTypeAndBucket(BucketType.WILDCARD,
             ArrayUtils.EMPTY_BYTE_ARRAY);
     
