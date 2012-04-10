@@ -7,8 +7,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
-import org.apache.commons.codec.binary.Hex;
-
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
