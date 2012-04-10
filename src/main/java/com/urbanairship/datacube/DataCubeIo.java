@@ -65,6 +65,8 @@ public class DataCubeIo<T extends Op> {
     
     public void flush() throws IOException {
         synchronized (lock) {
+            DebugHack.log("Flushing cube with " + batchInProgress.getMap().size() + " writes");
+
             // We hold the lock while doing database IO. If the DB takes a long time,
             // then other threads may block for a long time.
             db.runBatch(batchInProgress);

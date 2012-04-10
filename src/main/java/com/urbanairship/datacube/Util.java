@@ -1,7 +1,14 @@
 package com.urbanairship.datacube;
 
+import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
+
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.hbase.client.HTable;
+import org.apache.hadoop.hbase.client.Result;
+import org.apache.hadoop.hbase.client.ResultScanner;
+import org.apache.hadoop.hbase.client.Scan;
 
 public class Util {
     public static byte[] longToBytes(long l) {
@@ -49,5 +56,29 @@ public class Util {
 
     public static byte[] trailingBytes(byte[] bs, int numBytes) {
         return Arrays.copyOfRange(bs, bs.length-numBytes, bs.length);
+    }
+    
+    /**
+     * Only use this for testing/debugging. Inefficient.
+     */
+    public static long countRows(Configuration conf, byte[] tableName) throws IOException {
+        HTable hTable = null;
+        ResultScanner rs = null;
+        long count = 0;
+        try {
+            hTable = new HTable(conf, tableName);
+            rs = hTable.getScanner(new Scan());
+            for(Result r: rs) {
+                count++;
+            }
+            return count;
+        } finally {
+            if(hTable != null) {
+                hTable.close();
+            }
+            if(rs != null) {
+                rs.close();
+            }
+        }
     }
 }
