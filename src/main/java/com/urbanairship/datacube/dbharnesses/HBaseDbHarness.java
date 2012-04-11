@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.lang.ArrayUtils;
 import org.apache.commons.lang.NotImplementedException;
@@ -76,12 +77,6 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
     public void writeOne(Address address, T op) throws IOException{
         byte[] addressAsBytes = address.toKey(idService);
         byte[] rowKey = ArrayUtils.addAll(uniqueCubeName, addressAsBytes);
-        if(DebugHack.isEnabled()) {
-            DebugHack.log("HBaseDbHarness.writeOne() writing to table=" + 
-                    new String(tableName) + " cf=" + new String(cf) + " row=" + 
-                    Hex.encodeHexString(rowKey));
-        }
-            
         
         Optional<T> preexistingValInDb = get(address);
 
@@ -91,9 +86,18 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
         } else {
             valToWrite = op;
         }
+
+        byte[] serializedOp = valToWrite.serialize();
+        
+        if(DebugHack.isEnabled()) {
+            DebugHack.log("HBaseDbHarness.writeOne() writing to table=" + 
+                    new String(tableName) + " cf=" + new String(cf) + " row=" + 
+                    Base64.encodeBase64String(rowKey) + " value=" + 
+                    Base64.encodeBase64String(serializedOp));
+        }
         
         Put put = new Put(rowKey);
-        put.add(cf, QUALIFIER, valToWrite.serialize());
+        put.add(cf, QUALIFIER, serializedOp);
         WithHTable.put(pool, tableName, put);
     }
     

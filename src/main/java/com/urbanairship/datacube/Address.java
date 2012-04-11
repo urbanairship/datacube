@@ -141,4 +141,37 @@ public class Address {
         sb.append(")");
         return sb.toString();
     }
+    
+    /** Eclipse auto-generated */
+    @Override
+    public int hashCode() {
+        final int prime = 31;
+        int result = 1;
+        result = prime * result + ((buckets == null) ? 0 : buckets.hashCode());
+        result = prime * result + ((cube == null) ? 0 : cube.hashCode());
+        return result;
+    }
+
+    /** Eclipse auto-generated */
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj)
+            return true;
+        if (obj == null)
+            return false;
+        if (getClass() != obj.getClass())
+            return false;
+        Address other = (Address) obj;
+        if (buckets == null) {
+            if (other.buckets != null)
+                return false;
+        } else if (!buckets.equals(other.buckets))
+            return false;
+        if (cube == null) {
+            if (other.cube != null)
+                return false;
+        } else if (!cube.equals(other.cube))
+            return false;
+        return true;
+    }
 }
