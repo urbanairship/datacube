@@ -1,5 +1,7 @@
 package com.urbanairship.datacube;
 
+import java.util.Arrays;
+
 import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.lang.ArrayUtils;
 
@@ -28,5 +30,33 @@ public class BucketTypeAndBucket {
         sb.append(Hex.encodeHex(bucket));
         sb.append(")");
         return sb.toString();
+    }
+
+    @Override
+    public int hashCode() {
+        final int prime = 31;
+        int result = 1;
+        result = prime * result + Arrays.hashCode(bucket);
+        result = prime * result + ((bucketType == null) ? 0 : bucketType.hashCode());
+        return result;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj)
+            return true;
+        if (obj == null)
+            return false;
+        if (getClass() != obj.getClass())
+            return false;
+        BucketTypeAndBucket other = (BucketTypeAndBucket) obj;
+        if (!Arrays.equals(bucket, other.bucket))
+            return false;
+        if (bucketType == null) {
+            if (other.bucketType != null)
+                return false;
+        } else if (!bucketType.equals(other.bucketType))
+            return false;
+        return true;
     }
 }
