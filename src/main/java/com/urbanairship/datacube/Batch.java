@@ -25,8 +25,10 @@ public class Batch<T extends Op> {
             T alreadyExistingVal = map.get(entry.getKey());
             T newVal;
             if(alreadyExistingVal == null) {
+//                DebugHack.log("No existing value in batch, not combining");
                 newVal = entry.getValue();
             } else {
+//                DebugHack.log("Combining entries in batch");
                 newVal = (T)alreadyExistingVal.add(entry.getValue());
             }
             this.map.put(c, newVal);

@@ -28,8 +28,8 @@ import com.urbanairship.datacube.ops.LongOp.LongOpDeserializer;
 public class HBaseBackfillIntegrationTest {
     private static enum Color {RED, BLUE};
     
-    private static final DateTime midnight = new DateTime(DateTimeZone.UTC).withHourOfDay(0)
-            .withMinuteOfHour(0).withSecondOfMinute(0).withMillisOfSecond(0);
+    private static final DateTime midnight = new DateTime(DateTimeZone.UTC).minusDays(1).
+            withHourOfDay(0).withMinuteOfHour(0).withSecondOfMinute(0).withMillisOfSecond(0);
     
     private static final byte[] LIVE_CUBE_TABLE = "live_cube_table".getBytes();
     private static final byte[] SNAPSHOT_TABLE = "snapshot_table".getBytes();

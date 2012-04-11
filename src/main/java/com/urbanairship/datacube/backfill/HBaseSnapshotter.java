@@ -194,7 +194,7 @@ public class HBaseSnapshotter implements Runnable {
         protected void map(ImmutableBytesWritable key, Result result,
                 Context context) throws IOException,
                 InterruptedException {
-            DebugHack.log("Snapshot mapper running");
+//            DebugHack.log("Snapshot mapper running");
             for(KeyValue kv: result.list()) {
                 context.write(key, kv);
             }
