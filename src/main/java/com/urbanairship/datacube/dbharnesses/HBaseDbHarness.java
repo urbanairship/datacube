@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.lang.ArrayUtils;
 import org.apache.commons.lang.NotImplementedException;
 import org.apache.hadoop.conf.Configuration;
@@ -18,6 +19,7 @@ import com.google.common.base.Optional;
 import com.urbanairship.datacube.Address;
 import com.urbanairship.datacube.Batch;
 import com.urbanairship.datacube.DbHarness;
+import com.urbanairship.datacube.DebugHack;
 import com.urbanairship.datacube.Deserializer;
 import com.urbanairship.datacube.IdService;
 import com.urbanairship.datacube.Op;
@@ -72,8 +74,15 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
     }
     
     public void writeOne(Address address, T op) throws IOException{
-        byte[] rowKey = ArrayUtils.addAll(uniqueCubeName, address.toKey(idService));
-
+        byte[] addressAsBytes = address.toKey(idService);
+        byte[] rowKey = ArrayUtils.addAll(uniqueCubeName, addressAsBytes);
+        if(DebugHack.isEnabled()) {
+            DebugHack.log("HBaseDbHarness.writeOne() writing to table=" + 
+                    new String(tableName) + " cf=" + new String(cf) + " row=" + 
+                    Hex.encodeHexString(rowKey));
+        }
+            
+        
         Optional<T> preexistingValInDb = get(address);
 
         T valToWrite;
