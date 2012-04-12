@@ -11,6 +11,11 @@ import com.google.common.base.Optional;
  * Implementations are not expected to be thread-safe.
  */
 public interface DbHarness<T extends Op> {
+    /**
+     * Apply some ops to the database, combining them with ops that might already be stored there.
+     * The passed batch will be modified by runBatch() to remove all ops that were successfully
+     * stored, so the batch will be empty when this function returns if there was no IOException.
+     */
     public void runBatch(Batch<T> batch) throws IOException;
     
     /**
