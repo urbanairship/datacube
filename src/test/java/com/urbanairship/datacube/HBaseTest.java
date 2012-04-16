@@ -38,7 +38,7 @@ public class HBaseTest {
         
         DbHarness<LongOp> hbaseDbHarness = new HBaseDbHarness<LongOp>(
                 hbaseTestUtil.getConfiguration(), "hbaseForCubeDataTest".getBytes(), 
-                CUBE_DATA_TABLE, CF, LongOp.DESERIALIZER, idService);
+                CUBE_DATA_TABLE, CF, LongOp.DESERIALIZER, idService, Integer.MAX_VALUE);
         
         DbHarnessTests.basicTest(hbaseDbHarness);
     }

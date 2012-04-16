@@ -1,5 +1,6 @@
 package com.urbanairship.datacube.dbharnesses;
 import java.io.IOException;
+import java.util.List;
 
 import org.apache.hadoop.hbase.client.Delete;
 import org.apache.hadoop.hbase.client.Get;
@@ -7,9 +8,14 @@ import org.apache.hadoop.hbase.client.HTableInterface;
 import org.apache.hadoop.hbase.client.HTablePool;
 import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.client.Result;
+import org.apache.hadoop.hbase.client.Row;
+import org.apache.log4j.LogManager;
+import org.apache.log4j.Logger;
 
 
 public class WithHTable {
+    private static final Logger log = LogManager.getLogger(WithHTable.class);
+    
     /**
      * Take an htable from the pool, use it with the given HTableRunnable, and return it to
      * the pool. This is the "loan pattern" where the htable resource is used temporarily by
@@ -89,6 +95,32 @@ public class WithHTable {
             @Override
             public Boolean runWith(HTableInterface hTable) throws IOException {
                 return hTable.checkAndDelete(row, cf, qual, value, delete);
+            }
+        });
+    }
+    
+    public static Object[] batch(HTablePool pool, byte[] tableName, final List<Row> actions) 
+            throws IOException {
+        return run(pool, tableName, new HTableRunnable<Object[]>() {
+            @Override
+            public Object[] runWith(HTableInterface hTable) throws IOException {
+                try {
+                    return hTable.batch(actions);
+                } catch (InterruptedException e) {
+                    log.error("Interrupted while running hbase batch, " +
+                            "re-throwing as IOException", e);
+                    throw new IOException(e);
+                }
+            }
+        });
+    }
+    
+    public static Result[] get(HTablePool pool, byte[] tableName, final List<Get> gets) 
+            throws IOException {
+        return run(pool, tableName, new HTableRunnable<Result[]>() {
+            @Override
+            public Result[] runWith(HTableInterface hTable) throws IOException {
+                return hTable.get(gets);
             }
         });
     }

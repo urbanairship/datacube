@@ -261,20 +261,7 @@ public class HBaseBackfillIntegrationTest {
             throws IOException {
         Configuration conf = hbaseTestUtil.getConfiguration();
         DbHarness<LongOp> dbHarness = new HBaseDbHarness<LongOp>(conf, ArrayUtils.EMPTY_BYTE_ARRAY, 
-                table, CF, LongOp.DESERIALIZER, idService);
+                table, CF, LongOp.DESERIALIZER, idService, 1);
         return new DataCubeIo<LongOp>(cube, dbHarness, 1);
     }
-    
-//    /**
-//     * Insert each event in the list into the given DataCubeIo.
-//     */
-//    private static void insertEvents(DataCubeIo<LongOp> dataCubeIo, List<Event> events) 
-//            throws Exception {
-//        for(Event testEvent: events) {
-//            WriteBuilder writeBuilder = new WriteBuilder(oldCube)
-//                .at(deviceDimension, testEvent.deviceType)
-//                .at(timeDimension, testEvent.time);
-//            dataCubeIo.write(new LongOp(1), writeBuilder);
-//        }
-//    }
 }

@@ -81,7 +81,7 @@ public class HBaseBackfillerTest {
                 IDSERVICE_COUNTER_TABLE, CF, ArrayUtils.EMPTY_BYTE_ARRAY);
         DbHarness<LongOp> hbaseDbHarness = new HBaseDbHarness<LongOp>(conf, 
                 ArrayUtils.EMPTY_BYTE_ARRAY, CUBE_DATA_TABLE, CF, LongOp.DESERIALIZER, 
-                idService);
+                idService, Integer.MAX_VALUE);
         
         // Get some cube data into the source table, doesn't really matter what.
         DbHarnessTests.basicTest(hbaseDbHarness);
@@ -116,7 +116,7 @@ public class HBaseBackfillerTest {
                 IDSERVICE_COUNTER_TABLE, CF, ArrayUtils.EMPTY_BYTE_ARRAY);
         DbHarness<LongOp> hbaseDbHarness = new HBaseDbHarness<LongOp>(conf, 
                 ArrayUtils.EMPTY_BYTE_ARRAY, CUBE_DATA_TABLE, CF, LongOp.DESERIALIZER, 
-                idService);
+                idService, 1);
         
         // Get some cube data into the source table, doesn't really matter what.
         DbHarnessTests.basicTest(hbaseDbHarness);
@@ -166,7 +166,7 @@ public class HBaseBackfillerTest {
                 IDSERVICE_COUNTER_TABLE, CF, ArrayUtils.EMPTY_BYTE_ARRAY);
         DbHarness<LongOp> hbaseDbHarness = new HBaseDbHarness<LongOp>(conf, 
                 ArrayUtils.EMPTY_BYTE_ARRAY, CUBE_DATA_TABLE, CF, LongOp.DESERIALIZER, 
-                idService);
+                idService, Integer.MAX_VALUE);
         
         Dimension<String> onlyDimension = new Dimension<String>("mydimension", 
                 new StringToBytesBucketer(), true, 2);
