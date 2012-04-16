@@ -109,6 +109,7 @@ public class MapDbHarness<T extends Op> implements DbHarness<T> {
                 throw new AssertionError("Unsupported commit type: " + commitType);
             }
         }
+        batch.reset();
     }
 
     @Override

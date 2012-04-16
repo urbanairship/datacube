@@ -94,7 +94,6 @@ public class DataCubeIo<T extends Op> {
             // We hold the lock while doing database IO. If the DB takes a long time,
             // then other threads may block for a long time.
             db.runBatch(batchInProgress);
-            batchInProgress = new Batch<T>();
         }
     }
 }

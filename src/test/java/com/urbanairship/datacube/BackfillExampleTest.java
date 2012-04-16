@@ -87,7 +87,7 @@ public class BackfillExampleTest {
         public CubeWrapper(byte[] table, byte[] cf) throws IOException {
             DbHarness<LongOp> hbaseDbHarness = new HBaseDbHarness<LongOp>(
                     hbaseTestUtil.getConfiguration(), ArrayUtils.EMPTY_BYTE_ARRAY, table, 
-                    cf, LongOp.DESERIALIZER, idService);
+                    cf, LongOp.DESERIALIZER, idService, Integer.MAX_VALUE);
             dataCubeIo = new DataCubeIo<LongOp>(dataCube, hbaseDbHarness, 1);
         }
 

@@ -5,7 +5,7 @@ import java.util.Map;
 import com.google.common.collect.Maps;
 
 public class Batch<T extends Op> {
-    private final Map<Address,T> map;
+    private Map<Address,T> map;
     
     Batch() {
         this.map = Maps.newHashMap();
@@ -41,5 +41,9 @@ public class Batch<T extends Op> {
     
     public String toString() {
         return map.toString();
+    }
+    
+    public void reset() {
+        map = Maps.newHashMap();
     }
 }
