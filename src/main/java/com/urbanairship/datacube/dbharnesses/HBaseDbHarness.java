@@ -125,6 +125,7 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
             // There was an IOException while attempting to use the DB. If we were successful with some
             // of the pending writes, they should be removed from the batch so they are not retried later.
             // The operations that didn't get into the DB should be left in the batch to be retried later.
+            log.error("IOException when flushing batch to HBase", e);
             for(Address address: succesfullyWritten) {
                 batch.getMap().remove(address);
             }
@@ -148,7 +149,6 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
         if(gets.size() != ops.size() || gets.size() != previousValues.length) {
             throw new RuntimeException("Input list sizes should have been equal");
         }
-
 
         Iterator<Result> resultIter = new ArrayIterator(previousValues);
         Iterator<T> opIter = ops.iterator();
