@@ -32,6 +32,7 @@ import com.urbanairship.datacube.Batch;
 import com.urbanairship.datacube.DbHarness;
 import com.urbanairship.datacube.Deserializer;
 import com.urbanairship.datacube.IdService;
+import com.urbanairship.datacube.NamedThreadFactory;
 import com.urbanairship.datacube.Op;
 
 public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
@@ -74,8 +75,9 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
         this.numCasRetries = numCasRetries;
         
         BlockingQueue<Runnable> workQueue = new LinkedBlockingQueue<Runnable>();
+        
         this.flushExecutor = new ThreadPoolExecutor(numFlushThreads, numFlushThreads, 1,
-                TimeUnit.MINUTES, workQueue);
+                TimeUnit.MINUTES, workQueue, new NamedThreadFactory("HBase DB flusher"));
     }
 
     @Override

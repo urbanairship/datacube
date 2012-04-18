@@ -1,7 +1,5 @@
 package com.urbanairship.datacube;
 
-import org.apache.hadoop.hbase.HBaseTestingUtility;
-import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 

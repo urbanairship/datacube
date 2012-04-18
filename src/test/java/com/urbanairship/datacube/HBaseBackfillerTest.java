@@ -38,17 +38,12 @@ public class HBaseBackfillerTest extends EmbeddedClusterTest {
     public static final byte[] IDSERVICE_COUNTER_TABLE = "idservice_counter".getBytes();
     public static final byte[] CF = "c".getBytes();
     
-    private static HTable cubeHTable = null;
-    private static HTable backfilledHTable = null;
-    private static HTable idServiceLookupHTable = null;
-    private static HTable idServiceCounterHTable = null;
-    
     @BeforeClass
     public static void setupCluster() throws Exception {
-        cubeHTable = getTestUtil().createTable(CUBE_DATA_TABLE, CF);
-        backfilledHTable = getTestUtil().createTable(BACKFILLED_TABLE, CF);
-        idServiceLookupHTable = getTestUtil().createTable(IDSERVICE_COUNTER_TABLE, CF);
-        idServiceCounterHTable = getTestUtil().createTable(IDSERVICE_LOOKUP_TABLE, CF);
+        getTestUtil().createTable(CUBE_DATA_TABLE, CF);
+        getTestUtil().createTable(BACKFILLED_TABLE, CF);
+        getTestUtil().createTable(IDSERVICE_COUNTER_TABLE, CF);
+        getTestUtil().createTable(IDSERVICE_LOOKUP_TABLE, CF);
     }
 
     @After

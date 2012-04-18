@@ -88,7 +88,8 @@ public class DataCubeIo<T extends Op> {
         this.syncLevel = syncLevel;
         
         this.asyncErrorMonitorExecutor = new ThreadPoolExecutor(Integer.MAX_VALUE, Integer.MAX_VALUE,
-                1, TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>());
+                1, TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>(), 
+                new NamedThreadFactory("DataCubeIo async DB watcher"));
     }
     
     /**
