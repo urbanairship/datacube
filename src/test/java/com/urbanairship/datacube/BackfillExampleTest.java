@@ -5,10 +5,8 @@ import java.util.List;
 
 import org.apache.commons.lang.ArrayUtils;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.hbase.HBaseTestingUtility;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
-import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -23,7 +21,7 @@ import com.urbanairship.datacube.dbharnesses.HBaseDbHarness;
 import com.urbanairship.datacube.idservices.HBaseIdService;
 import com.urbanairship.datacube.ops.LongOp;
 
-public class BackfillExampleTest {
+public class BackfillExampleTest extends EmbeddedClusterTest {
     private static final DateTime midnight = new DateTime(DateTimeZone.UTC).minusDays(1).
             withHourOfDay(0).withMinuteOfHour(0).withSecondOfMinute(0).withMillisOfSecond(0);
     
@@ -35,8 +33,6 @@ public class BackfillExampleTest {
     private static final byte[] IDSERVICE_COUNTER_TABLE = "counter_table".getBytes();
     private static final byte[] CF = "c".getBytes();
     
-    private static HBaseTestingUtility hbaseTestUtil;
-
     private static final Dimension<DateTime> timeDimension = new Dimension<DateTime>("time", 
             new HourDayMonthBucketer(), false, 8);
 
@@ -53,13 +49,7 @@ public class BackfillExampleTest {
     
     @BeforeClass
     public static void init() throws Exception {
-        hbaseTestUtil = new HBaseTestingUtility();
-        hbaseTestUtil.startMiniCluster();
-        
-        TestUtil.preventMiniClusterNPE(hbaseTestUtil); 
-        hbaseTestUtil.startMiniMapReduceCluster();
-
-        Configuration conf = hbaseTestUtil.getConfiguration(); 
+        Configuration conf = getTestUtil().getConfiguration(); 
         idService = new HBaseIdService(conf, IDSERVICE_LOOKUP_TABLE, IDSERVICE_COUNTER_TABLE, CF, 
                 ArrayUtils.EMPTY_BYTE_ARRAY);
         
@@ -69,14 +59,7 @@ public class BackfillExampleTest {
         dataCube = new DataCube<LongOp>(ImmutableList.<Dimension<?>>of(timeDimension), 
                 ImmutableList.of(hourRollup, dayRollup));
         
-        hbaseTestUtil.createTable(LIVE_CUBE_TABLE, CF);
-    }
-    
-    @AfterClass
-    public static void shutdown() throws IOException {
-        hbaseTestUtil.shutdownMiniMapReduceCluster();
-        hbaseTestUtil.shutdownMiniCluster();
-        TestUtil.cleanupHadoopLogs();
+        getTestUtil().createTable(LIVE_CUBE_TABLE, CF);
     }
     
     /**
@@ -85,9 +68,9 @@ public class BackfillExampleTest {
     private static class CubeWrapper {
         private final DataCubeIo<LongOp> dataCubeIo;
         
-        public CubeWrapper(byte[] table, byte[] cf) throws IOException {
+        public CubeWrapper(byte[] table, byte[] cf) throws Exception {
             DbHarness<LongOp> hbaseDbHarness = new HBaseDbHarness<LongOp>(
-                    hbaseTestUtil.getConfiguration(), ArrayUtils.EMPTY_BYTE_ARRAY, table, 
+                    getTestUtil().getConfiguration(), ArrayUtils.EMPTY_BYTE_ARRAY, table, 
                     cf, LongOp.DESERIALIZER, idService, CommitType.INCREMENT);
             dataCubeIo = new DataCubeIo<LongOp>(dataCube, hbaseDbHarness, 1, Long.MAX_VALUE,
                     SyncLevel.FULL_SYNC);
@@ -121,8 +104,13 @@ public class BackfillExampleTest {
             @Override
             public void backfillInto(Configuration conf, byte[] table, byte[] cf, long snapshotFinishMs)
                     throws IOException {
-                CubeWrapper cubeWrapper = new CubeWrapper(table, cf);
-
+                CubeWrapper cubeWrapper;
+                try {
+                    cubeWrapper = new CubeWrapper(table, cf);
+                } catch (Exception e) {
+                    throw new IOException(e);
+                }
+                
                 final List<Event> events = ImmutableList.of(new Event(midnight.plusHours(1)),
                         new Event(midnight.plusHours(2)),
                         new Event(midnight.plusHours(2).plusMinutes(30)));
@@ -133,7 +121,7 @@ public class BackfillExampleTest {
             }
         };
         
-        HBaseBackfill backfill = new HBaseBackfill(hbaseTestUtil.getConfiguration(), 
+        HBaseBackfill backfill = new HBaseBackfill(getTestUtil().getConfiguration(), 
                 backfillCallback, LIVE_CUBE_TABLE, SNAPSHOT_TABLE, BACKFILL_TABLE, CF,
                 LongOp.LongOpDeserializer.class);
         boolean success = backfill.runWithCheckedExceptions();

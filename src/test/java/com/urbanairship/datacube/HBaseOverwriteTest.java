@@ -20,25 +20,15 @@ import com.urbanairship.datacube.idservices.MapIdService;
 /**
  * Check that {@link CommitType#OVERWRITE} works.
  */
-public class HBaseOverwriteTest {
-    private static HBaseTestingUtility hbaseTestUtil;
-    
+public class HBaseOverwriteTest extends EmbeddedClusterTest {
     private static final byte[] tableName = "myTable".getBytes();
     private static final byte[] cfName = "myCf".getBytes();
     
     @BeforeClass
     public static void init() throws Exception {
-        hbaseTestUtil = new HBaseTestingUtility();
-        hbaseTestUtil.startMiniCluster();
-    
-        hbaseTestUtil.createTable(tableName, cfName).close();
+        getTestUtil().createTable(tableName, cfName).close();
     }
     
-    @AfterClass
-    public static void shutdown() throws Exception {
-        hbaseTestUtil.shutdownMiniCluster();
-    }
-
     /**
      * Have a bunch of threads competing to update the same row using checkAndPut operations and
      * assert that all the end value is what we expect.
@@ -54,7 +44,7 @@ public class HBaseOverwriteTest {
         
         IdService idService = new MapIdService();
         
-        Configuration conf = hbaseTestUtil.getConfiguration();
+        Configuration conf = getTestUtil().getConfiguration();
         DbHarness<BytesOp> dbHarness = new HBaseDbHarness<BytesOp>(conf, ArrayUtils.EMPTY_BYTE_ARRAY, 
                 tableName, cfName,  new BytesOpDeserializer(), idService, CommitType.OVERWRITE);
         

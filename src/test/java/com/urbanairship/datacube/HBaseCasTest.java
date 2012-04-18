@@ -8,7 +8,6 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.lang.ArrayUtils;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.hbase.HBaseTestingUtility;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.junit.AfterClass;
 import org.junit.Assert;
@@ -23,26 +22,18 @@ import com.urbanairship.datacube.idservices.MapIdService;
 
 /**
  * Test using HBaseDbHarness with {@link CommitType#READ_COMBINE_CAS}.
+ * 
+ * This test will probably spam warnings to the log about CAS retries, which is normal.
  */
-public class HBaseCasTest {
-    private static HBaseTestingUtility hbaseTestUtil;
-    
+public class HBaseCasTest extends EmbeddedClusterTest {
     private static final byte[] tableName = "myTable".getBytes();
     private static final byte[] cfName = "myCf".getBytes();
     
     @BeforeClass
     public static void init() throws Exception {
-        hbaseTestUtil = new HBaseTestingUtility();
-        hbaseTestUtil.startMiniCluster();
-    
-        hbaseTestUtil.createTable(tableName, cfName).close();
+        getTestUtil().createTable(tableName, cfName).close();
     }
     
-    @AfterClass
-    public static void shutdown() throws Exception {
-        hbaseTestUtil.shutdownMiniCluster();
-    }
-
     /**
      * Have a bunch of threads competing to update the same row using checkAndPut operations and
      * assert that all the end value is what we expect.
@@ -58,7 +49,7 @@ public class HBaseCasTest {
         
         IdService idService = new MapIdService();
         
-        Configuration conf = hbaseTestUtil.getConfiguration();
+        Configuration conf = getTestUtil().getConfiguration();
         DbHarness<BytesOp> dbHarness = new HBaseDbHarness<BytesOp>(conf, ArrayUtils.EMPTY_BYTE_ARRAY, 
                 tableName, cfName,  new BytesOpDeserializer(), idService, CommitType.READ_COMBINE_CAS,
                 3, 20, 20);
@@ -67,8 +58,8 @@ public class HBaseCasTest {
         final DataCubeIo<BytesOp> dataCubeIo = new DataCubeIo<BytesOp>(dataCube, dbHarness, 5, Long.MAX_VALUE,
                 SyncLevel.BATCH_SYNC);
         
-        final int numThreads = 100;
-        final int updatesPerThread = 100;
+        final int numThreads = 10;
+        final int updatesPerThread = 10;
         ThreadPoolExecutor executor = new ThreadPoolExecutor(numThreads, numThreads, Long.MAX_VALUE,
                 TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>());
         

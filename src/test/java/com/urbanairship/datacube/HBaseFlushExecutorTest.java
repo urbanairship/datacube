@@ -7,9 +7,7 @@ import junit.framework.Assert;
 import org.apache.commons.lang.ArrayUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HBaseTestingUtility;
-import org.apache.hadoop.hbase.client.HTable;
 import org.apache.hadoop.hbase.util.Bytes;
-import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -24,30 +22,15 @@ import com.urbanairship.datacube.idservices.MapIdService;
 /**
  * Test flushing of batches at {@link SyncLevel#BATCH_ASYNC} and {@link SyncLevel#BATCH_SYNC}.
  */
-public class HBaseFlushExecutorTest {
-   private static HBaseTestingUtility hbaseTestUtil;
-    
+public class HBaseFlushExecutorTest extends EmbeddedClusterTest {
     private static final byte[] tableName = "myTable".getBytes();
     private static final byte[] cfName = "myCf".getBytes();
     
     @BeforeClass
     public static void init() throws Exception {
-        hbaseTestUtil = new HBaseTestingUtility();
-        hbaseTestUtil.startMiniCluster();
-    
-        hbaseTestUtil.createTable(tableName, cfName).close();
+        getTestUtil().createTable(tableName, cfName).close();
     }
     
-    @AfterClass
-    public static void shutdown() throws Exception {
-        hbaseTestUtil.shutdownMiniCluster();
-    }
-    
-    @After
-    public void clearTable() throws Exception {
-        TestUtil.deleteAllRows(new HTable(hbaseTestUtil.getConfiguration(), tableName));
-    }
-
     @Test
     public void testBatchSync() throws Exception {
         doTestForSyncLevel(SyncLevel.BATCH_ASYNC);
@@ -69,7 +52,7 @@ public class HBaseFlushExecutorTest {
         
         IdService idService = new MapIdService();
         
-        Configuration conf = hbaseTestUtil.getConfiguration();
+        Configuration conf = getTestUtil().getConfiguration();
         DbHarness<BytesOp> dbHarness = new HBaseDbHarness<BytesOp>(conf, ArrayUtils.EMPTY_BYTE_ARRAY, 
                 tableName, cfName,  new BytesOpDeserializer(), idService, CommitType.READ_COMBINE_CAS);
         

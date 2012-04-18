@@ -6,7 +6,6 @@ import java.util.List;
 import org.apache.commons.lang.ArrayUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.hbase.HBaseTestingUtility;
 import org.apache.hadoop.hbase.KeyValue;
 import org.apache.hadoop.hbase.client.HBaseAdmin;
 import org.apache.hadoop.hbase.client.HTable;
@@ -16,7 +15,6 @@ import org.apache.hadoop.hbase.client.ResultScanner;
 import org.apache.hadoop.hbase.client.Scan;
 import org.apache.hadoop.hbase.util.Pair;
 import org.junit.After;
-import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -32,9 +30,7 @@ import com.urbanairship.datacube.dbharnesses.HBaseDbHarness;
 import com.urbanairship.datacube.idservices.HBaseIdService;
 import com.urbanairship.datacube.ops.LongOp;
 
-public class HBaseBackfillerTest {
-    private static HBaseTestingUtility hbaseTestUtil;
-    
+public class HBaseBackfillerTest extends EmbeddedClusterTest {
     public static final byte[] CUBE_DATA_TABLE = "cube_data".getBytes();
     public static final byte[] SNAPSHOT_DEST_TABLE = "snapshot".getBytes();
     public static final byte[] BACKFILLED_TABLE = "backfilled".getBytes();
@@ -49,23 +45,19 @@ public class HBaseBackfillerTest {
     
     @BeforeClass
     public static void setupCluster() throws Exception {
-        hbaseTestUtil = new HBaseTestingUtility();
-        hbaseTestUtil.startMiniCluster();
-        
-        TestUtil.preventMiniClusterNPE(hbaseTestUtil);
-        hbaseTestUtil.startMiniMapReduceCluster();
-
-        cubeHTable = hbaseTestUtil.createTable(CUBE_DATA_TABLE, CF);
-        backfilledHTable = hbaseTestUtil.createTable(BACKFILLED_TABLE, CF);
-        idServiceLookupHTable = hbaseTestUtil.createTable(IDSERVICE_COUNTER_TABLE, CF);
-        idServiceCounterHTable = hbaseTestUtil.createTable(IDSERVICE_LOOKUP_TABLE, CF);
+        cubeHTable = getTestUtil().createTable(CUBE_DATA_TABLE, CF);
+        backfilledHTable = getTestUtil().createTable(BACKFILLED_TABLE, CF);
+        idServiceLookupHTable = getTestUtil().createTable(IDSERVICE_COUNTER_TABLE, CF);
+        idServiceCounterHTable = getTestUtil().createTable(IDSERVICE_LOOKUP_TABLE, CF);
     }
 
-    @AfterClass
-    public static void teardownCluster() throws Exception {
-        hbaseTestUtil.shutdownMiniMapReduceCluster();
-        hbaseTestUtil.shutdownMiniCluster();
-        TestUtil.cleanupHadoopLogs();
+    @After
+    public void removeSnapshotAndBackfillTables() throws Exception {
+        HBaseAdmin hba = getTestUtil().getHBaseAdmin();
+        if(hba.tableExists(SNAPSHOT_DEST_TABLE)) {
+            hba.disableTable(SNAPSHOT_DEST_TABLE);
+            hba.deleteTable(SNAPSHOT_DEST_TABLE);
+        }
     }
     
     /**
@@ -74,7 +66,7 @@ public class HBaseBackfillerTest {
      */
     @Test
     public void testBackfillIdempotence() throws Exception {
-        Configuration conf = hbaseTestUtil.getConfiguration();
+        Configuration conf = getTestUtil().getConfiguration();
         
         IdService idService = new HBaseIdService(conf, IDSERVICE_LOOKUP_TABLE, 
                 IDSERVICE_COUNTER_TABLE, CF, ArrayUtils.EMPTY_BYTE_ARRAY);
@@ -109,7 +101,7 @@ public class HBaseBackfillerTest {
      */
     @Test
     public void testBackfillingWithEmpty() throws Exception {
-        Configuration conf = hbaseTestUtil.getConfiguration();
+        Configuration conf = getTestUtil().getConfiguration();
         
         IdService idService = new HBaseIdService(conf, IDSERVICE_LOOKUP_TABLE, 
                 IDSERVICE_COUNTER_TABLE, CF, ArrayUtils.EMPTY_BYTE_ARRAY);
@@ -136,23 +128,9 @@ public class HBaseBackfillerTest {
         Assert.assertTrue(!new HTable(conf, CUBE_DATA_TABLE).getScanner(CF).iterator().hasNext());
     }
     
-    @After
-    public void deleteAllRows() throws Exception {
-        List<HTable> hTables = ImmutableList.of(cubeHTable, backfilledHTable, 
-                idServiceLookupHTable, idServiceCounterHTable);
-        
-        for(HTable hTable: hTables) {
-            TestUtil.deleteAllRows(hTable);
-        }
-        
-        if(new HBaseAdmin(hbaseTestUtil.getConfiguration()).tableExists(SNAPSHOT_DEST_TABLE)) {
-            hbaseTestUtil.deleteTable(SNAPSHOT_DEST_TABLE);
-        }
-    }
-    
     @Test
     public void testMutationsWhileBackfilling() throws Exception {
-        Configuration conf = hbaseTestUtil.getConfiguration();
+        Configuration conf = getTestUtil().getConfiguration();
         
         IdService idService = new HBaseIdService(conf, IDSERVICE_LOOKUP_TABLE, 
                 IDSERVICE_COUNTER_TABLE, CF, ArrayUtils.EMPTY_BYTE_ARRAY);
@@ -236,11 +214,11 @@ public class HBaseBackfillerTest {
     
     @Test
     public void testTableSplits() throws Exception {
-        HBaseAdmin admin = new HBaseAdmin(hbaseTestUtil.getConfiguration());
+        HBaseAdmin admin = getTestUtil().getHBaseAdmin();
         byte[] tableName = "oneSplitTest".getBytes();
         
         // create table with one region, should be one scan
-        HTable hTable = hbaseTestUtil.createTable(tableName, CF);
+        HTable hTable = getTestUtil().createTable(tableName, CF);
         String[] keys = new String[] {"a", "c00", "c11", "e", "g"};
         // Insert some keys, so we can split between them.
         for(String key: keys) {
