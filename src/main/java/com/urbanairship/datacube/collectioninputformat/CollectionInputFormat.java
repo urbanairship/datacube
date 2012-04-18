@@ -46,6 +46,7 @@ public class CollectionInputFormat extends InputFormat<Writable,NullWritable> {
         return new String(Base64.encodeBase64(rawBytes));
     }
     
+    @SuppressWarnings("unchecked")
     public static <T extends Writable> Collection<T> fromBase64(Class<T> valueClass,
             String base64) throws IOException {
         byte[] rawBytes = Base64.decodeBase64(base64.getBytes());
@@ -64,6 +65,7 @@ public class CollectionInputFormat extends InputFormat<Writable,NullWritable> {
 
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     public List<InputSplit> getSplits(JobContext ctx) throws IOException, InterruptedException {
         String base64 = ctx.getConfiguration().get(CONFKEY_COLLECTION);

@@ -5,6 +5,7 @@ import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import com.urbanairship.datacube.DbHarness.CommitType;
 import com.urbanairship.datacube.dbharnesses.HBaseDbHarness;
 import com.urbanairship.datacube.idservices.HBaseIdService;
 import com.urbanairship.datacube.idservices.MapIdService;
@@ -37,8 +38,8 @@ public class HBaseTest {
         IdService idService = new MapIdService();
         
         DbHarness<LongOp> hbaseDbHarness = new HBaseDbHarness<LongOp>(
-                hbaseTestUtil.getConfiguration(), "hbaseForCubeDataTest".getBytes(), 
-                CUBE_DATA_TABLE, CF, LongOp.DESERIALIZER, idService, Integer.MAX_VALUE);
+                hbaseTestUtil.getConfiguration(), "hbaseForCubeDataTest".getBytes(), CUBE_DATA_TABLE, 
+                CF, LongOp.DESERIALIZER, idService, CommitType.INCREMENT);
         
         DbHarnessTests.basicTest(hbaseDbHarness);
     }

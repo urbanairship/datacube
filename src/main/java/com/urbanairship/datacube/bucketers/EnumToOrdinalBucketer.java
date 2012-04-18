@@ -33,6 +33,7 @@ public class EnumToOrdinalBucketer<T extends Enum<?>>  implements Bucketer<T> {
         return bucketInternal(coordinate, bucketType);
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     public CSerializable bucketForRead(Object coordinate, BucketType bucketType) {
         return bucketInternal((T)coordinate, bucketType);

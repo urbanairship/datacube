@@ -3,15 +3,15 @@ package com.urbanairship.datacube;
 /**
  * Use this to specify the location of a cell to read from a datacube.
  */
-public class ReadAddressBuilder {
+public class ReadBuilder {
     private final Address address;
     boolean built = false;
     
-    public ReadAddressBuilder(DataCube<?> cube) {
+    public ReadBuilder(DataCube<?> cube) {
         address = new Address(cube);
     }
 
-    public <O> ReadAddressBuilder at(Dimension<?> dimension, O coordinate) {
+    public <O> ReadBuilder at(Dimension<?> dimension, O coordinate) {
         if(dimension.isBucketed()) {
             throw new IllegalArgumentException("This dimension requires you to specify a bucketType");
         }
@@ -19,7 +19,7 @@ public class ReadAddressBuilder {
         return this;
     }
 
-    public <O> ReadAddressBuilder at(Dimension<?> dimension, BucketType bucketType, O coord) {
+    public <O> ReadBuilder at(Dimension<?> dimension, BucketType bucketType, O coord) {
         Bucketer<?> bucketer = dimension.getBucketer();
         byte[] bucket = bucketer.bucketForRead(coord, bucketType).serialize();
         address.at(dimension, bucketType, bucket);

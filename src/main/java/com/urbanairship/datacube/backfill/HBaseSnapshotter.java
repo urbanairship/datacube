@@ -29,8 +29,6 @@ import org.apache.hadoop.mapreduce.Job;
 import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
 
-import com.urbanairship.datacube.DebugHack;
-
 /**
  * Takes a "snapshot" of an HBase column family in two steps:
  *  - Mapreduce to write all KeyValues of the source into HFiles on disk

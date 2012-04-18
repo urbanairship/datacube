@@ -68,7 +68,7 @@ public class Util {
         try {
             hTable = new HTable(conf, tableName);
             rs = hTable.getScanner(new Scan());
-            for(Result r: rs) {
+            for(@SuppressWarnings("unused") Result r: rs) {
                 count++;
             }
             return count;

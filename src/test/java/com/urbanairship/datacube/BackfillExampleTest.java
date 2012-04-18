@@ -15,6 +15,7 @@ import org.junit.Test;
 
 import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
+import com.urbanairship.datacube.DbHarness.CommitType;
 import com.urbanairship.datacube.backfill.HBaseBackfill;
 import com.urbanairship.datacube.backfill.HBaseBackfillCallback;
 import com.urbanairship.datacube.bucketers.HourDayMonthBucketer;
@@ -87,27 +88,18 @@ public class BackfillExampleTest {
         public CubeWrapper(byte[] table, byte[] cf) throws IOException {
             DbHarness<LongOp> hbaseDbHarness = new HBaseDbHarness<LongOp>(
                     hbaseTestUtil.getConfiguration(), ArrayUtils.EMPTY_BYTE_ARRAY, table, 
-                    cf, LongOp.DESERIALIZER, idService, Integer.MAX_VALUE);
-            dataCubeIo = new DataCubeIo<LongOp>(dataCube, hbaseDbHarness, 1);
+                    cf, LongOp.DESERIALIZER, idService, CommitType.INCREMENT);
+            dataCubeIo = new DataCubeIo<LongOp>(dataCube, hbaseDbHarness, 1, Long.MAX_VALUE,
+                    SyncLevel.FULL_SYNC);
         }
 
         public void put(Event event) throws IOException {
-            dataCubeIo.write(new LongOp(1), new WriteBuilder(dataCube)
+            dataCubeIo.writeSync(new LongOp(1), new WriteBuilder(dataCube)
                     .at(timeDimension, event.time));
         }
         
-        public long getDayCount(DateTime day) throws IOException {
-            Optional<LongOp> countOpt = dataCubeIo.get(new ReadAddressBuilder(dataCube)
-                .at(timeDimension, HourDayMonthBucketer.days, day));
-            if(countOpt.isPresent()) {
-                return countOpt.get().getLong();
-            } else {
-                return 0L;
-            }
-        }
-        
         public long getHourCount(DateTime hour) throws IOException {
-            Optional<LongOp> countOpt = dataCubeIo.get(new ReadAddressBuilder(dataCube)
+            Optional<LongOp> countOpt = dataCubeIo.get(new ReadBuilder(dataCube)
                 .at(timeDimension, HourDayMonthBucketer.hours, hour));
             if(countOpt.isPresent()) {
                 return countOpt.get().getLong();

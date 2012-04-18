@@ -31,6 +31,7 @@ public class SingleValueSplit extends InputSplit implements Writable {
         return new String[] {};
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     public void readFields(DataInput in) throws IOException {
         String keyClassName = in.readUTF();
