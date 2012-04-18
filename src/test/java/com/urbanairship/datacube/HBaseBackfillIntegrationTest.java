@@ -6,16 +6,15 @@ import java.util.List;
 import org.apache.commons.lang.ArrayUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.hbase.HBaseTestingUtility;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
-import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
 import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
+import com.urbanairship.datacube.DbHarness.CommitType;
 import com.urbanairship.datacube.backfill.HBaseBackfillMerger;
 import com.urbanairship.datacube.backfill.HBaseSnapshotter;
 import com.urbanairship.datacube.bucketers.EnumToOrdinalBucketer;
@@ -25,7 +24,7 @@ import com.urbanairship.datacube.idservices.HBaseIdService;
 import com.urbanairship.datacube.ops.LongOp;
 import com.urbanairship.datacube.ops.LongOp.LongOpDeserializer;
 
-public class HBaseBackfillIntegrationTest {
+public class HBaseBackfillIntegrationTest extends EmbeddedClusterTest {
     private static enum Color {RED, BLUE};
     
     private static final DateTime midnight = new DateTime(DateTimeZone.UTC).minusDays(1).
@@ -39,8 +38,6 @@ public class HBaseBackfillIntegrationTest {
     private static final byte[] IDSERVICE_COUNTER_TABLE = "counter_table".getBytes();
     private static final byte[] CF = "c".getBytes();
     
-    private static HBaseTestingUtility hbaseTestUtil;
-
     private static final Dimension<DateTime> timeDimension = new Dimension<DateTime>("time", 
             new HourDayMonthBucketer(), false, 8);
     private static final Dimension<Color> colorDimension = new Dimension<Color>("color",
@@ -65,17 +62,17 @@ public class HBaseBackfillIntegrationTest {
     private static class OldCubeWrapper {
         private final DataCubeIo<LongOp> dataCubeIo;
         
-        public OldCubeWrapper() throws IOException {
+        public OldCubeWrapper() throws Exception {
             this.dataCubeIo = makeDataCubeIo(oldCube, LIVE_CUBE_TABLE);
         }
 
         public void put(Event event) throws IOException {
-            dataCubeIo.write(new LongOp(1), new WriteBuilder(oldCube)
+            dataCubeIo.writeSync(new LongOp(1), new WriteBuilder(oldCube)
                     .at(timeDimension, event.time));
         }
         
         public long getDayCount(DateTime day) throws IOException {
-            Optional<LongOp> countOpt = dataCubeIo.get(new ReadAddressBuilder(oldCube)
+            Optional<LongOp> countOpt = dataCubeIo.get(new ReadBuilder(oldCube)
                 .at(timeDimension, HourDayMonthBucketer.days, day));
             if(countOpt.isPresent()) {
                 return countOpt.get().getLong();
@@ -85,7 +82,7 @@ public class HBaseBackfillIntegrationTest {
         }
         
         public long getHourCount(DateTime hour) throws IOException {
-            Optional<LongOp> countOpt = dataCubeIo.get(new ReadAddressBuilder(oldCube)
+            Optional<LongOp> countOpt = dataCubeIo.get(new ReadBuilder(oldCube)
                 .at(timeDimension, HourDayMonthBucketer.hours, hour));
             if(countOpt.isPresent()) {
                 return countOpt.get().getLong();
@@ -106,13 +103,13 @@ public class HBaseBackfillIntegrationTest {
         }
         
         public void put(Event event) throws IOException {
-            dataCubeIo.write(new LongOp(1), new WriteBuilder(newCube)
+            dataCubeIo.writeSync(new LongOp(1), new WriteBuilder(newCube)
                     .at(timeDimension, event.time)
                     .at(colorDimension, event.color));
         }
         
         public long getHourColorCount(DateTime hour, Color color) throws IOException {
-            Optional<LongOp> countOpt = dataCubeIo.get(new ReadAddressBuilder(newCube)
+            Optional<LongOp> countOpt = dataCubeIo.get(new ReadBuilder(newCube)
                     .at(timeDimension, HourDayMonthBucketer.hours, hour)
                     .at(colorDimension, color));
             if(countOpt.isPresent()) {
@@ -122,18 +119,8 @@ public class HBaseBackfillIntegrationTest {
             }
         }
         
-        public long getHourCount(DateTime hour) throws IOException {
-            Optional<LongOp> countOpt = dataCubeIo.get(new ReadAddressBuilder(newCube)
-                .at(timeDimension, HourDayMonthBucketer.hours, hour));
-            if(countOpt.isPresent()) {
-                return countOpt.get().getLong();
-            } else {
-                return 0L;
-            }
-        }
-        
         public long getDayCount(DateTime day) throws IOException {
-            Optional<LongOp> countOpt = dataCubeIo.get(new ReadAddressBuilder(newCube)
+            Optional<LongOp> countOpt = dataCubeIo.get(new ReadBuilder(newCube)
                 .at(timeDimension, HourDayMonthBucketer.days, day));
             if(countOpt.isPresent()) {
                 return countOpt.get().getLong();
@@ -145,13 +132,7 @@ public class HBaseBackfillIntegrationTest {
     
     @BeforeClass
     public static void init() throws Exception {
-        hbaseTestUtil = new HBaseTestingUtility();
-        hbaseTestUtil.startMiniCluster();
-        
-        TestUtil.preventMiniClusterNPE(hbaseTestUtil); 
-        hbaseTestUtil.startMiniMapReduceCluster();
-
-        Configuration conf = hbaseTestUtil.getConfiguration(); 
+        Configuration conf = getTestUtil().getConfiguration(); 
         idService = new HBaseIdService(conf, IDSERVICE_LOOKUP_TABLE, IDSERVICE_COUNTER_TABLE, CF, 
                 ArrayUtils.EMPTY_BYTE_ARRAY);
         
@@ -169,20 +150,13 @@ public class HBaseBackfillIntegrationTest {
         newCube = new DataCube<LongOp>(newDims, newRollups);
     }
     
-    @AfterClass
-    public static void shutdown() throws Exception {
-        hbaseTestUtil.shutdownMiniMapReduceCluster();
-        hbaseTestUtil.shutdownMiniCluster();
-        TestUtil.cleanupHadoopLogs();
-    }
-
     /**
      * A complete simulation of backfilling/recreating a cube with a new dimension that didn't
      * previously exist in the cube.
      */
     @Test
     public void newDimensionTest() throws Exception {
-        hbaseTestUtil.createTable(LIVE_CUBE_TABLE, CF);
+        getTestUtil().createTable(LIVE_CUBE_TABLE, CF);
         OldCubeWrapper oldCubeWrapper = new OldCubeWrapper();
         
         List<Event> events = ImmutableList.of(
@@ -198,17 +172,17 @@ public class HBaseBackfillIntegrationTest {
         Assert.assertEquals(1L, oldCubeWrapper.getHourCount(midnight.plusHours(9)));
         Assert.assertEquals(4L, oldCubeWrapper.getDayCount(midnight));
         
-        Configuration hadoopConf = hbaseTestUtil.getConfiguration();
+        Configuration hadoopConf = getTestUtil().getConfiguration();
         
         // Take a snapshot of the "live" table and store it in the "snapshot" table
         boolean success;
         success = new HBaseSnapshotter(hadoopConf, LIVE_CUBE_TABLE, CF, SNAPSHOT_TABLE, 
-                new Path("hdfs://localhost:" + hbaseTestUtil.getDFSCluster().getNameNodePort() + "/snapshot_hfiles"),
+                new Path("hdfs://localhost:" + getTestUtil().getDFSCluster().getNameNodePort() + "/snapshot_hfiles"),
                 false, null, null).runWithCheckedExceptions();
         Assert.assertTrue(success);
         
         // Backfill (re-count all existing events into the backfill table using the new cube)
-        hbaseTestUtil.createTable(BACKFILL_TABLE, CF);
+        getTestUtil().createTable(BACKFILL_TABLE, CF);
         NewCubeWrapper backfillWrapper = new NewCubeWrapper(makeDataCubeIo(newCube, BACKFILL_TABLE));
         for(Event event: events) {
             backfillWrapper.put(event);
@@ -249,8 +223,8 @@ public class HBaseBackfillIntegrationTest {
         Assert.assertEquals(5L, oldCubeWrapper.getDayCount(midnight));
         
         // Remove the snapshot table
-        hbaseTestUtil.getHBaseAdmin().disableTable(SNAPSHOT_TABLE);
-        hbaseTestUtil.getHBaseAdmin().deleteTable(SNAPSHOT_TABLE);
+        getTestUtil().getHBaseAdmin().disableTable(SNAPSHOT_TABLE);
+        getTestUtil().getHBaseAdmin().deleteTable(SNAPSHOT_TABLE);
     }
     
     /**
@@ -258,10 +232,10 @@ public class HBaseBackfillIntegrationTest {
      * given HBase table.
      */
     private static DataCubeIo<LongOp> makeDataCubeIo(DataCube<LongOp> cube, byte[] table) 
-            throws IOException {
-        Configuration conf = hbaseTestUtil.getConfiguration();
+            throws Exception {
+        Configuration conf = getTestUtil().getConfiguration();
         DbHarness<LongOp> dbHarness = new HBaseDbHarness<LongOp>(conf, ArrayUtils.EMPTY_BYTE_ARRAY, 
-                table, CF, LongOp.DESERIALIZER, idService, 1);
-        return new DataCubeIo<LongOp>(cube, dbHarness, 1);
+                table, CF, LongOp.DESERIALIZER, idService, CommitType.INCREMENT);
+        return new DataCubeIo<LongOp>(cube, dbHarness, 1, Long.MAX_VALUE, SyncLevel.FULL_SYNC);
     }
 }

@@ -31,8 +31,8 @@ public class DataCube<T extends Op> {
     private final Map<Rollup,RollupFilter> filters = Maps.newHashMap();
 
     /**
-     * @param See {@link Dimension} 
-     * @param rollups {@link Rollup}
+     * @param dims see {@link Dimension} 
+     * @param rollups see {@link Rollup}
      */
     public DataCube(List<Dimension<?>> dims, List<Rollup> rollups) {
         this.dims = dims;

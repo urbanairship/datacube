@@ -92,8 +92,9 @@ public class UniqueCountsExample {
             IdService idService = new MapIdService();
             ConcurrentMap<BoxedByteArray,byte[]> backingMap = Maps.newConcurrentMap();
             DbHarness<LongOp> dbHarness = new MapDbHarness<LongOp>(backingMap,LongOp.DESERIALIZER, 
-                    CommitType.READ_COMBINE_CAS, 5, idService);
-            this.dataCubeIo = new DataCubeIo<LongOp>(dataCube, dbHarness, 1);
+                    CommitType.READ_COMBINE_CAS, idService);
+            this.dataCubeIo = new DataCubeIo<LongOp>(dataCube, dbHarness, 1, Long.MAX_VALUE,
+                    SyncLevel.FULL_SYNC);
             
             dataCube.addFilter(hourRollup, uniqueCountFilter);
             dataCube.addFilter(dayRollup, uniqueCountFilter);
@@ -104,11 +105,11 @@ public class UniqueCountsExample {
             WriteBuilder writeBuilder = new WriteBuilder(dataCube)
                 .at(timeDimension, event.time)
                 .attachForRollupFilter(uniqueCountFilter, event.username);
-            dataCubeIo.write(new LongOp(1), writeBuilder);
+            dataCubeIo.writeSync(new LongOp(1), writeBuilder);
         }
         
         public long getUniqueUsersForHour(DateTime timestamp) throws IOException {
-            Optional<LongOp> countOpt = dataCubeIo.get(new ReadAddressBuilder(dataCube)
+            Optional<LongOp> countOpt = dataCubeIo.get(new ReadBuilder(dataCube)
                 .at(timeDimension, HourDayMonthBucketer.hours, timestamp));
             if(countOpt.isPresent()) {
                 return countOpt.get().getLong();
@@ -118,7 +119,7 @@ public class UniqueCountsExample {
         }
 
         public long getUniqueUsersForDay(DateTime timestamp) throws IOException {
-            Optional<LongOp> countOpt = dataCubeIo.get(new ReadAddressBuilder(dataCube)
+            Optional<LongOp> countOpt = dataCubeIo.get(new ReadBuilder(dataCube)
                 .at(timeDimension, HourDayMonthBucketer.days, timestamp));
             if(countOpt.isPresent()) {
                 return countOpt.get().getLong();
@@ -127,7 +128,7 @@ public class UniqueCountsExample {
             }
         }
         public long getUniqueUsersForMonth(DateTime timestamp) throws IOException {
-            Optional<LongOp> countOpt = dataCubeIo.get(new ReadAddressBuilder(dataCube)
+            Optional<LongOp> countOpt = dataCubeIo.get(new ReadBuilder(dataCube)
                 .at(timeDimension, HourDayMonthBucketer.months, timestamp));
             if(countOpt.isPresent()) {
                 return countOpt.get().getLong();
