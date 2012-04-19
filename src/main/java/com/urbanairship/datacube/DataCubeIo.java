@@ -87,7 +87,7 @@ public class DataCubeIo<T extends Op> {
         this.maxBatchAgeMs = maxBatchAgeMs;
         this.syncLevel = syncLevel;
         
-        this.asyncErrorMonitorExecutor = new ThreadPoolExecutor(Integer.MAX_VALUE, Integer.MAX_VALUE,
+        this.asyncErrorMonitorExecutor = new ThreadPoolExecutor(1, Integer.MAX_VALUE,
                 1, TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>(), 
                 new NamedThreadFactory("DataCubeIo async DB watcher"));
     }
