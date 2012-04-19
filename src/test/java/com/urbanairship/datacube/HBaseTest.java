@@ -1,5 +1,6 @@
 package com.urbanairship.datacube;
 
+import org.apache.hadoop.hbase.client.HTablePool;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -27,9 +28,10 @@ public class HBaseTest extends EmbeddedClusterTestAbstract {
     public void hbaseForCubeDataTest() throws Exception {
         IdService idService = new MapIdService();
         
-        DbHarness<LongOp> hbaseDbHarness = new HBaseDbHarness<LongOp>(
-                getTestUtil().getConfiguration(), "hbaseForCubeDataTest".getBytes(), CUBE_DATA_TABLE, 
-                CF, LongOp.DESERIALIZER, idService, CommitType.INCREMENT);
+        HTablePool pool = new HTablePool(getTestUtil().getConfiguration(), Integer.MAX_VALUE);
+        DbHarness<LongOp> hbaseDbHarness = new HBaseDbHarness<LongOp>(pool,
+                "hbaseForCubeDataTest".getBytes(), CUBE_DATA_TABLE, CF, LongOp.DESERIALIZER, idService,
+                CommitType.INCREMENT);
         
         DbHarnessTests.basicTest(hbaseDbHarness);
     }

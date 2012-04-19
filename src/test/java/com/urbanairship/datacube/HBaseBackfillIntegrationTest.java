@@ -6,6 +6,7 @@ import java.util.List;
 import org.apache.commons.lang.ArrayUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.hbase.client.HTablePool;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.junit.Assert;
@@ -233,8 +234,8 @@ public class HBaseBackfillIntegrationTest extends EmbeddedClusterTestAbstract {
      */
     private static DataCubeIo<LongOp> makeDataCubeIo(DataCube<LongOp> cube, byte[] table) 
             throws Exception {
-        Configuration conf = getTestUtil().getConfiguration();
-        DbHarness<LongOp> dbHarness = new HBaseDbHarness<LongOp>(conf, ArrayUtils.EMPTY_BYTE_ARRAY, 
+        HTablePool pool = new HTablePool(getTestUtil().getConfiguration(), Integer.MAX_VALUE);
+        DbHarness<LongOp> dbHarness = new HBaseDbHarness<LongOp>(pool, ArrayUtils.EMPTY_BYTE_ARRAY, 
                 table, CF, LongOp.DESERIALIZER, idService, CommitType.INCREMENT);
         return new DataCubeIo<LongOp>(cube, dbHarness, 1, Long.MAX_VALUE, SyncLevel.FULL_SYNC);
     }

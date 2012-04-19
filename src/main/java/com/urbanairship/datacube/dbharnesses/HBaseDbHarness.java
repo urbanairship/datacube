@@ -34,6 +34,8 @@ import com.urbanairship.datacube.Deserializer;
 import com.urbanairship.datacube.IdService;
 import com.urbanairship.datacube.NamedThreadFactory;
 import com.urbanairship.datacube.Op;
+import com.yammer.metrics.Metrics;
+import com.yammer.metrics.core.Timer;
 
 public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
     
@@ -51,20 +53,24 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
     private final CommitType commitType; 
     private final int numIoeRetries;
     private final int numCasRetries;
+    private final Timer flushSuccessTimer;
+    private final Timer flushFailTimer;
+    private final Timer singleWriteTimer;
     
     private final Set<Batch<T>> batchesInFlight = Sets.newHashSet();
     
-    public HBaseDbHarness(Configuration hadoopConf, byte[] uniqueCubeName, byte[] tableName, 
+    public HBaseDbHarness(HTablePool pool, byte[] uniqueCubeName, byte[] tableName, 
             byte[] cf, Deserializer<T> deserializer, IdService idService, CommitType commitType) 
                     throws IOException {
-        this(hadoopConf, uniqueCubeName, tableName, cf, deserializer, idService, commitType,
-                5, 5, 10);
+        this(pool, uniqueCubeName, tableName, cf, deserializer, idService, commitType,
+                5, 5, 10, "defaultScope");
     }
     
-    public HBaseDbHarness(Configuration hadoopConf, byte[] uniqueCubeName, byte[] tableName, 
+    public HBaseDbHarness(HTablePool pool, byte[] uniqueCubeName, byte[] tableName, 
             byte[] cf, Deserializer<T> deserializer, IdService idService, CommitType commitType, 
-            int numFlushThreads, int numIoeRetries, int numCasRetries) throws IOException {
-        pool = new HTablePool(hadoopConf, Integer.MAX_VALUE);
+            int numFlushThreads, int numIoeRetries, int numCasRetries, String metricsScope)
+                    throws IOException {
+        this.pool = pool;
         this.deserializer = deserializer;
         this.uniqueCubeName = uniqueCubeName;
         this.tableName = tableName;
@@ -73,6 +79,13 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
         this.commitType = commitType;
         this.numIoeRetries = numIoeRetries;
         this.numCasRetries = numCasRetries;
+        
+        flushSuccessTimer = Metrics.newTimer(HBaseDbHarness.class, "successfulBatchFlush", 
+                metricsScope, TimeUnit.MILLISECONDS, TimeUnit.SECONDS);
+        flushFailTimer = Metrics.newTimer(HBaseDbHarness.class, "failedBatchFlush", 
+                metricsScope, TimeUnit.MILLISECONDS, TimeUnit.SECONDS);
+        singleWriteTimer = Metrics.newTimer(HBaseDbHarness.class, "singleWrites", 
+                metricsScope, TimeUnit.MILLISECONDS, TimeUnit.SECONDS);
         
         BlockingQueue<Runnable> workQueue = new LinkedBlockingQueue<Runnable>();
         
@@ -203,13 +216,17 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
         Map<Address,T> batchMap = batch.getMap();
         
         List<Address> succesfullyWritten = new ArrayList<Address>(batch.getMap().size());
-
+        
+        long nanoTimeBeforeBatch = System.nanoTime();
+        
         try {
             for(Map.Entry<Address,T> entry: batchMap.entrySet()) {
                 Address address = entry.getKey();
                 T op = entry.getValue();
 
                 byte[] rowKey = ArrayUtils.addAll(uniqueCubeName, address.toKey(idService));
+                
+                long nanoTimeBeforeWrite = System.nanoTime();
                 
                 switch(commitType) {
                 case INCREMENT:
@@ -224,6 +241,9 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
                 default:
                     throw new RuntimeException("Unsupported commit type " + commitType);
                 }
+                long writeDurationNanos = System.nanoTime() - nanoTimeBeforeWrite;
+                singleWriteTimer.update(writeDurationNanos, TimeUnit.NANOSECONDS);
+                
                 succesfullyWritten.add(address);
             }
         } catch (IOException e) {
@@ -234,8 +254,15 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
             for(Address address: succesfullyWritten) {
                 batch.getMap().remove(address);
             }
+            
+            long batchDurationNanos = System.nanoTime() - nanoTimeBeforeBatch;
+            flushFailTimer.update(batchDurationNanos, TimeUnit.NANOSECONDS);
+
             throw e;
         } 
+        
+        long batchDurationNanos = System.nanoTime() - nanoTimeBeforeBatch;
+        flushSuccessTimer.update(batchDurationNanos, TimeUnit.NANOSECONDS);
     }
     
     @Override

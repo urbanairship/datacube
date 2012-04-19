@@ -13,6 +13,8 @@ import org.apache.log4j.Logger;
 
 import com.google.common.base.Optional;
 import com.urbanairship.datacube.dbharnesses.FullQueueException;
+import com.yammer.metrics.Metrics;
+import com.yammer.metrics.core.Meter;
 
 /**
  * A DataCube does no IO, it merely returns batches that can be executed. This class wraps
@@ -69,8 +71,16 @@ public class DataCubeIo<T extends Op> {
     // This executor will wait for DB writes to complete then check if they had an error.
     private final ThreadPoolExecutor asyncErrorMonitorExecutor;
     
+    private final Meter writesMeter; 
+    private final Meter asyncQueueBackoffMeter; 
+    
     private Batch<T> batchInProgress = new Batch<T>();
     private long batchStartTimeMs;
+    
+    public DataCubeIo(DataCube<T> cube, DbHarness<T> db, int batchSize, long maxBatchAgeMs,
+            SyncLevel syncLevel) {
+        this(cube, db, batchSize, maxBatchAgeMs, syncLevel, "defaultScope");
+    }
     
     /**
      * @param batchSize if after doing a write the number of rows to be written to the database
@@ -80,12 +90,17 @@ public class DataCubeIo<T extends Op> {
      * batch will not be flushed until the *next* write arrives after the timeout.
      */
     public DataCubeIo(DataCube<T> cube, DbHarness<T> db, int batchSize, long maxBatchAgeMs,
-            SyncLevel syncLevel) {
+            SyncLevel syncLevel, String metricsScope) {
         this.cube = cube;
         this.db = db;
         this.batchSize = batchSize;
         this.maxBatchAgeMs = maxBatchAgeMs;
         this.syncLevel = syncLevel;
+        
+        writesMeter = Metrics.newMeter(DataCubeIo.class, "writes", metricsScope, "writes", 
+                TimeUnit.SECONDS);
+        asyncQueueBackoffMeter = Metrics.newMeter(DataCubeIo.class, "backoffMeter", metricsScope,
+                "fullQueueExceptions", TimeUnit.SECONDS);
         
         this.asyncErrorMonitorExecutor = new ThreadPoolExecutor(1, Integer.MAX_VALUE,
                 1, TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>(), 
@@ -105,6 +120,8 @@ public class DataCubeIo<T extends Op> {
         if(asyncException != null) {
             throw asyncException;
         }
+        
+        writesMeter.mark();
         
         Batch<T> newBatch = cube.getWrites(at, op);
         Batch<T> batchToFlush = null;
@@ -161,6 +178,8 @@ public class DataCubeIo<T extends Op> {
                         new AsyncFlushCallable(flushFuture)); 
                 return waitForFlushFuture;
             } catch (FullQueueException e) {
+                asyncQueueBackoffMeter.mark();
+                
                 // Sleeping and retrying like this means batches may be flushed out of order
                 log.debug("Async queue is full, retrying soon");
                 Thread.sleep(100);

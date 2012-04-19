@@ -6,6 +6,7 @@ import junit.framework.Assert;
 
 import org.apache.commons.lang.ArrayUtils;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.hbase.client.HTablePool;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -50,8 +51,8 @@ public class HBaseFlushExecutorTest extends EmbeddedClusterTestAbstract {
         
         IdService idService = new MapIdService();
         
-        Configuration conf = getTestUtil().getConfiguration();
-        DbHarness<BytesOp> dbHarness = new HBaseDbHarness<BytesOp>(conf, ArrayUtils.EMPTY_BYTE_ARRAY, 
+        HTablePool pool = new HTablePool(getTestUtil().getConfiguration(), Integer.MAX_VALUE);
+        DbHarness<BytesOp> dbHarness = new HBaseDbHarness<BytesOp>(pool, ArrayUtils.EMPTY_BYTE_ARRAY, 
                 tableName, cfName,  new BytesOpDeserializer(), idService, CommitType.READ_COMBINE_CAS);
         
         final DataCube<BytesOp> dataCube = new DataCube<BytesOp>(dimensions, rollups);
