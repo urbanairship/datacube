@@ -20,7 +20,7 @@ import com.urbanairship.datacube.idservices.MapIdService;
 /**
  * Test flushing of batches at {@link SyncLevel#BATCH_ASYNC} and {@link SyncLevel#BATCH_SYNC}.
  */
-public class HBaseFlushExecutorTest extends EmbeddedClusterTest {
+public class HBaseFlushExecutorTest extends EmbeddedClusterTestAbstract {
     private static final byte[] tableName = "myTable".getBytes();
     private static final byte[] cfName = "myCf".getBytes();
     

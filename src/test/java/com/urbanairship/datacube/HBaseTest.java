@@ -9,7 +9,7 @@ import com.urbanairship.datacube.idservices.HBaseIdService;
 import com.urbanairship.datacube.idservices.MapIdService;
 import com.urbanairship.datacube.ops.LongOp;
 
-public class HBaseTest extends EmbeddedClusterTest {
+public class HBaseTest extends EmbeddedClusterTestAbstract {
     public static final byte[] CUBE_DATA_TABLE = "cube_data".getBytes();
     public static final byte[] IDSERVICE_LOOKUP_TABLE = "idservice_data".getBytes();
     public static final byte[] IDSERVICE_COUNTER_TABLE = "idservice_counter".getBytes();

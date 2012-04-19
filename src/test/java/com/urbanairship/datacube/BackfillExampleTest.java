@@ -21,7 +21,7 @@ import com.urbanairship.datacube.dbharnesses.HBaseDbHarness;
 import com.urbanairship.datacube.idservices.HBaseIdService;
 import com.urbanairship.datacube.ops.LongOp;
 
-public class BackfillExampleTest extends EmbeddedClusterTest {
+public class BackfillExampleTest extends EmbeddedClusterTestAbstract {
     private static final DateTime midnight = new DateTime(DateTimeZone.UTC).minusDays(1).
             withHourOfDay(0).withMinuteOfHour(0).withSecondOfMinute(0).withMillisOfSecond(0);
     

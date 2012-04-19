@@ -24,7 +24,7 @@ import com.urbanairship.datacube.idservices.MapIdService;
  * 
  * This test will probably spam warnings to the log about CAS retries, which is normal.
  */
-public class HBaseCasTest extends EmbeddedClusterTest {
+public class HBaseCasTest extends EmbeddedClusterTestAbstract {
     private static final byte[] tableName = "myTable".getBytes();
     private static final byte[] cfName = "myCf".getBytes();
     

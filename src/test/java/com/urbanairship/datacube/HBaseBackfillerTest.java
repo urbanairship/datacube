@@ -30,7 +30,7 @@ import com.urbanairship.datacube.dbharnesses.HBaseDbHarness;
 import com.urbanairship.datacube.idservices.HBaseIdService;
 import com.urbanairship.datacube.ops.LongOp;
 
-public class HBaseBackfillerTest extends EmbeddedClusterTest {
+public class HBaseBackfillerTest extends EmbeddedClusterTestAbstract {
     public static final byte[] CUBE_DATA_TABLE = "cube_data".getBytes();
     public static final byte[] SNAPSHOT_DEST_TABLE = "snapshot".getBytes();
     public static final byte[] BACKFILLED_TABLE = "backfilled".getBytes();

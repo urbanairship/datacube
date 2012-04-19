@@ -24,7 +24,7 @@ import com.urbanairship.datacube.idservices.HBaseIdService;
 import com.urbanairship.datacube.ops.LongOp;
 import com.urbanairship.datacube.ops.LongOp.LongOpDeserializer;
 
-public class HBaseBackfillIntegrationTest extends EmbeddedClusterTest {
+public class HBaseBackfillIntegrationTest extends EmbeddedClusterTestAbstract {
     private static enum Color {RED, BLUE};
     
     private static final DateTime midnight = new DateTime(DateTimeZone.UTC).minusDays(1).

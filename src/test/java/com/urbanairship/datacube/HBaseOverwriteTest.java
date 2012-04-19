@@ -18,7 +18,7 @@ import com.urbanairship.datacube.idservices.MapIdService;
 /**
  * Check that {@link CommitType#OVERWRITE} works.
  */
-public class HBaseOverwriteTest extends EmbeddedClusterTest {
+public class HBaseOverwriteTest extends EmbeddedClusterTestAbstract {
     private static final byte[] tableName = "myTable".getBytes();
     private static final byte[] cfName = "myCf".getBytes();
     

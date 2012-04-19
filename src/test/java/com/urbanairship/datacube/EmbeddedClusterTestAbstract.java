@@ -12,11 +12,13 @@ import org.apache.hadoop.hbase.client.ResultScanner;
 import org.apache.hadoop.hbase.client.Scan;
 import org.junit.After;
 import org.junit.AfterClass;
+import org.junit.Ignore;
 
 /**
  * Classes that use the embedded HBase/MapReduce test cluster should inherit this class.
  */
-public class EmbeddedClusterTest {
+@Ignore
+public class EmbeddedClusterTestAbstract {
     public static final String HADOOP_LOG_DIR = "/tmp/datacube_hadoop_logs";
     
     private static HBaseTestingUtility hbaseTestUtil = null;
