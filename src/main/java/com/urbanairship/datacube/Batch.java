@@ -19,6 +19,7 @@ public class Batch<T extends Op> {
         this.putAll(b.getMap());
     }
     
+    @SuppressWarnings("unchecked")
     public void putAll(Map<Address,T> other) {
         for(Map.Entry<Address,T> entry: other.entrySet()) {
             Address c = entry.getKey();

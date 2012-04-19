@@ -131,6 +131,7 @@ public class HBaseBackfillMapper extends Mapper<Scan,NullWritable,NullWritable,N
      * Get the deserializer class name from the job config, instantiate it, and return the instance.
      * @throws RuntimeException if something goes wrong.
      */
+    @SuppressWarnings("unchecked")
     private static Deserializer<?> getDeserializer(Configuration conf) {
         String deserializerClassName = conf.get(HBaseBackfillMerger.CONFKEY_DESERIALIZER);
         if(deserializerClassName == null) {

@@ -24,8 +24,8 @@ public class SimpleExampleTest {
         ConcurrentMap<BoxedByteArray,byte[]> backingMap = 
                 new ConcurrentHashMap<BoxedByteArray,byte[]>();
         
-        DbHarness<LongOp> dbHarness = new MapDbHarness<LongOp>(backingMap, 
-                LongOp.DESERIALIZER, CommitType.READ_COMBINE_CAS, 3, idService);
+        DbHarness<LongOp> dbHarness = new MapDbHarness<LongOp>(backingMap, LongOp.DESERIALIZER, 
+                CommitType.READ_COMBINE_CAS, idService);
         
         DbHarnessTests.basicTest(dbHarness);
     }

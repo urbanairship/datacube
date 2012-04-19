@@ -26,6 +26,7 @@ public class CollectionWritable implements Writable {
         this.collection = collection;
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     public void readFields(DataInput in) throws IOException {
         try {
