@@ -13,7 +13,9 @@ import org.apache.log4j.Logger;
 
 import com.google.common.base.Optional;
 import com.urbanairship.datacube.dbharnesses.FullQueueException;
+import com.urbanairship.datacube.dbharnesses.HBaseDbHarness;
 import com.yammer.metrics.Metrics;
+import com.yammer.metrics.core.Gauge;
 import com.yammer.metrics.core.Meter;
 
 /**
@@ -73,6 +75,9 @@ public class DataCubeIo<T extends Op> {
     
     private final Meter writesMeter; 
     private final Meter asyncQueueBackoffMeter; 
+    private final Meter runBatchMeter; 
+    private final Meter ageFlushes; 
+    private final Meter sizeFlushes; 
     
     private Batch<T> batchInProgress = new Batch<T>();
     private long batchStartTimeMs;
@@ -101,10 +106,24 @@ public class DataCubeIo<T extends Op> {
                 TimeUnit.SECONDS);
         asyncQueueBackoffMeter = Metrics.newMeter(DataCubeIo.class, "backoffMeter", metricsScope,
                 "fullQueueExceptions", TimeUnit.SECONDS);
+        runBatchMeter = Metrics.newMeter(DataCubeIo.class, "runBatchMeter", metricsScope,
+                "batches", TimeUnit.SECONDS);
+        ageFlushes = Metrics.newMeter(DataCubeIo.class, "flushesDueToAge", metricsScope,
+                "flushes", TimeUnit.SECONDS);
+        sizeFlushes = Metrics.newMeter(DataCubeIo.class, "flushesDueToSize", metricsScope,
+                "flushes", TimeUnit.SECONDS);
         
         this.asyncErrorMonitorExecutor = new ThreadPoolExecutor(1, Integer.MAX_VALUE,
                 1, TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>(), 
                 new NamedThreadFactory("DataCubeIo async DB watcher"));
+        
+        Metrics.newGauge(DataCubeIo.class, "errorMonitorActiveCount", metricsScope, new Gauge<Integer>() {
+            @Override
+            public Integer value() {
+                return asyncErrorMonitorExecutor.getActiveCount();
+            }
+        });
+
     }
     
     /**
@@ -143,8 +162,10 @@ public class DataCubeIo<T extends Op> {
                 boolean shouldFlush = false;
                 
                 if(batchInProgress.getMap().size() >= batchSize) {
+                    sizeFlushes.mark();
                     shouldFlush = true;
                 } else if(System.currentTimeMillis() > batchStartTimeMs + maxBatchAgeMs) {
+                    ageFlushes.mark();
                     shouldFlush = true;
                 }
                 
@@ -172,6 +193,7 @@ public class DataCubeIo<T extends Op> {
     private Future<?> runBatch(Batch<T> batch) throws InterruptedException {
         while(true) {
             try {
+                runBatchMeter.mark();
                 final Future<?> flushFuture = db.runBatchAsync(batch);
                 
                 Future<?> waitForFlushFuture = asyncErrorMonitorExecutor.submit(

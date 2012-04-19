@@ -4,7 +4,7 @@
 
   <groupId>com.urbanairship</groupId>
   <artifactId>datacube</artifactId>
-  <version>1.0.5</version>
+  <version>1.0.7</version>
 
   <name>datacube</name>
   <url>http://urbanairship.com</url>
@@ -107,7 +107,7 @@
      <dependency>
       <groupId>com.yammer.metrics</groupId>
       <artifactId>metrics-core</artifactId>
-      <version>2.0.0-BETA19</version>
+      <version>2.1.2</version>
     </dependency>
     <dependency>
       <groupId>com.google.guava</groupId>
