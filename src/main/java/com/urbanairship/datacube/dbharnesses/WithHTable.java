@@ -8,7 +8,9 @@ import org.apache.hadoop.hbase.client.HTableInterface;
 import org.apache.hadoop.hbase.client.HTablePool;
 import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.client.Result;
+import org.apache.hadoop.hbase.client.ResultScanner;
 import org.apache.hadoop.hbase.client.Row;
+import org.apache.hadoop.hbase.client.Scan;
 import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
 
@@ -121,6 +123,28 @@ public class WithHTable {
             @Override
             public Result[] runWith(HTableInterface hTable) throws IOException {
                 return hTable.get(gets);
+            }
+        });
+    }
+
+    public static interface ScanRunnable<T> {
+        public T run(ResultScanner rs) throws IOException;
+    }
+    
+    public static <T> T scan(HTablePool pool, byte[] tableName, final Scan scan, 
+            final ScanRunnable<T> scanRunnable) throws IOException {
+        return run(pool, tableName, new HTableRunnable<T>() {
+            @Override
+            public T runWith(HTableInterface hTable) throws IOException {
+                ResultScanner rs = null;
+                try {
+                    rs = hTable.getScanner(scan);
+                    return scanRunnable.run(rs);
+                } finally {
+                    if(rs != null) {
+                        rs.close();
+                    }
+                }
             }
         });
     }

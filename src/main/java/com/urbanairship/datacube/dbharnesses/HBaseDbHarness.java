@@ -102,6 +102,13 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
                 return flushExecutor.getQueue().size();
             }
         });
+        
+        Metrics.newGauge(HBaseDbHarness.class, "asyncFlushersActive", metricsScope, new Gauge<Integer>() {
+            @Override
+            public Integer value() {
+                return flushExecutor.getActiveCount();
+            }
+        });
     }
 
     @Override
