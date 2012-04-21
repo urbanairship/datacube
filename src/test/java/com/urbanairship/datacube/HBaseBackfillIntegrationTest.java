@@ -67,12 +67,12 @@ public class HBaseBackfillIntegrationTest extends EmbeddedClusterTestAbstract {
             this.dataCubeIo = makeDataCubeIo(oldCube, LIVE_CUBE_TABLE);
         }
 
-        public void put(Event event) throws IOException {
+        public void put(Event event) throws IOException, InterruptedException  {
             dataCubeIo.writeSync(new LongOp(1), new WriteBuilder(oldCube)
                     .at(timeDimension, event.time));
         }
         
-        public long getDayCount(DateTime day) throws IOException {
+        public long getDayCount(DateTime day) throws IOException, InterruptedException  {
             Optional<LongOp> countOpt = dataCubeIo.get(new ReadBuilder(oldCube)
                 .at(timeDimension, HourDayMonthBucketer.days, day));
             if(countOpt.isPresent()) {
@@ -82,7 +82,7 @@ public class HBaseBackfillIntegrationTest extends EmbeddedClusterTestAbstract {
             }
         }
         
-        public long getHourCount(DateTime hour) throws IOException {
+        public long getHourCount(DateTime hour) throws IOException, InterruptedException  {
             Optional<LongOp> countOpt = dataCubeIo.get(new ReadBuilder(oldCube)
                 .at(timeDimension, HourDayMonthBucketer.hours, hour));
             if(countOpt.isPresent()) {
@@ -103,13 +103,13 @@ public class HBaseBackfillIntegrationTest extends EmbeddedClusterTestAbstract {
             this.dataCubeIo = dataCubeIo;
         }
         
-        public void put(Event event) throws IOException {
+        public void put(Event event) throws IOException, InterruptedException  {
             dataCubeIo.writeSync(new LongOp(1), new WriteBuilder(newCube)
                     .at(timeDimension, event.time)
                     .at(colorDimension, event.color));
         }
         
-        public long getHourColorCount(DateTime hour, Color color) throws IOException {
+        public long getHourColorCount(DateTime hour, Color color) throws IOException, InterruptedException  {
             Optional<LongOp> countOpt = dataCubeIo.get(new ReadBuilder(newCube)
                     .at(timeDimension, HourDayMonthBucketer.hours, hour)
                     .at(colorDimension, color));
@@ -120,7 +120,7 @@ public class HBaseBackfillIntegrationTest extends EmbeddedClusterTestAbstract {
             }
         }
         
-        public long getDayCount(DateTime day) throws IOException {
+        public long getDayCount(DateTime day) throws IOException, InterruptedException  {
             Optional<LongOp> countOpt = dataCubeIo.get(new ReadBuilder(newCube)
                 .at(timeDimension, HourDayMonthBucketer.days, day));
             if(countOpt.isPresent()) {

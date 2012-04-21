@@ -112,7 +112,7 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
     }
 
     @Override
-    public Optional<T> get(Address c) throws IOException {
+    public Optional<T> get(Address c) throws IOException, InterruptedException  {
         final byte[] rowKey = ArrayUtils.addAll(uniqueCubeName, c.toKey(idService));
         
         Get get = new Get(rowKey);
@@ -231,7 +231,7 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
         WithHTable.put(pool, tableName, put);
     }
     
-    private void flushBatch(Batch<T> batch) throws IOException {
+    private void flushBatch(Batch<T> batch) throws IOException, InterruptedException  {
         Map<Address,T> batchMap = batch.getMap();
         
         List<Address> succesfullyWritten = new ArrayList<Address>(batch.getMap().size());

@@ -46,7 +46,7 @@ public class CachingIdService implements IdService {
                 })
                 .build(new CacheLoader<Key,byte[]>() {
                     @Override
-                    public byte[] load(final Key key) throws IOException  {
+                    public byte[] load(final Key key) throws IOException, InterruptedException  {
                         byte[] uniqueId = wrappedIdService.getId(key.dimensionNum, 
                                 key.bytes.bytes, key.idLength);
                         if(log.isDebugEnabled()) {
@@ -60,7 +60,7 @@ public class CachingIdService implements IdService {
     
     
     @Override
-    public byte[] getId(int dimensionNum, byte[] bytes, int numIdBytes) throws IOException {
+    public byte[] getId(int dimensionNum, byte[] bytes, int numIdBytes) throws IOException, InterruptedException {
         try {
             return readThroughCache.get(new Key(dimensionNum, new BoxedByteArray(bytes), 
                     numIdBytes));
@@ -68,6 +68,8 @@ public class CachingIdService implements IdService {
             Throwable cause = e.getCause();
             if(cause instanceof IOException) {
                 throw (IOException)cause;
+            } else if (cause instanceof InterruptedException) {
+                throw (InterruptedException)cause;
             } else {
                 throw new RuntimeException(e);
             }

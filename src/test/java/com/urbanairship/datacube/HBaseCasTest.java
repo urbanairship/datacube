@@ -67,14 +67,14 @@ public class HBaseCasTest extends EmbeddedClusterTestAbstract {
             executor.execute(new Runnable() {
                 @Override
                 public void run() {
-                    try {
-                        for(int j=0; j<updatesPerThread; j++) {
-                            WriteBuilder at = new WriteBuilder(dataCube).at(dimension, 1234L);
+                    for(int j=0; j<updatesPerThread; j++) {
+                        WriteBuilder at = new WriteBuilder(dataCube).at(dimension, 1234L);
+                        try {
                             dataCubeIo.writeSync(new BytesOp(Bytes.toBytes(1L)), at);
-                        } 
-                    } catch (IOException e) {
-                        Assert.fail();
-                    }
+                        } catch(Exception e) {
+                            throw new RuntimeException(e);
+                        }
+                    } 
                 }
             });
         }

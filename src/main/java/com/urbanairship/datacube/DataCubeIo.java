@@ -84,7 +84,7 @@ public class DataCubeIo<T extends Op> {
     
     public DataCubeIo(DataCube<T> cube, DbHarness<T> db, int batchSize, long maxBatchAgeMs,
             SyncLevel syncLevel) {
-        this(cube, db, batchSize, maxBatchAgeMs, syncLevel, "defaultScope");
+        this(cube, db, batchSize, maxBatchAgeMs, syncLevel, "");
     }
     
     /**
@@ -221,7 +221,7 @@ public class DataCubeIo<T extends Op> {
      * You can only use this function if this DataCubeIo was constructed with 
      * {@link SyncLevel#FULL_SYNC} or {@link SyncLevel#BATCH_SYNC}.
      */
-    public void writeSync(T op, WriteBuilder at) throws IOException {
+    public void writeSync(T op, WriteBuilder at) throws IOException, InterruptedException {
         if(syncLevel == SyncLevel.BATCH_ASYNC) {
             throw new IllegalArgumentException("You can't use WriteSync for this cube with " + 
                     "SyncLevel " + syncLevel);
@@ -233,20 +233,18 @@ public class DataCubeIo<T extends Op> {
         } catch (AsyncException pe) {
             throw new RuntimeException("Internal error, when at a synchronized syncLevel there should" +
             		" be no asynchronous exceptions");
-        } catch (InterruptedException e) {
-            throw new IOException("Couldn't enqueue batch, InterruptedException", e);
         }
         
         if(optFuture.isPresent()) {
             // Our write triggered a batch flush. Wait for it to finish, rethrowing exceptions.
             try {
                 optFuture.get().get();
-            } catch (InterruptedException ie) {
-                throw new IOException("Interrupted during write", ie);
             } catch (ExecutionException ee) {
                 Throwable flushException = ee.getCause();
                 if(flushException instanceof IOException) {
-                    throw new IOException(flushException);
+                    throw (IOException)flushException;
+                } else if(flushException instanceof InterruptedException) {
+                    throw (InterruptedException)flushException;
                 } else if(flushException instanceof RuntimeException) {
                     throw new RuntimeException(flushException);
                 } else {
@@ -261,12 +259,12 @@ public class DataCubeIo<T extends Op> {
     /**
      * @return absent if the bucket doesn't exist, or the bucket if it does.
      */
-    public Optional<T> get(Address addr) throws IOException {
+    public Optional<T> get(Address addr) throws IOException, InterruptedException  {
         cube.checkValidReadOrThrow(addr);
         return db.get(addr);
     }
     
-    public Optional<T> get(ReadBuilder readBuilder) throws IOException {
+    public Optional<T> get(ReadBuilder readBuilder) throws IOException, InterruptedException  {
         return this.get(readBuilder.build());
     }
     

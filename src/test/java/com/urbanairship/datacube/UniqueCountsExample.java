@@ -101,14 +101,14 @@ public class UniqueCountsExample {
             dataCube.addFilter(monthRollup, uniqueCountFilter);
         }
         
-        public void put(Event event) throws IOException {
+        public void put(Event event) throws IOException, InterruptedException {
             WriteBuilder writeBuilder = new WriteBuilder(dataCube)
                 .at(timeDimension, event.time)
                 .attachForRollupFilter(uniqueCountFilter, event.username);
             dataCubeIo.writeSync(new LongOp(1), writeBuilder);
         }
         
-        public long getUniqueUsersForHour(DateTime timestamp) throws IOException {
+        public long getUniqueUsersForHour(DateTime timestamp) throws IOException, InterruptedException {
             Optional<LongOp> countOpt = dataCubeIo.get(new ReadBuilder(dataCube)
                 .at(timeDimension, HourDayMonthBucketer.hours, timestamp));
             if(countOpt.isPresent()) {
@@ -118,7 +118,7 @@ public class UniqueCountsExample {
             }
         }
 
-        public long getUniqueUsersForDay(DateTime timestamp) throws IOException {
+        public long getUniqueUsersForDay(DateTime timestamp) throws IOException, InterruptedException {
             Optional<LongOp> countOpt = dataCubeIo.get(new ReadBuilder(dataCube)
                 .at(timeDimension, HourDayMonthBucketer.days, timestamp));
             if(countOpt.isPresent()) {
@@ -127,7 +127,7 @@ public class UniqueCountsExample {
                 return 0L;
             }
         }
-        public long getUniqueUsersForMonth(DateTime timestamp) throws IOException {
+        public long getUniqueUsersForMonth(DateTime timestamp) throws IOException, InterruptedException {
             Optional<LongOp> countOpt = dataCubeIo.get(new ReadBuilder(dataCube)
                 .at(timeDimension, HourDayMonthBucketer.months, timestamp));
             if(countOpt.isPresent()) {

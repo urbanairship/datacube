@@ -54,7 +54,8 @@ public class HBaseIdService implements IdService {
     }
     
     @Override
-    public byte[] getId(int dimensionNum, byte[] input, int numIdBytes) throws IOException {
+    public byte[] getId(int dimensionNum, byte[] input, int numIdBytes) throws IOException,
+            InterruptedException {
         Validate.validateDimensionNum(dimensionNum);
         Validate.validateNumIdBytes(numIdBytes);
 
@@ -102,12 +103,7 @@ public class HBaseIdService implements IdService {
                         if(log.isDebugEnabled()) {
                             log.debug("Waiting for other thread to finish allocating id");
                         }
-                        try {
-                            Thread.sleep(500);
-                        } catch (InterruptedException e) {
-                            throw new IOException("Wrapping InterruptedException in IOException",
-                                    e);
-                        }
+                        Thread.sleep(500);
                         continue;
                     } else {
                         log.warn("Preempting expired allocator for input " + 

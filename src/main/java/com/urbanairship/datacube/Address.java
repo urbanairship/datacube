@@ -50,7 +50,7 @@ public class Address {
     /**
      * Get a byte array encoding the buckets of this cell in the Cube. For internal use only.
      */
-    public byte[] toKey(IdService idService) throws IOException {
+    public byte[] toKey(IdService idService) throws IOException, InterruptedException {
         List<Dimension<?>> dimensions = cube.getDimensions();
         
         boolean sawOnlyWildcardsSoFar = true;

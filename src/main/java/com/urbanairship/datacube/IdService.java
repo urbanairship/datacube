@@ -25,7 +25,7 @@ import java.io.IOException;
  */
 
 public interface IdService {
-    public byte[] getId(int dimensionNum, byte[] input, int numIdBytes) throws IOException;
+    public byte[] getId(int dimensionNum, byte[] input, int numIdBytes) throws IOException, InterruptedException;
     
     /**
      * Utilities to make implementation of IdService easier.

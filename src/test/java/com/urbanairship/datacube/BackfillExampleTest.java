@@ -78,12 +78,12 @@ public class BackfillExampleTest extends EmbeddedClusterTestAbstract {
                     SyncLevel.FULL_SYNC);
         }
 
-        public void put(Event event) throws IOException {
+        public void put(Event event) throws Exception {
             dataCubeIo.writeSync(new LongOp(1), new WriteBuilder(dataCube)
                     .at(timeDimension, event.time));
         }
         
-        public long getHourCount(DateTime hour) throws IOException {
+        public long getHourCount(DateTime hour) throws IOException, InterruptedException  {
             Optional<LongOp> countOpt = dataCubeIo.get(new ReadBuilder(dataCube)
                 .at(timeDimension, HourDayMonthBucketer.hours, hour));
             if(countOpt.isPresent()) {
@@ -106,19 +106,18 @@ public class BackfillExampleTest extends EmbeddedClusterTestAbstract {
             @Override
             public void backfillInto(Configuration conf, byte[] table, byte[] cf, long snapshotFinishMs)
                     throws IOException {
-                CubeWrapper cubeWrapper;
                 try {
-                    cubeWrapper = new CubeWrapper(table, cf);
+                    CubeWrapper cubeWrapper = new CubeWrapper(table, cf);
+                
+                    final List<Event> events = ImmutableList.of(new Event(midnight.plusHours(1)),
+                            new Event(midnight.plusHours(2)),
+                            new Event(midnight.plusHours(2).plusMinutes(30)));
+                    
+                    for(Event event: events) {
+                        cubeWrapper.put(event);
+                    }
                 } catch (Exception e) {
                     throw new IOException(e);
-                }
-                
-                final List<Event> events = ImmutableList.of(new Event(midnight.plusHours(1)),
-                        new Event(midnight.plusHours(2)),
-                        new Event(midnight.plusHours(2).plusMinutes(30)));
-                
-                for(Event event: events) {
-                    cubeWrapper.put(event);
                 }
             }
         };

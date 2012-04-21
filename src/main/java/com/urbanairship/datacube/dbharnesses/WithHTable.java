@@ -101,20 +101,31 @@ public class WithHTable {
         });
     }
     
+    static class WrappedInterruptedException extends RuntimeException {
+        private static final long serialVersionUID = 1L;
+        public final InterruptedException wrappedException;
+        
+        public WrappedInterruptedException(InterruptedException ie) {
+            this.wrappedException = ie;
+        } 
+    }
+    
     public static Object[] batch(HTablePool pool, byte[] tableName, final List<Row> actions) 
-            throws IOException {
-        return run(pool, tableName, new HTableRunnable<Object[]>() {
-            @Override
-            public Object[] runWith(HTableInterface hTable) throws IOException {
-                try {
-                    return hTable.batch(actions);
-                } catch (InterruptedException e) {
-                    log.error("Interrupted while running hbase batch, " +
-                            "re-throwing as IOException", e);
-                    throw new IOException(e);
+            throws IOException, InterruptedException {
+        try {
+            return run(pool, tableName, new HTableRunnable<Object[]>() {
+                @Override
+                public Object[] runWith(HTableInterface hTable) throws IOException {
+                    try {
+                        return hTable.batch(actions);
+                    } catch (InterruptedException e) {
+                        throw new WrappedInterruptedException(e);
+                    }
                 }
-            }
-        });
+            });
+        } catch (WrappedInterruptedException e) {
+            throw e.wrappedException;
+        }
     }
     
     public static Result[] get(HTablePool pool, byte[] tableName, final List<Get> gets) 
