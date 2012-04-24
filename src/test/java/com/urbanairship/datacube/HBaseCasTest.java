@@ -82,6 +82,8 @@ public class HBaseCasTest extends EmbeddedClusterTestAbstract {
         executor.shutdown();
         executor.awaitTermination(Long.MAX_VALUE, TimeUnit.SECONDS);
         
+        dataCubeIo.flush();
+        
         BytesOp cellValue = dataCubeIo.get(new ReadBuilder(dataCube).at(dimension, 1234L)).get();
         long cellValueLong = Bytes.toLong(cellValue.bytes);
         Assert.assertEquals((long)(updatesPerThread * numThreads), cellValueLong);

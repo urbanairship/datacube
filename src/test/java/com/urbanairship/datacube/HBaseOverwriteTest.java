@@ -48,7 +48,7 @@ public class HBaseOverwriteTest extends EmbeddedClusterTestAbstract {
         
         final DataCube<BytesOp> dataCube = new DataCube<BytesOp>(dimensions, rollups);
         final DataCubeIo<BytesOp> dataCubeIo = new DataCubeIo<BytesOp>(dataCube, dbHarness, 5, 
-                Long.MAX_VALUE, SyncLevel.BATCH_SYNC);
+                Long.MAX_VALUE, SyncLevel.FULL_SYNC);
         
         // Write the value "1" at address "100"
         dataCubeIo.writeSync(new BytesOp(1L), new WriteBuilder(dataCube).at(dimension, 100L));
