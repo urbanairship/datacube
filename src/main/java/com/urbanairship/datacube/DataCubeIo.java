@@ -12,8 +12,8 @@ import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
 
 import com.google.common.base.Optional;
+import com.google.common.collect.ImmutableList;
 import com.urbanairship.datacube.dbharnesses.FullQueueException;
-import com.urbanairship.datacube.dbharnesses.HBaseDbHarness;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Gauge;
 import com.yammer.metrics.core.Meter;
@@ -80,7 +80,7 @@ public class DataCubeIo<T extends Op> {
     private final Meter sizeFlushes; 
     
     private Batch<T> batchInProgress = new Batch<T>();
-    private long batchStartTimeMs;
+    private long batchFlushDeadlineMs;
     
     public DataCubeIo(DataCube<T> cube, DbHarness<T> db, int batchSize, long maxBatchAgeMs,
             SyncLevel syncLevel) {
@@ -155,16 +155,25 @@ public class DataCubeIo<T extends Op> {
             synchronized (lock) {
                 if(batchInProgress.getMap().isEmpty()) {
                     // Start the timer for this batch, it should be flushed when it becomes old
-                    batchStartTimeMs = System.currentTimeMillis();
+                    long nowTimeMs = System.currentTimeMillis();
+                    batchFlushDeadlineMs = nowTimeMs + maxBatchAgeMs; // Flush when we reach this timestamp
+                    
+                    // If the flush deadline timestamp overflowed its long, set it back to the largest 
+                    // possible value. This will occur if the client passes a very large max batch age.
+                    if(batchFlushDeadlineMs < nowTimeMs) {
+                        batchFlushDeadlineMs = Long.MAX_VALUE;
+                    }
                 }
                 batchInProgress.putAll(newBatch);
                 
                 boolean shouldFlush = false;
                 
                 if(batchInProgress.getMap().size() >= batchSize) {
+                    DebugHack.log("DataCubeIo flushing due to size, limit is " + batchSize);
                     sizeFlushes.mark();
                     shouldFlush = true;
-                } else if(System.currentTimeMillis() > batchStartTimeMs + maxBatchAgeMs) {
+                } else if(System.currentTimeMillis() >= batchFlushDeadlineMs) {
+                    DebugHack.log("DataCubeIo flushing due to age, limit is " + maxBatchAgeMs);
                     ageFlushes.mark();
                     shouldFlush = true;
                 }
@@ -191,6 +200,10 @@ public class DataCubeIo<T extends Op> {
      * Hand off a batch to the DbHarness layer, retrying on FullQueueException.
      */
     private Future<?> runBatch(Batch<T> batch) throws InterruptedException {
+        DebugHack.log("Running batch with stack trace:");
+        for(StackTraceElement elem: Thread.currentThread().getStackTrace()) {
+            DebugHack.log("\t" + elem.toString());
+        }
         while(true) {
             try {
                 runBatchMeter.mark();
