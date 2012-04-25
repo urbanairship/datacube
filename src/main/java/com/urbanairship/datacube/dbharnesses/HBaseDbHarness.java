@@ -92,7 +92,7 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
                 metricsScope, true);
         
         
-        BlockingQueue<Runnable> workQueue = new LinkedBlockingQueue<Runnable>();
+        BlockingQueue<Runnable> workQueue = new LinkedBlockingQueue<Runnable>(numFlushThreads);
         this.flushExecutor = new ThreadPoolExecutor(1, numFlushThreads, 1,
                 TimeUnit.MINUTES, workQueue, new NamedThreadFactory("HBase DB flusher"));
 
