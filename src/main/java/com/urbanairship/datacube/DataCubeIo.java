@@ -84,7 +84,7 @@ public class DataCubeIo<T extends Op> {
     
     public DataCubeIo(DataCube<T> cube, DbHarness<T> db, int batchSize, long maxBatchAgeMs,
             SyncLevel syncLevel) {
-        this(cube, db, batchSize, maxBatchAgeMs, syncLevel, "");
+        this(cube, db, batchSize, maxBatchAgeMs, syncLevel, null);
     }
     
     /**

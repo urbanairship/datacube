@@ -65,7 +65,7 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
             byte[] cf, Deserializer<T> deserializer, IdService idService, CommitType commitType) 
                     throws IOException {
         this(pool, uniqueCubeName, tableName, cf, deserializer, idService, commitType,
-                5, 5, 10, "defaultScope");
+                5, 5, 10, null);
     }
     
     public HBaseDbHarness(HTablePool pool, byte[] uniqueCubeName, byte[] tableName, 
