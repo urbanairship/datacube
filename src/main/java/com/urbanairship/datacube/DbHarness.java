@@ -33,8 +33,9 @@ public interface DbHarness<T extends Op> {
 
     /**
      * @return absent if the bucket doesn't exist, or the bucket if it does.
+     * @throws InterruptedException 
      */
-    public Optional<T> get(Address c) throws IOException;
+    public Optional<T> get(Address c) throws IOException, InterruptedException;
     
     public List<Optional<T>> multiGet(List<Address> addresses) throws IOException;
     

@@ -10,7 +10,7 @@ import org.junit.Assert;
 import com.google.common.math.LongMath;
 
 public class IdServiceTests {
-    public static void basicTest(IdService idService) throws IOException {
+    public static void basicTest(IdService idService) throws Exception {
         final int numFieldBytes = 5;
         
         // Different inputs should always produce different outputs (non-repeating ids)
@@ -35,7 +35,7 @@ public class IdServiceTests {
      *  
      */
     public static void testExhaustion(IdService idService, int numFieldBytes, int dimensionNum) 
-            throws IOException {
+            throws Exception {
         int numFieldBits = numFieldBytes * 8;
         
         long numToGenerate = LongMath.pow(2, numFieldBits);

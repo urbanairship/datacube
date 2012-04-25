@@ -7,7 +7,7 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.lang.ArrayUtils;
-import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.hbase.client.HTablePool;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.junit.Assert;
 import org.junit.BeforeClass;
@@ -24,7 +24,7 @@ import com.urbanairship.datacube.idservices.MapIdService;
  * 
  * This test will probably spam warnings to the log about CAS retries, which is normal.
  */
-public class HBaseCasTest extends EmbeddedClusterTest {
+public class HBaseCasTest extends EmbeddedClusterTestAbstract {
     private static final byte[] tableName = "myTable".getBytes();
     private static final byte[] cfName = "myCf".getBytes();
     
@@ -48,10 +48,10 @@ public class HBaseCasTest extends EmbeddedClusterTest {
         
         IdService idService = new MapIdService();
         
-        Configuration conf = getTestUtil().getConfiguration();
-        DbHarness<BytesOp> dbHarness = new HBaseDbHarness<BytesOp>(conf, ArrayUtils.EMPTY_BYTE_ARRAY, 
+        HTablePool pool = new HTablePool(getTestUtil().getConfiguration(), Integer.MAX_VALUE);
+        DbHarness<BytesOp> dbHarness = new HBaseDbHarness<BytesOp>(pool, ArrayUtils.EMPTY_BYTE_ARRAY, 
                 tableName, cfName,  new BytesOpDeserializer(), idService, CommitType.READ_COMBINE_CAS,
-                3, 20, 20);
+                3, 20, 20, "testscope");
         
         final DataCube<BytesOp> dataCube = new DataCube<BytesOp>(dimensions, rollups);
         final DataCubeIo<BytesOp> dataCubeIo = new DataCubeIo<BytesOp>(dataCube, dbHarness, 5, Long.MAX_VALUE,
@@ -67,20 +67,22 @@ public class HBaseCasTest extends EmbeddedClusterTest {
             executor.execute(new Runnable() {
                 @Override
                 public void run() {
-                    try {
-                        for(int j=0; j<updatesPerThread; j++) {
-                            WriteBuilder at = new WriteBuilder(dataCube).at(dimension, 1234L);
+                    for(int j=0; j<updatesPerThread; j++) {
+                        WriteBuilder at = new WriteBuilder(dataCube).at(dimension, 1234L);
+                        try {
                             dataCubeIo.writeSync(new BytesOp(Bytes.toBytes(1L)), at);
-                        } 
-                    } catch (IOException e) {
-                        Assert.fail();
-                    }
+                        } catch(Exception e) {
+                            throw new RuntimeException(e);
+                        }
+                    } 
                 }
             });
         }
         
         executor.shutdown();
         executor.awaitTermination(Long.MAX_VALUE, TimeUnit.SECONDS);
+        
+        dataCubeIo.flush();
         
         BytesOp cellValue = dataCubeIo.get(new ReadBuilder(dataCube).at(dimension, 1234L)).get();
         long cellValueLong = Bytes.toLong(cellValue.bytes);

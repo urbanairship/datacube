@@ -5,6 +5,7 @@ import java.util.List;
 
 import org.apache.commons.lang.ArrayUtils;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.hbase.client.HTablePool;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.junit.Assert;
@@ -21,7 +22,7 @@ import com.urbanairship.datacube.dbharnesses.HBaseDbHarness;
 import com.urbanairship.datacube.idservices.HBaseIdService;
 import com.urbanairship.datacube.ops.LongOp;
 
-public class BackfillExampleTest extends EmbeddedClusterTest {
+public class BackfillExampleTest extends EmbeddedClusterTestAbstract {
     private static final DateTime midnight = new DateTime(DateTimeZone.UTC).minusDays(1).
             withHourOfDay(0).withMinuteOfHour(0).withSecondOfMinute(0).withMillisOfSecond(0);
     
@@ -69,19 +70,20 @@ public class BackfillExampleTest extends EmbeddedClusterTest {
         private final DataCubeIo<LongOp> dataCubeIo;
         
         public CubeWrapper(byte[] table, byte[] cf) throws Exception {
-            DbHarness<LongOp> hbaseDbHarness = new HBaseDbHarness<LongOp>(
-                    getTestUtil().getConfiguration(), ArrayUtils.EMPTY_BYTE_ARRAY, table, 
-                    cf, LongOp.DESERIALIZER, idService, CommitType.INCREMENT);
+            HTablePool pool = new HTablePool(getTestUtil().getConfiguration(), Integer.MAX_VALUE);
+            DbHarness<LongOp> hbaseDbHarness = new HBaseDbHarness<LongOp>(pool,
+                    ArrayUtils.EMPTY_BYTE_ARRAY, table, cf, LongOp.DESERIALIZER, idService, 
+                    CommitType.INCREMENT);
             dataCubeIo = new DataCubeIo<LongOp>(dataCube, hbaseDbHarness, 1, Long.MAX_VALUE,
                     SyncLevel.FULL_SYNC);
         }
 
-        public void put(Event event) throws IOException {
+        public void put(Event event) throws Exception {
             dataCubeIo.writeSync(new LongOp(1), new WriteBuilder(dataCube)
                     .at(timeDimension, event.time));
         }
         
-        public long getHourCount(DateTime hour) throws IOException {
+        public long getHourCount(DateTime hour) throws IOException, InterruptedException  {
             Optional<LongOp> countOpt = dataCubeIo.get(new ReadBuilder(dataCube)
                 .at(timeDimension, HourDayMonthBucketer.hours, hour));
             if(countOpt.isPresent()) {
@@ -104,19 +106,18 @@ public class BackfillExampleTest extends EmbeddedClusterTest {
             @Override
             public void backfillInto(Configuration conf, byte[] table, byte[] cf, long snapshotFinishMs)
                     throws IOException {
-                CubeWrapper cubeWrapper;
                 try {
-                    cubeWrapper = new CubeWrapper(table, cf);
+                    CubeWrapper cubeWrapper = new CubeWrapper(table, cf);
+                
+                    final List<Event> events = ImmutableList.of(new Event(midnight.plusHours(1)),
+                            new Event(midnight.plusHours(2)),
+                            new Event(midnight.plusHours(2).plusMinutes(30)));
+                    
+                    for(Event event: events) {
+                        cubeWrapper.put(event);
+                    }
                 } catch (Exception e) {
                     throw new IOException(e);
-                }
-                
-                final List<Event> events = ImmutableList.of(new Event(midnight.plusHours(1)),
-                        new Event(midnight.plusHours(2)),
-                        new Event(midnight.plusHours(2).plusMinutes(30)));
-                
-                for(Event event: events) {
-                    cubeWrapper.put(event);
                 }
             }
         };

@@ -7,6 +7,7 @@ import java.util.Collection;
 import java.util.List;
 
 import org.apache.commons.codec.binary.Base64;
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.DataInputBuffer;
 import org.apache.hadoop.io.DataOutputBuffer;
 import org.apache.hadoop.io.NullWritable;
@@ -34,8 +35,13 @@ public class CollectionInputFormat extends InputFormat<Writable,NullWritable> {
      */
     public static <T extends Writable> void setCollection(Job job, Class<T> valueClass, 
             Collection<T> collection) throws IOException {
-        job.getConfiguration().set(CONFKEY_COLLECTION, toBase64(valueClass, collection));
-        job.getConfiguration().set(CONFKEY_VALCLASS, valueClass.getName());
+        setCollection(job.getConfiguration(), valueClass, collection);
+    }
+    
+    public static <T extends Writable> void setCollection(Configuration conf, Class<T> valueClass, 
+            Collection<T> collection) throws IOException {
+        conf.set(CONFKEY_COLLECTION, toBase64(valueClass, collection));
+        conf.set(CONFKEY_VALCLASS, valueClass.getName());
     }
     
     public static <T extends Writable> String toBase64(Class<T> valueClass, 

@@ -9,6 +9,7 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hbase.KeyValue;
 import org.apache.hadoop.hbase.client.HBaseAdmin;
 import org.apache.hadoop.hbase.client.HTable;
+import org.apache.hadoop.hbase.client.HTablePool;
 import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.client.ResultScanner;
@@ -30,7 +31,7 @@ import com.urbanairship.datacube.dbharnesses.HBaseDbHarness;
 import com.urbanairship.datacube.idservices.HBaseIdService;
 import com.urbanairship.datacube.ops.LongOp;
 
-public class HBaseBackfillerTest extends EmbeddedClusterTest {
+public class HBaseBackfillerTest extends EmbeddedClusterTestAbstract {
     public static final byte[] CUBE_DATA_TABLE = "cube_data".getBytes();
     public static final byte[] SNAPSHOT_DEST_TABLE = "snapshot".getBytes();
     public static final byte[] BACKFILLED_TABLE = "backfilled".getBytes();
@@ -62,10 +63,11 @@ public class HBaseBackfillerTest extends EmbeddedClusterTest {
     @Test
     public void testBackfillIdempotence() throws Exception {
         Configuration conf = getTestUtil().getConfiguration();
+        HTablePool pool = new HTablePool(conf, Integer.MAX_VALUE);
         
         IdService idService = new HBaseIdService(conf, IDSERVICE_LOOKUP_TABLE, 
                 IDSERVICE_COUNTER_TABLE, CF, ArrayUtils.EMPTY_BYTE_ARRAY);
-        DbHarness<LongOp> hbaseDbHarness = new HBaseDbHarness<LongOp>(conf, 
+        DbHarness<LongOp> hbaseDbHarness = new HBaseDbHarness<LongOp>(pool, 
                 ArrayUtils.EMPTY_BYTE_ARRAY, CUBE_DATA_TABLE, CF, LongOp.DESERIALIZER, 
                 idService, CommitType.INCREMENT);
         
@@ -97,10 +99,11 @@ public class HBaseBackfillerTest extends EmbeddedClusterTest {
     @Test
     public void testBackfillingWithEmpty() throws Exception {
         Configuration conf = getTestUtil().getConfiguration();
+        HTablePool pool = new HTablePool(conf, Integer.MAX_VALUE);
         
         IdService idService = new HBaseIdService(conf, IDSERVICE_LOOKUP_TABLE, 
                 IDSERVICE_COUNTER_TABLE, CF, ArrayUtils.EMPTY_BYTE_ARRAY);
-        DbHarness<LongOp> hbaseDbHarness = new HBaseDbHarness<LongOp>(conf, 
+        DbHarness<LongOp> hbaseDbHarness = new HBaseDbHarness<LongOp>(pool, 
                 ArrayUtils.EMPTY_BYTE_ARRAY, CUBE_DATA_TABLE, CF, LongOp.DESERIALIZER, 
                 idService, CommitType.INCREMENT);
         
@@ -126,10 +129,11 @@ public class HBaseBackfillerTest extends EmbeddedClusterTest {
     @Test
     public void testMutationsWhileBackfilling() throws Exception {
         Configuration conf = getTestUtil().getConfiguration();
+        HTablePool pool = new HTablePool(conf, Integer.MAX_VALUE);
         
         IdService idService = new HBaseIdService(conf, IDSERVICE_LOOKUP_TABLE, 
                 IDSERVICE_COUNTER_TABLE, CF, ArrayUtils.EMPTY_BYTE_ARRAY);
-        DbHarness<LongOp> hbaseDbHarness = new HBaseDbHarness<LongOp>(conf, 
+        DbHarness<LongOp> hbaseDbHarness = new HBaseDbHarness<LongOp>(pool, 
                 ArrayUtils.EMPTY_BYTE_ARRAY, CUBE_DATA_TABLE, CF, LongOp.DESERIALIZER, 
                 idService, CommitType.INCREMENT);
         

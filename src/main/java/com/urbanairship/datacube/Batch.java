@@ -21,6 +21,8 @@ public class Batch<T extends Op> {
     
     @SuppressWarnings("unchecked")
     public void putAll(Map<Address,T> other) {
+//        DebugHack.log("In Batch.putAll() with existing map size " + map.size() + " and incoming map size " +
+//                other.size());
         for(Map.Entry<Address,T> entry: other.entrySet()) {
             Address c = entry.getKey();
             T alreadyExistingVal = map.get(entry.getKey());

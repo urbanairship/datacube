@@ -190,8 +190,7 @@ public class HBaseSnapshotter implements Runnable {
     public static class ResultToKvsMapper extends TableMapper<ImmutableBytesWritable,KeyValue> {
         @Override
         protected void map(ImmutableBytesWritable key, Result result,
-                Context context) throws IOException,
-                InterruptedException {
+                Context context) throws IOException, InterruptedException {
 //            DebugHack.log("Snapshot mapper running");
             for(KeyValue kv: result.list()) {
                 context.write(key, kv);

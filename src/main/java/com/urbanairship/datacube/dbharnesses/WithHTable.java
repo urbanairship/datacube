@@ -8,7 +8,9 @@ import org.apache.hadoop.hbase.client.HTableInterface;
 import org.apache.hadoop.hbase.client.HTablePool;
 import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.client.Result;
+import org.apache.hadoop.hbase.client.ResultScanner;
 import org.apache.hadoop.hbase.client.Row;
+import org.apache.hadoop.hbase.client.Scan;
 import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
 
@@ -99,20 +101,31 @@ public class WithHTable {
         });
     }
     
+    static class WrappedInterruptedException extends RuntimeException {
+        private static final long serialVersionUID = 1L;
+        public final InterruptedException wrappedException;
+        
+        public WrappedInterruptedException(InterruptedException ie) {
+            this.wrappedException = ie;
+        } 
+    }
+    
     public static Object[] batch(HTablePool pool, byte[] tableName, final List<Row> actions) 
-            throws IOException {
-        return run(pool, tableName, new HTableRunnable<Object[]>() {
-            @Override
-            public Object[] runWith(HTableInterface hTable) throws IOException {
-                try {
-                    return hTable.batch(actions);
-                } catch (InterruptedException e) {
-                    log.error("Interrupted while running hbase batch, " +
-                            "re-throwing as IOException", e);
-                    throw new IOException(e);
+            throws IOException, InterruptedException {
+        try {
+            return run(pool, tableName, new HTableRunnable<Object[]>() {
+                @Override
+                public Object[] runWith(HTableInterface hTable) throws IOException {
+                    try {
+                        return hTable.batch(actions);
+                    } catch (InterruptedException e) {
+                        throw new WrappedInterruptedException(e);
+                    }
                 }
-            }
-        });
+            });
+        } catch (WrappedInterruptedException e) {
+            throw e.wrappedException;
+        }
     }
     
     public static Result[] get(HTablePool pool, byte[] tableName, final List<Get> gets) 
@@ -121,6 +134,28 @@ public class WithHTable {
             @Override
             public Result[] runWith(HTableInterface hTable) throws IOException {
                 return hTable.get(gets);
+            }
+        });
+    }
+
+    public static interface ScanRunnable<T> {
+        public T run(ResultScanner rs) throws IOException;
+    }
+    
+    public static <T> T scan(HTablePool pool, byte[] tableName, final Scan scan, 
+            final ScanRunnable<T> scanRunnable) throws IOException {
+        return run(pool, tableName, new HTableRunnable<T>() {
+            @Override
+            public T runWith(HTableInterface hTable) throws IOException {
+                ResultScanner rs = null;
+                try {
+                    rs = hTable.getScanner(scan);
+                    return scanRunnable.run(rs);
+                } finally {
+                    if(rs != null) {
+                        rs.close();
+                    }
+                }
             }
         });
     }

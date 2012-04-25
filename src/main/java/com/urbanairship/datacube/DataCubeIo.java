@@ -12,7 +12,11 @@ import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
 
 import com.google.common.base.Optional;
+import com.google.common.collect.ImmutableList;
 import com.urbanairship.datacube.dbharnesses.FullQueueException;
+import com.yammer.metrics.Metrics;
+import com.yammer.metrics.core.Gauge;
+import com.yammer.metrics.core.Meter;
 
 /**
  * A DataCube does no IO, it merely returns batches that can be executed. This class wraps
@@ -69,8 +73,19 @@ public class DataCubeIo<T extends Op> {
     // This executor will wait for DB writes to complete then check if they had an error.
     private final ThreadPoolExecutor asyncErrorMonitorExecutor;
     
+    private final Meter writesMeter; 
+    private final Meter asyncQueueBackoffMeter; 
+    private final Meter runBatchMeter; 
+    private final Meter ageFlushes; 
+    private final Meter sizeFlushes; 
+    
     private Batch<T> batchInProgress = new Batch<T>();
-    private long batchStartTimeMs;
+    private long batchFlushDeadlineMs;
+    
+    public DataCubeIo(DataCube<T> cube, DbHarness<T> db, int batchSize, long maxBatchAgeMs,
+            SyncLevel syncLevel) {
+        this(cube, db, batchSize, maxBatchAgeMs, syncLevel, null);
+    }
     
     /**
      * @param batchSize if after doing a write the number of rows to be written to the database
@@ -80,16 +95,35 @@ public class DataCubeIo<T extends Op> {
      * batch will not be flushed until the *next* write arrives after the timeout.
      */
     public DataCubeIo(DataCube<T> cube, DbHarness<T> db, int batchSize, long maxBatchAgeMs,
-            SyncLevel syncLevel) {
+            SyncLevel syncLevel, String metricsScope) {
         this.cube = cube;
         this.db = db;
         this.batchSize = batchSize;
         this.maxBatchAgeMs = maxBatchAgeMs;
         this.syncLevel = syncLevel;
         
+        writesMeter = Metrics.newMeter(DataCubeIo.class, "writes", metricsScope, "writes", 
+                TimeUnit.SECONDS);
+        asyncQueueBackoffMeter = Metrics.newMeter(DataCubeIo.class, "backoffMeter", metricsScope,
+                "fullQueueExceptions", TimeUnit.SECONDS);
+        runBatchMeter = Metrics.newMeter(DataCubeIo.class, "runBatchMeter", metricsScope,
+                "batches", TimeUnit.SECONDS);
+        ageFlushes = Metrics.newMeter(DataCubeIo.class, "flushesDueToAge", metricsScope,
+                "flushes", TimeUnit.SECONDS);
+        sizeFlushes = Metrics.newMeter(DataCubeIo.class, "flushesDueToSize", metricsScope,
+                "flushes", TimeUnit.SECONDS);
+        
         this.asyncErrorMonitorExecutor = new ThreadPoolExecutor(1, Integer.MAX_VALUE,
                 1, TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>(), 
                 new NamedThreadFactory("DataCubeIo async DB watcher"));
+        
+        Metrics.newGauge(DataCubeIo.class, "errorMonitorActiveCount", metricsScope, new Gauge<Integer>() {
+            @Override
+            public Integer value() {
+                return asyncErrorMonitorExecutor.getActiveCount();
+            }
+        });
+
     }
     
     /**
@@ -106,6 +140,8 @@ public class DataCubeIo<T extends Op> {
             throw asyncException;
         }
         
+        writesMeter.mark();
+        
         Batch<T> newBatch = cube.getWrites(at, op);
         Batch<T> batchToFlush = null;
 
@@ -119,15 +155,26 @@ public class DataCubeIo<T extends Op> {
             synchronized (lock) {
                 if(batchInProgress.getMap().isEmpty()) {
                     // Start the timer for this batch, it should be flushed when it becomes old
-                    batchStartTimeMs = System.currentTimeMillis();
+                    long nowTimeMs = System.currentTimeMillis();
+                    batchFlushDeadlineMs = nowTimeMs + maxBatchAgeMs; // Flush when we reach this timestamp
+                    
+                    // If the flush deadline timestamp overflowed its long, set it back to the largest 
+                    // possible value. This will occur if the client passes a very large max batch age.
+                    if(batchFlushDeadlineMs < nowTimeMs) {
+                        batchFlushDeadlineMs = Long.MAX_VALUE;
+                    }
                 }
                 batchInProgress.putAll(newBatch);
                 
                 boolean shouldFlush = false;
                 
                 if(batchInProgress.getMap().size() >= batchSize) {
+                    DebugHack.log("DataCubeIo flushing due to size, limit is " + batchSize);
+                    sizeFlushes.mark();
                     shouldFlush = true;
-                } else if(System.currentTimeMillis() > batchStartTimeMs + maxBatchAgeMs) {
+                } else if(System.currentTimeMillis() >= batchFlushDeadlineMs) {
+                    DebugHack.log("DataCubeIo flushing due to age, limit is " + maxBatchAgeMs);
+                    ageFlushes.mark();
                     shouldFlush = true;
                 }
                 
@@ -153,14 +200,21 @@ public class DataCubeIo<T extends Op> {
      * Hand off a batch to the DbHarness layer, retrying on FullQueueException.
      */
     private Future<?> runBatch(Batch<T> batch) throws InterruptedException {
+        DebugHack.log("Running batch with stack trace:");
+        for(StackTraceElement elem: Thread.currentThread().getStackTrace()) {
+            DebugHack.log("\t" + elem.toString());
+        }
         while(true) {
             try {
+                runBatchMeter.mark();
                 final Future<?> flushFuture = db.runBatchAsync(batch);
                 
                 Future<?> waitForFlushFuture = asyncErrorMonitorExecutor.submit(
                         new AsyncFlushCallable(flushFuture)); 
                 return waitForFlushFuture;
             } catch (FullQueueException e) {
+                asyncQueueBackoffMeter.mark();
+                
                 // Sleeping and retrying like this means batches may be flushed out of order
                 log.debug("Async queue is full, retrying soon");
                 Thread.sleep(100);
@@ -180,7 +234,7 @@ public class DataCubeIo<T extends Op> {
      * You can only use this function if this DataCubeIo was constructed with 
      * {@link SyncLevel#FULL_SYNC} or {@link SyncLevel#BATCH_SYNC}.
      */
-    public void writeSync(T op, WriteBuilder at) throws IOException {
+    public void writeSync(T op, WriteBuilder at) throws IOException, InterruptedException {
         if(syncLevel == SyncLevel.BATCH_ASYNC) {
             throw new IllegalArgumentException("You can't use WriteSync for this cube with " + 
                     "SyncLevel " + syncLevel);
@@ -192,20 +246,18 @@ public class DataCubeIo<T extends Op> {
         } catch (AsyncException pe) {
             throw new RuntimeException("Internal error, when at a synchronized syncLevel there should" +
             		" be no asynchronous exceptions");
-        } catch (InterruptedException e) {
-            throw new IOException("Couldn't enqueue batch, InterruptedException", e);
         }
         
         if(optFuture.isPresent()) {
             // Our write triggered a batch flush. Wait for it to finish, rethrowing exceptions.
             try {
                 optFuture.get().get();
-            } catch (InterruptedException ie) {
-                throw new IOException("Interrupted during write", ie);
             } catch (ExecutionException ee) {
                 Throwable flushException = ee.getCause();
                 if(flushException instanceof IOException) {
-                    throw new IOException(flushException);
+                    throw (IOException)flushException;
+                } else if(flushException instanceof InterruptedException) {
+                    throw (InterruptedException)flushException;
                 } else if(flushException instanceof RuntimeException) {
                     throw new RuntimeException(flushException);
                 } else {
@@ -220,12 +272,12 @@ public class DataCubeIo<T extends Op> {
     /**
      * @return absent if the bucket doesn't exist, or the bucket if it does.
      */
-    public Optional<T> get(Address addr) throws IOException {
+    public Optional<T> get(Address addr) throws IOException, InterruptedException  {
         cube.checkValidReadOrThrow(addr);
         return db.get(addr);
     }
     
-    public Optional<T> get(ReadBuilder readBuilder) throws IOException {
+    public Optional<T> get(ReadBuilder readBuilder) throws IOException, InterruptedException  {
         return this.get(readBuilder.build());
     }
     

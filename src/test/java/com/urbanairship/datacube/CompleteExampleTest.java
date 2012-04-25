@@ -174,14 +174,14 @@ public class CompleteExampleTest {
         DataCubeIo<LongOp> dataCubeIo = new DataCubeIo<LongOp>(dataCube, dbHarness, 1,
                 Long.MAX_VALUE, SyncLevel.FULL_SYNC);
         
-        public void addEvent(DeviceType deviceType, City city, DateTime when) throws IOException {
+        public void addEvent(DeviceType deviceType, City city, DateTime when) throws IOException, InterruptedException {
             dataCubeIo.writeSync(new LongOp(1), new WriteBuilder(dataCube)
                     .at(time, when)
                     .at(device, deviceType)
                     .at(location, city));
         }
         
-        public long getStateCount(UsState usState) throws IOException {
+        public long getStateCount(UsState usState) throws IOException, InterruptedException  {
             Optional<LongOp> opt = dataCubeIo.get(new ReadBuilder(dataCube)
                     .at(location, LocationBucketer.usState, usState));
             if(!opt.isPresent()) {
@@ -191,7 +191,7 @@ public class CompleteExampleTest {
             }
         }
         
-        public long getCityManufacturerCount(City city, OsManufacturer manufacturer) throws IOException {
+        public long getCityManufacturerCount(City city, OsManufacturer manufacturer) throws IOException, InterruptedException  {
             Optional<LongOp> opt = dataCubeIo.get(new ReadBuilder(dataCube)
                     .at(device, DeviceBucketer.osType, OsManufacturer.APPLE)
                     .at(location, LocationBucketer.usCity, City.PORTLAND));
@@ -203,7 +203,7 @@ public class CompleteExampleTest {
             }
         }
         
-        public long getDeviceDayCount(DeviceType deviceType, DateTime day) throws IOException {
+        public long getDeviceDayCount(DeviceType deviceType, DateTime day) throws IOException, InterruptedException  {
             Optional<LongOp> opt = dataCubeIo.get(new ReadBuilder(dataCube)
                     .at(device, DeviceBucketer.deviceName, deviceType)
                     .at(time, HourDayMonthBucketer.days, day));
@@ -215,7 +215,7 @@ public class CompleteExampleTest {
             }
         }
         
-        public long getHourCount(DateTime hour) throws IOException {
+        public long getHourCount(DateTime hour) throws IOException, InterruptedException  {
             Optional<LongOp> opt = dataCubeIo.get(new ReadBuilder(dataCube)
                     .at(time, HourDayMonthBucketer.hours, hour));
 
@@ -226,7 +226,7 @@ public class CompleteExampleTest {
             }
         }
         
-        public long getAllEventsCount() throws IOException {
+        public long getAllEventsCount() throws IOException, InterruptedException  {
             Optional<LongOp> opt = dataCubeIo.get(new ReadBuilder(dataCube));
             if(!opt.isPresent()) {
                 return 0L;
@@ -235,7 +235,8 @@ public class CompleteExampleTest {
             }
         }
         
-        public long getStateMonthOsCount(UsState state, DateTime month, OsManufacturer os) throws IOException {
+        public long getStateMonthOsCount(UsState state, DateTime month, OsManufacturer os) 
+                throws IOException, InterruptedException  {
             Optional<LongOp> opt = dataCubeIo.get(new ReadBuilder(dataCube)
                     .at(time, HourDayMonthBucketer.months, month)
                     .at(location, LocationBucketer.usState, state)

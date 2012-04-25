@@ -6,6 +6,7 @@ import java.util.List;
 import org.apache.commons.lang.ArrayUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.hbase.client.HTablePool;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.junit.Assert;
@@ -24,7 +25,7 @@ import com.urbanairship.datacube.idservices.HBaseIdService;
 import com.urbanairship.datacube.ops.LongOp;
 import com.urbanairship.datacube.ops.LongOp.LongOpDeserializer;
 
-public class HBaseBackfillIntegrationTest extends EmbeddedClusterTest {
+public class HBaseBackfillIntegrationTest extends EmbeddedClusterTestAbstract {
     private static enum Color {RED, BLUE};
     
     private static final DateTime midnight = new DateTime(DateTimeZone.UTC).minusDays(1).
@@ -66,12 +67,12 @@ public class HBaseBackfillIntegrationTest extends EmbeddedClusterTest {
             this.dataCubeIo = makeDataCubeIo(oldCube, LIVE_CUBE_TABLE);
         }
 
-        public void put(Event event) throws IOException {
+        public void put(Event event) throws IOException, InterruptedException  {
             dataCubeIo.writeSync(new LongOp(1), new WriteBuilder(oldCube)
                     .at(timeDimension, event.time));
         }
         
-        public long getDayCount(DateTime day) throws IOException {
+        public long getDayCount(DateTime day) throws IOException, InterruptedException  {
             Optional<LongOp> countOpt = dataCubeIo.get(new ReadBuilder(oldCube)
                 .at(timeDimension, HourDayMonthBucketer.days, day));
             if(countOpt.isPresent()) {
@@ -81,7 +82,7 @@ public class HBaseBackfillIntegrationTest extends EmbeddedClusterTest {
             }
         }
         
-        public long getHourCount(DateTime hour) throws IOException {
+        public long getHourCount(DateTime hour) throws IOException, InterruptedException  {
             Optional<LongOp> countOpt = dataCubeIo.get(new ReadBuilder(oldCube)
                 .at(timeDimension, HourDayMonthBucketer.hours, hour));
             if(countOpt.isPresent()) {
@@ -102,13 +103,13 @@ public class HBaseBackfillIntegrationTest extends EmbeddedClusterTest {
             this.dataCubeIo = dataCubeIo;
         }
         
-        public void put(Event event) throws IOException {
+        public void put(Event event) throws IOException, InterruptedException  {
             dataCubeIo.writeSync(new LongOp(1), new WriteBuilder(newCube)
                     .at(timeDimension, event.time)
                     .at(colorDimension, event.color));
         }
         
-        public long getHourColorCount(DateTime hour, Color color) throws IOException {
+        public long getHourColorCount(DateTime hour, Color color) throws IOException, InterruptedException  {
             Optional<LongOp> countOpt = dataCubeIo.get(new ReadBuilder(newCube)
                     .at(timeDimension, HourDayMonthBucketer.hours, hour)
                     .at(colorDimension, color));
@@ -119,7 +120,7 @@ public class HBaseBackfillIntegrationTest extends EmbeddedClusterTest {
             }
         }
         
-        public long getDayCount(DateTime day) throws IOException {
+        public long getDayCount(DateTime day) throws IOException, InterruptedException  {
             Optional<LongOp> countOpt = dataCubeIo.get(new ReadBuilder(newCube)
                 .at(timeDimension, HourDayMonthBucketer.days, day));
             if(countOpt.isPresent()) {
@@ -233,8 +234,8 @@ public class HBaseBackfillIntegrationTest extends EmbeddedClusterTest {
      */
     private static DataCubeIo<LongOp> makeDataCubeIo(DataCube<LongOp> cube, byte[] table) 
             throws Exception {
-        Configuration conf = getTestUtil().getConfiguration();
-        DbHarness<LongOp> dbHarness = new HBaseDbHarness<LongOp>(conf, ArrayUtils.EMPTY_BYTE_ARRAY, 
+        HTablePool pool = new HTablePool(getTestUtil().getConfiguration(), Integer.MAX_VALUE);
+        DbHarness<LongOp> dbHarness = new HBaseDbHarness<LongOp>(pool, ArrayUtils.EMPTY_BYTE_ARRAY, 
                 table, CF, LongOp.DESERIALIZER, idService, CommitType.INCREMENT);
         return new DataCubeIo<LongOp>(cube, dbHarness, 1, Long.MAX_VALUE, SyncLevel.FULL_SYNC);
     }

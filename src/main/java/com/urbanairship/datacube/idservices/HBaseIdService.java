@@ -3,22 +3,31 @@ package com.urbanairship.datacube.idservices;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
+import java.util.Collection;
+import java.util.Map.Entry;
 
+import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.lang.ArrayUtils;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.apache.hadoop.hbase.client.Delete;
 import org.apache.hadoop.hbase.client.Get;
 import org.apache.hadoop.hbase.client.HTablePool;
 import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.client.Result;
+import org.apache.hadoop.hbase.client.ResultScanner;
+import org.apache.hadoop.hbase.client.Scan;
 import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
 
+import com.google.common.collect.HashMultimap;
+import com.google.common.collect.Multimap;
 import com.google.common.math.LongMath;
 import com.urbanairship.datacube.IdService;
 import com.urbanairship.datacube.Util;
 import com.urbanairship.datacube.dbharnesses.WithHTable;
+import com.urbanairship.datacube.dbharnesses.WithHTable.ScanRunnable;
 
 public class HBaseIdService implements IdService {
     private static final Logger log = LogManager.getLogger(HBaseIdService.class);
@@ -45,10 +54,11 @@ public class HBaseIdService implements IdService {
     }
     
     @Override
-    public byte[] getId(int dimensionNum, byte[] input, int numIdBytes) throws IOException {
+    public byte[] getId(int dimensionNum, byte[] input, int numIdBytes) throws IOException,
+            InterruptedException {
         Validate.validateDimensionNum(dimensionNum);
         Validate.validateNumIdBytes(numIdBytes);
-       
+
         final byte[] lookupKey = makeLookupKey(dimensionNum, input);
 
         /*
@@ -93,13 +103,11 @@ public class HBaseIdService implements IdService {
                         if(log.isDebugEnabled()) {
                             log.debug("Waiting for other thread to finish allocating id");
                         }
-                        try {
-                            Thread.sleep(500);
-                        } catch (InterruptedException e) {
-                            throw new IOException("Wrapping InterruptedException in IOException",
-                                    e);
-                        }
+                        Thread.sleep(500);
                         continue;
+                    } else {
+                        log.warn("Preempting expired allocator for input " + 
+                                Base64.encodeBase64String(input));
                     }
                     break;
                 default:
@@ -185,6 +193,75 @@ public class HBaseIdService implements IdService {
             log.warn("Concurrent allocators!?!? ID " + id + " will never be used");
             // Recurse, try again.
             return getId(dimensionNum, input, numIdBytes);
+        }
+    }
+    
+    public boolean consistencyCheck() throws IOException {
+        Scan scan = new Scan();
+        scan.setStartRow(uniqueCubeName);
+        scan.setStopRow(ArrayUtils.addAll(uniqueCubeName, new byte[] {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1}));
+        scan.addFamily(cf);
+        return WithHTable.scan(pool, lookupTable, scan, new ScanRunnable<Boolean>() {
+            @Override
+            public Boolean run(ResultScanner rs) {
+                boolean anyInconsistenciesFound = false;
+                Multimap<Short,Long> sawIds = HashMultimap.create();
+                
+                for(Result result: rs) {
+                    byte[] rowKey = result.getRow();
+                    ByteBuffer bb = ByteBuffer.allocate(2);
+                    bb.put(rowKey, uniqueCubeName.length, 2);
+                    bb.flip();
+                    short dimensionNum = bb.getShort();
+                    long id = ByteBuffer.wrap(result.getValue(cf, QUALIFIER)).getLong(1);
+                    if(sawIds.containsEntry(dimensionNum, id)) {
+                        log.error("Saw a dupe: dimension=" + dimensionNum + " id=" + id);
+                        anyInconsistenciesFound = true;
+                    } else {
+                        log.debug("New value, dimension=" + dimensionNum + " id=" + id);
+                        sawIds.put(dimensionNum, id);
+                    }
+                }
+                
+                for(Entry<Short,Collection<Long>> e: sawIds.asMap().entrySet()) {
+                    short dimensionNum = e.getKey();
+                    Collection<Long> idsThisDimension = e.getValue();
+                    
+                    long maxId = Long.MIN_VALUE;
+                    for(Long id: idsThisDimension) {
+                        maxId = Math.max(id, maxId);
+                    }
+                    
+                    if(idsThisDimension.size() != maxId) {
+                        log.error("Some ids were missing in dimension " + dimensionNum);
+                        anyInconsistenciesFound = true;
+                    }
+                }
+                
+                return !anyInconsistenciesFound;
+            }
+        });
+    }
+    
+    /**
+     * This class gives users a way to run a consistency check from the command line.
+     */
+    public static class ConsistencyCheck {
+        public static void main(String[] args) throws Exception {
+            byte[] lookupTable = args[0].getBytes();
+            byte[] counterTable = args[1].getBytes();
+            byte[] cf = args[2].getBytes();
+            byte[] uniqueCubeName = args[3].getBytes();
+            
+            Configuration conf = HBaseConfiguration.create(); // parse XML configs on classpath
+            HBaseIdService idService = new HBaseIdService(conf, lookupTable, counterTable, cf, uniqueCubeName);
+            if(idService.consistencyCheck()) {
+                log.info("Check passed");
+                System.exit(0);
+            } else {
+                log.warn("Check failed");
+                System.exit(1);
+            }
         }
     }
 

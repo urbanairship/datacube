@@ -65,7 +65,7 @@ public class MapDbHarness<T extends Op> implements DbHarness<T> {
             BoxedByteArray mapKey;
             try {
                 mapKey = new BoxedByteArray(address.toKey(idService));
-            } catch (IOException e) {
+            } catch (Exception e) {
                 throw new RuntimeException(e);
             }
             
@@ -75,7 +75,7 @@ public class MapDbHarness<T extends Op> implements DbHarness<T> {
                     Optional<byte[]> oldBytes;
                     try {
                         oldBytes = getRaw(address);
-                    } catch (IOException e) {
+                    } catch (Exception e) {
                         throw new RuntimeException(e);
                     }
                     
@@ -132,7 +132,7 @@ public class MapDbHarness<T extends Op> implements DbHarness<T> {
     }
 
     @Override
-    public Optional<T> get(Address address) throws IOException {
+    public Optional<T> get(Address address) throws IOException, InterruptedException {
         Optional<byte[]> bytes = getRaw(address);
         if(bytes.isPresent()) {
             return Optional.of(deserializer.fromBytes(bytes.get()));
@@ -146,8 +146,13 @@ public class MapDbHarness<T extends Op> implements DbHarness<T> {
         return; // all ops are synchronously applied, nothing to do
     }
 
-    private Optional<byte[]> getRaw(Address address) throws IOException {
-        byte[] mapKey = address.toKey(idService);
+    private Optional<byte[]> getRaw(Address address) throws InterruptedException {
+        byte[] mapKey;
+        try {
+            mapKey = address.toKey(idService);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
         byte[] bytes = map.get(new BoxedByteArray(mapKey));
         if(log.isDebugEnabled()) {
             log.debug("getRaw for key " + Hex.encodeHexString(mapKey) + " returned " + 
