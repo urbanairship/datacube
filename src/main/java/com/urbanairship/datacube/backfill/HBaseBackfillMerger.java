@@ -100,7 +100,7 @@ public class HBaseBackfillMerger implements Runnable {
             job.setJobName("DataCube HBase backfiller");
             job.setJarByClass(HBaseBackfillMerger.class);
             job.getConfiguration().set(CONFKEY_DESERIALIZER, opDeserializer.getName());
-            job.setMapperClass(HBaseBackfillMapper.class);
+            job.setMapperClass(HBaseBackfillMergeMapper.class);
             job.setInputFormatClass(CollectionInputFormat.class);
             job.setNumReduceTasks(0); // No reducers, mappers do all the work
             job.setOutputFormatClass(NullOutputFormat.class); 

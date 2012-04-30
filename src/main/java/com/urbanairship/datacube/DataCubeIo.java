@@ -143,6 +143,11 @@ public class DataCubeIo<T extends Op> {
         writesMeter.mark();
         
         Batch<T> newBatch = cube.getWrites(at, op);
+        
+        return writeAsync(newBatch, at);
+    }
+    
+    public Optional<Future<?>> writeAsync(Batch<T> newBatch, WriteBuilder at) throws AsyncException, InterruptedException {
         Batch<T> batchToFlush = null;
 
         switch(syncLevel) {
@@ -200,10 +205,10 @@ public class DataCubeIo<T extends Op> {
      * Hand off a batch to the DbHarness layer, retrying on FullQueueException.
      */
     private Future<?> runBatch(Batch<T> batch) throws InterruptedException {
-        DebugHack.log("Running batch with stack trace:");
-        for(StackTraceElement elem: Thread.currentThread().getStackTrace()) {
-            DebugHack.log("\t" + elem.toString());
-        }
+//        DebugHack.log("Running batch with stack trace:");
+//        for(StackTraceElement elem: Thread.currentThread().getStackTrace()) {
+//            DebugHack.log("\t" + elem.toString());
+//        }
         while(true) {
             try {
                 runBatchMeter.mark();

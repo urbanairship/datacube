@@ -26,8 +26,8 @@ import com.urbanairship.datacube.Op;
 import com.urbanairship.datacube.ResultComparator;
 import com.urbanairship.datacube.dbharnesses.HBaseDbHarness;
 
-public class HBaseBackfillMapper extends Mapper<Scan,NullWritable,NullWritable,NullWritable> {
-    private static final Logger log = LogManager.getLogger(HBaseBackfillMapper.class);
+public class HBaseBackfillMergeMapper extends Mapper<Scan,NullWritable,NullWritable,NullWritable> {
+    private static final Logger log = LogManager.getLogger(HBaseBackfillMergeMapper.class);
     
     public static enum Ctrs {ACTION_DELETED, ACTION_OVERWRITTEN, ACTION_UNCHANGED,
         ROWS_CHANGED_SINCE_SNAPSHOT, ROWS_NEW_SINCE_SNAPSHOT}; 
@@ -201,7 +201,7 @@ public class HBaseBackfillMapper extends Mapper<Scan,NullWritable,NullWritable,N
         // Else:
         //    new value is (live-snap) + backfill
         if(snapshotOp != null && backfilledOp != null && liveCubeOp != null) {
-            DebugHack.log("HBaseBackfillMapper 1");
+            DebugHack.log("HBaseBackfillMergeMapper 1");
             if(liveCubeOp.equals(snapshotOp)) {
                 return new ActionRowKeyAndOp(Action.OVERWRITE, rowKey, backfilledOp);
             }
@@ -219,10 +219,12 @@ public class HBaseBackfillMapper extends Mapper<Scan,NullWritable,NullWritable,N
         // Else
         //       New value is (live-snap)
         else if(snapshotOp != null && backfilledOp == null && liveCubeOp != null) {
-            DebugHack.log("HBaseBackfillMapper 2");
+            DebugHack.log("HBaseBackfillMergeMapper 2");
             if(liveCubeOp.equals(snapshotOp)) {
+                DebugHack.log("HBaseBackfillMergeMapper 2.1");
                 return new ActionRowKeyAndOp(Action.DELETE, rowKey, null);
             } else {
+                DebugHack.log("HBaseBackfillMergeMapper 2.2");
                 Op newLiveCubeValue = liveCubeOp.subtract(snapshotOp);
                 return new ActionRowKeyAndOp(Action.OVERWRITE, rowKey, newLiveCubeValue);
             }
@@ -231,7 +233,7 @@ public class HBaseBackfillMapper extends Mapper<Scan,NullWritable,NullWritable,N
         // Case: snapshot empty, backfill exists, liveCube exists
         // New value is backfill + live
         else if(snapshotOp == null && backfilledOp != null && liveCubeOp != null) {
-            DebugHack.log("HBaseBackfillMapper 3");
+            DebugHack.log("HBaseBackfillMergeMapper 3");
             Op newLiveCubeValue = backfilledOp.add(liveCubeOp);
             return new ActionRowKeyAndOp(Action.OVERWRITE, rowKey, newLiveCubeValue);
         }
@@ -239,14 +241,14 @@ public class HBaseBackfillMapper extends Mapper<Scan,NullWritable,NullWritable,N
         // Case: snapshot empty, backfill exists, liveCube empty
         // New value is backfill
         else if(snapshotOp == null && backfilledOp != null && liveCubeOp == null) {
-            DebugHack.log("HBaseBackfillMapper 4");
+            DebugHack.log("HBaseBackfillMergeMapper 4");
             return new ActionRowKeyAndOp(Action.OVERWRITE, rowKey, backfilledOp);
         }
         
         // Case: snapshot empty, backfill empty, liveCube exists
         // Leave alone
         else if(snapshotOp == null && backfilledOp == null && liveCubeOp != null) {
-            DebugHack.log("HBaseBackfillMapper 5");
+            DebugHack.log("HBaseBackfillMergeMapper 5");
             return new ActionRowKeyAndOp(Action.LEAVE_ALONE, rowKey, null);
         }
         
