@@ -1,3 +1,7 @@
+/*
+Copyright 2012 Urban Airship and Contributors
+*/
+
 package com.urbanairship.datacube.serializables;
 
 import com.urbanairship.datacube.CSerializable;
