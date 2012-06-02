@@ -52,14 +52,6 @@
 
   <repositories>
     <repository>
-      <id>thirdparty</id>
-      <url>http://nexus.prod.urbanairship.com/content/repositories/thirdparty</url>
-      <snapshots>
-        <enabled>false</enabled>
-      </snapshots>
-    </repository>
-
-    <repository>
       <id>repository.cloudera.com</id>
       <url>https://repository.cloudera.com/content/repositories/releases/</url>
       <snapshots>

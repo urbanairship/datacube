@@ -1,3 +1,7 @@
+/*
+Copyright 2012 Urban Airship and Contributors
+*/
+
 package hacklog;
 
 import java.io.File;

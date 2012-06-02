@@ -1,3 +1,7 @@
+/*
+Copyright 2012 Urban Airship and Contributors
+*/
+
 package com.urbanairship.datacube.ops;
 
 import com.urbanairship.datacube.Deserializer;
