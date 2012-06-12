@@ -18,8 +18,6 @@ Urban Airship uses the datacube project to support its analytics stack for mobil
 
 Each input data point may affect multiple counts in the data cube. For example, if you're counting events with a timestamp, a single event may increment the count for its hour, day, month, and year, ending up with four increments that must be applied to the database. Updating the database for each of these increments wouldn't scale to thousands of events per second, so we use the standard trick of batching counter updates in the client. When an input data point is given to the data cube, it updates a batch in memory for each of the affected counters. Periodically the batches are flushed to the backing database. If a single counter is incremented multiple times in the same batch, the increments are combined into a single database update.
 
-The efficiency gain from batching and combining updates 
-
 TODO parameters to tune, implementation details to explain parameters
 
 ## Bulk loading / backfilling
