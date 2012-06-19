@@ -6,6 +6,7 @@ package com.urbanairship.datacube;
 
 import java.io.IOException;
 
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HBaseTestingUtility;
 import org.apache.hadoop.hbase.HTableDescriptor;
 import org.apache.hadoop.hbase.client.Delete;
@@ -29,7 +30,22 @@ public class EmbeddedClusterTestAbstract {
     
     protected synchronized static HBaseTestingUtility getTestUtil() throws Exception {
         if(hbaseTestUtil == null) {
-            hbaseTestUtil = new HBaseTestingUtility();
+        	// Run on some arbitrary ports to avoid conflicting with existing daemons
+        	Configuration testConf = new Configuration();
+        	testConf.set("fs.default.name", "hdfs://localhost:38247");
+        	testConf.set("hbase.master.port", "38248");
+        	testConf.set("hbase.master.info.port", "38249");
+        	testConf.set("hbase.regionserver.port", "38250");
+        	testConf.set("hbase.regionserver.info.port", "38251");
+        	testConf.set("hbase.zookeeper.property.clientPort", "38252");
+        	testConf.set("hbase.zookeeper.peerport", "38253");
+        	testConf.set("hbase.zookeeper.leaderport", "38254");
+        	testConf.set("hbase.rest.port", "38255");
+        	testConf.set("dfs.datanode.http.address", "38256");
+        	testConf.set("dfs.datanode.ipc.address", "38257");
+        	testConf.set("dfs.namenode.http-address", "38258");
+        	
+            hbaseTestUtil = new HBaseTestingUtility(testConf);
             hbaseTestUtil.startMiniCluster();
             
              // HBaseTestingUtility will NPE unless we set this
