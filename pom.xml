@@ -11,6 +11,7 @@
 
   <build>
     <plugins>
+      <!-- Maven 2 won't build as Java 1.6 unless we configure this -->
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-compiler-plugin</artifactId>
@@ -20,36 +21,45 @@
           <target>1.6</target>
         </configuration>
       </plugin>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-source-plugin</artifactId>
-        <version>2.1.2</version>
-        <executions>
-          <execution>
-            <id>attach-sources</id>
-            <phase>package</phase>
-            <goals>
-              <goal>jar-no-fork</goal>
-            </goals>
-          </execution>
-        </executions>
-      </plugin>
-      <!-- <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-shade-plugin</artifactId>
-        <version>1.4</version>
-        <executions>
-          <execution>
-            <phase>package</phase>
-            <goals>
-              <goal>shade</goal>
-            </goals>
-          </execution>
-        </executions>
-      </plugin> -->
     </plugins>
   </build>
+  
+  <properties>
+    <hbaseversion>0.90.4</hbaseversion>
+  </properties> 
 
+  <profiles>
+    <!-- Set hbaseVersion if not specified on the command line -->
+    <profile>
+      <id>set_default_hbase_version</id>
+      <activation>
+        <activeByDefault>true</activeByDefault>
+        <property>
+          <name>!hbaseVersion</name>
+        </property>
+      </activation>
+      <properties>
+        <hbaseVersion>0.90.4</hbaseVersion>
+      </properties>
+    </profile>
+
+    <profile>
+    <!-- Set hadoopVersion if not specified on the command line -->
+      <id>set_default_hadoop_version</id>
+      <activation>
+        <activeByDefault>true</activeByDefault>
+        <property>
+          <name>!hadoopVersion</name>
+        </property>
+      </activation>
+      <properties>
+        <hbaseVersion>0.20.2-cdh3u4</hbaseVersion>
+      </properties>
+    </profile>
+  </profiles>
+
+
+  <!-- Include the Cloudera repo to build against CDH hbase if desired -->
   <repositories>
     <repository>
       <id>repository.cloudera.com</id>
@@ -58,20 +68,7 @@
         <enabled>false</enabled>
       </snapshots>
     </repository>
-
   </repositories>
-
-  <distributionManagement>
-    <repository>
-      <id>releases</id>
-      <url>http://nexus.prod.urbanairship.com/content/repositories/releases</url>
-    </repository>
-
-    <snapshotRepository>
-      <id>releases</id>
-      <url>http://nexus.prod.urbanairship.com/content/repositories/snapshots</url>
-    </snapshotRepository>
-  </distributionManagement>
 
   <packaging>jar</packaging>
 
@@ -112,7 +109,7 @@
     <dependency>
       <groupId>com.google.guava</groupId>
       <artifactId>guava</artifactId>
-      <version>11.0.1</version>
+      <version>11.0.2</version>
     </dependency>
     <dependency>
       <groupId>joda-time</groupId>
@@ -136,13 +133,13 @@
     <dependency>
       <groupId>org.apache.hbase</groupId>
       <artifactId>hbase</artifactId>
-      <version>0.90.4</version>
+      <version>${hbaseVersion}</version>
     </dependency>
 
     <dependency>
       <groupId>org.apache.hbase</groupId>
       <artifactId>hbase</artifactId>
-      <version>0.90.4</version>
+      <version>${hbaseVersion}</version>
       <scope>test</scope>
       <classifier>tests</classifier>
     </dependency>
@@ -150,14 +147,14 @@
     <dependency>
       <groupId>org.apache.hadoop</groupId>
       <artifactId>hadoop-test</artifactId>
-      <version>0.20.2-cdh3u3</version>
+      <version>${hadoopVersion}</version>
       <scope>test</scope>
     </dependency>
 
     <dependency>
       <groupId>org.apache.hadoop</groupId>
       <artifactId>hadoop-core</artifactId>
-      <version>0.20.2-cdh3u3</version>
+      <version>${hadoopVersion}</version>
       <scope>provided</scope>
     </dependency>
 
