@@ -8,6 +8,8 @@ A bit more mathily, if your input data points have N attributes, then the number
 
 Urban Airship uses the datacube project to support its analytics stack for mobile apps. We handle about ~10K events per second per node.
 
+Requires JDK 1.6.
+
 ## Features
  - Performance: high-speed asynchronous batching IO backend
  - Bulk loading with Hadoop MapReduce
