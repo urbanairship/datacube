@@ -67,9 +67,6 @@ public class BackfillExampleTest extends EmbeddedClusterTestAbstract {
         getTestUtil().createTable(LIVE_CUBE_TABLE, CF);
     }
     
-    /**
-     * A wrapper around a datacube that doesn't know about the color dimension that we'll add later.
-     */
     private static class CubeWrapper {
         private final DataCubeIo<LongOp> dataCubeIo;
         
