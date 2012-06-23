@@ -16,6 +16,7 @@ import org.apache.hadoop.hbase.HColumnDescriptor;
 import org.apache.hadoop.hbase.HTableDescriptor;
 import org.apache.hadoop.hbase.KeyValue;
 import org.apache.hadoop.hbase.TableExistsException;
+import org.apache.hadoop.hbase.TableNotFoundException;
 import org.apache.hadoop.hbase.client.HBaseAdmin;
 import org.apache.hadoop.hbase.client.HTable;
 import org.apache.hadoop.hbase.client.Result;
@@ -136,7 +137,11 @@ public class HBaseSnapshotter implements Runnable {
             }
 
             log.debug("Starting HBase bulkloader to load snapshot from HFiles");
-            new LoadIncrementalHFiles(conf).doBulkLoad(hfileOutputPath, destHTable);
+            try {
+            	new LoadIncrementalHFiles(conf).doBulkLoad(hfileOutputPath, destHTable);
+            } catch (Exception e) {
+            	throw new IOException("Bulkloader couldn't run", e);
+            }
             
             // Delete the mapreduce output directory if it's empty. This will prevent future
             // mapreduce jobs from quitting with "target directory already exists".
