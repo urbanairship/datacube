@@ -16,7 +16,6 @@ import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
 
 import com.google.common.base.Optional;
-import com.google.common.collect.ImmutableList;
 import com.urbanairship.datacube.dbharnesses.FullQueueException;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Gauge;
