@@ -115,3 +115,11 @@ Create a DataCubeIo object, passing your DataCube object and your DbHarness.
 Insert data points into your cube by passing them to DataCubeIo.writeSync().
 
 Read back your rollup values by calling DataCubeIo.get().
+
+## Building
+
+You can pass -DhadoopVersion and -DhbaseVersion to maven to choose which version of Haodop and HBase to depend on. Hadoop 2 is not yet supported since the artifact names are different. For example: 
+
+```
+mvn -DhadoopVersion=1.0.2 -DhbaseVersion=0.94.0 package
+```
