@@ -16,7 +16,6 @@ import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
 
 import com.google.common.base.Optional;
-import com.google.common.collect.ImmutableList;
 import com.urbanairship.datacube.dbharnesses.FullQueueException;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Gauge;
@@ -117,8 +116,8 @@ public class DataCubeIo<T extends Op> {
         sizeFlushes = Metrics.newMeter(DataCubeIo.class, "flushesDueToSize", metricsScope,
                 "flushes", TimeUnit.SECONDS);
         
-        this.asyncErrorMonitorExecutor = new ThreadPoolExecutor(1, Integer.MAX_VALUE,
-                1, TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>(), 
+        this.asyncErrorMonitorExecutor = new ThreadPoolExecutor(Integer.MAX_VALUE, 
+                Integer.MAX_VALUE, 1, TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>(), 
                 new NamedThreadFactory("DataCubeIo async DB watcher"));
         
         Metrics.newGauge(DataCubeIo.class, "errorMonitorActiveCount", metricsScope, new Gauge<Integer>() {
