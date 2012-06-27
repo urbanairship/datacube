@@ -99,6 +99,18 @@
       </plugin>
     </plugins>  
   </build>
+
+  <distributionManagement>
+    <repository>
+      <id>releases</id>
+      <url>http://nexus.prod.urbanairship.com/content/repositories/releases</url>
+    </repository>
+
+    <snapshotRepository>
+      <id>releases</id>
+      <url>http://nexus.prod.urbanairship.com/content/repositories/snapshots</url>
+    </snapshotRepository>
+  </distributionManagement>
   
   <profiles>
     <!-- Set hbaseVersion if not specified on the command line -->
@@ -125,7 +137,7 @@
         </property>
       </activation>
       <properties>
-        <hadoopVersion>1.0.3</hadoopVersion>
+        <hadoopVersion>0.20.2-cdh3u4</hadoopVersion>
       </properties>
     </profile>
 
