@@ -24,10 +24,6 @@
     </plugins>
   </build>
   
-  <properties>
-    <hbaseversion>0.90.4</hbaseversion>
-  </properties> 
-
   <profiles>
     <!-- Set hbaseVersion if not specified on the command line -->
     <profile>
