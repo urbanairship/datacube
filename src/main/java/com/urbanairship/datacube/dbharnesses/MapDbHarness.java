@@ -60,7 +60,7 @@ public class MapDbHarness<T extends Op> implements DbHarness<T> {
      */
     @SuppressWarnings("unchecked")
     @Override
-    public Future<?> runBatchAsync(Batch<T> batch) {
+    public Future<?> runBatchAsync(Batch<T> batch, AfterExecute<T> afterExecute) {
         
         for(Map.Entry<Address,T> entry: batch.getMap().entrySet()) {
             Address address = entry.getKey();
@@ -120,7 +120,9 @@ public class MapDbHarness<T extends Op> implements DbHarness<T> {
                     }
                 } while (casRetriesRemaining-- > 0);
                 if(casRetriesRemaining == -1) {
-                    throw new RuntimeException("CAS retries exhausted");
+                    RuntimeException e = new RuntimeException("CAS retries exhausted");
+                    afterExecute.afterExecute(e);
+                    throw e;
                 }
             } else if(commitType == CommitType.OVERWRITE) {
                 map.put(mapKey, opFromBatch.serialize());
@@ -132,6 +134,7 @@ public class MapDbHarness<T extends Op> implements DbHarness<T> {
             }
         }
         batch.reset();
+        afterExecute.afterExecute(null); // null throwable => success
         return nullFuture;
     }
 
