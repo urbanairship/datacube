@@ -5,7 +5,6 @@ Copyright 2012 Urban Airship and Contributors
 package com.urbanairship.datacube;
 
 import java.io.IOException;
-import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -16,6 +15,7 @@ import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
 
 import com.google.common.base.Optional;
+import com.urbanairship.datacube.dbharnesses.AfterExecute;
 import com.urbanairship.datacube.dbharnesses.FullQueueException;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Gauge;
@@ -215,11 +215,8 @@ public class DataCubeIo<T extends Op> {
         while(true) {
             try {
                 runBatchMeter.mark();
-                final Future<?> flushFuture = db.runBatchAsync(batch);
-                
-                Future<?> waitForFlushFuture = asyncErrorMonitorExecutor.submit(
-                        new AsyncFlushCallable(flushFuture)); 
-                return waitForFlushFuture;
+                final Future<?> flushFuture = db.runBatchAsync(batch, flushErrorHandler);; 
+                return flushFuture;
             } catch (FullQueueException e) {
                 asyncQueueBackoffMeter.mark();
                 
@@ -299,36 +296,13 @@ public class DataCubeIo<T extends Op> {
         db.flush();
     }
     
-    /**
-     * Waits on a Future, ignoring its results. We use this to notice errors in asynchronous DB 
-     * flushes and put the DataCubeIo into an error state where it won't accept any more writes.
-     */
-    private class AsyncFlushCallable implements Callable<Object> {
-        private final Future<?> future;
-        
-        public AsyncFlushCallable(Future<?> future) {
-            this.future = future;
-        }
-        
+    private AfterExecute<T> flushErrorHandler = new AfterExecute<T>() {
         @Override
-        public Object call() throws Exception {
-            try {
-                future.get();
-                return null; // we have nothing to return but Callable requires that we return something
-            } catch (ExecutionException ee) {
-                Throwable t = ee.getCause();
-                asyncException = new AsyncException(t); // This will refuse any more writes
+        public void afterExecute(Throwable t) {
+            if(t != null) {
+                asyncException = new AsyncException(t);
                 log.error("Putting DataCubeIo into an error state due to flush exception", t);
-                if(t instanceof Exception) {
-                    throw (Exception)t;
-                } else {
-                    throw new Exception(t);
-                }
-            } catch (InterruptedException ie) {
-                asyncException = new AsyncException(ie);
-                log.error("Putting DataCubeIo into an error state due to interruption", ie);
-                throw ie; // Rethrow Exception
             }
         }
-    }
+    };
 }

@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.concurrent.Future;
 
 import com.google.common.base.Optional;
+import com.urbanairship.datacube.dbharnesses.AfterExecute;
 import com.urbanairship.datacube.dbharnesses.FullQueueException;
 
 /**
@@ -33,7 +34,7 @@ public interface DbHarness<T extends Op> {
      * @throws FullQueueException if the queue of pending batches to be flushed is full, and no more
      * batches can be accepted right now. The caller can retry soon. 
      */
-    public Future<?> runBatchAsync(Batch<T> batch) throws FullQueueException;
+    public Future<?> runBatchAsync(Batch<T> batch, AfterExecute<T> afterExecute) throws FullQueueException;
 
     /**
      * @return absent if the bucket doesn't exist, or the bucket if it does.
