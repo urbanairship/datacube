@@ -143,7 +143,7 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
      * future will never have an ExecutionException. 
      */
     @Override
-    public Future<?> runBatchAsync(Batch<T> batch) throws FullQueueException {
+    public Future<?> runBatchAsync(Batch<T> batch, AfterExecute<T> afterExecute) throws FullQueueException {
         /* 
          * Since ThreadPoolExecutor throws RejectedExecutionException when its queue is full,
          * we have to backoff and retry if execute() throws RejectedExecutionHandler.
@@ -157,7 +157,7 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
             synchronized(batchesInFlight) {
                 batchesInFlight.add(batch);
             }
-            return flushExecutor.submit(new FlushWorkerRunnable(batch));
+            return flushExecutor.submit(new FlushWorkerRunnable(batch, afterExecute));
         } catch (RejectedExecutionException ree) {
             throw new FullQueueException();
         }
@@ -165,30 +165,40 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
     
     private class FlushWorkerRunnable implements Callable<Object> {
         private final Batch<T> batch;
+        private final AfterExecute<T> afterExecute;
         
-        public FlushWorkerRunnable(Batch<T> batch) {
+        public FlushWorkerRunnable(Batch<T> batch, AfterExecute<T> afterExecute) {
             this.batch = batch;
+            this.afterExecute = afterExecute;
         }
 
         @Override
-        public Object call() throws IOException, InterruptedException {
+        public Object call() throws Exception {
+            IOException lastIOException = null;
             try {
                 for(int attempt=0; attempt<numIoeRetries; attempt++) {
                     try {
                         flushBatch(batch);
-                        break;
+                        afterExecute.afterExecute(null); // null => no exception
+                        return null; // The return value of this callable is ignored
                     } catch (IOException e) {
+                        lastIOException = e;
                         log.error("IOException in worker thread flushing to HBase on attempt " + 
                                 attempt + "/" + numIoeRetries + ", will retry", e);
                         Thread.sleep(500);
                     }
                 }
+            } catch (Exception e) {
+                afterExecute.afterExecute(e);
+                throw e;
             } finally {
                 synchronized(batchesInFlight) {
                     batchesInFlight.remove(batch);
                 }
             }
-            return null; // Return value is meaningless, but a callable has to return something
+            
+            afterExecute.afterExecute(lastIOException);
+            throw lastIOException;
         }
     }
 
