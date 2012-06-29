@@ -4,7 +4,7 @@
 
   <groupId>com.urbanairship</groupId>
   <artifactId>datacube</artifactId>
-  <version>1.1.6</version>
+  <version>1.1.8</version>
 
   <name>datacube</name>
   <url>http://urbanairship.com</url>
