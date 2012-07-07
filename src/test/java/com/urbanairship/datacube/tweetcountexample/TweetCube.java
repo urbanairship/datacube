@@ -1,29 +1,28 @@
 package com.urbanairship.datacube.tweetcountexample;
 
 import java.io.IOException;
+import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
 
+import com.urbanairship.datacube.*;
 import org.joda.time.DateTime;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
-import com.urbanairship.datacube.Batch;
-import com.urbanairship.datacube.DataCube;
-import com.urbanairship.datacube.DataCubeIo;
-import com.urbanairship.datacube.DbHarness;
-import com.urbanairship.datacube.Dimension;
-import com.urbanairship.datacube.ReadBuilder;
-import com.urbanairship.datacube.Rollup;
-import com.urbanairship.datacube.SyncLevel;
-import com.urbanairship.datacube.WriteBuilder;
 import com.urbanairship.datacube.bucketers.HourDayMonthBucketer;
 import com.urbanairship.datacube.bucketers.StringToBytesBucketer;
+import com.urbanairship.datacube.bucketers.TagsBucketer;
 import com.urbanairship.datacube.ops.LongOp;
-
+/**
+ * A class that wraps the datacube operations in an intuitive interface. It offers methods for counting tweets and
+ * getting various counts of interest.
+ */
 public class TweetCube {
+    private static final Logger log = LoggerFactory.getLogger(TweetCube.class);
+    
 	private final DataCubeIo<LongOp> dataCubeIo;
 	private final DataCube<LongOp> dataCube;
 
@@ -45,15 +44,24 @@ public class TweetCube {
 			new StringToBytesBucketer(), 
 			true, 
 			4);
+	Dimension<Collection<String>> tagsDimension = new Dimension<Collection<String>>(
+	        "tags",
+	        new TagsBucketer(),
+	        true,
+	        7);
 	List<Dimension<?>> dimensions = ImmutableList.<Dimension<?>>of(timeDimension, 
-			retweetedFromDimension, userDimension);
-
-	
-	public TweetCube(DbHarness<LongOp> dbHarness, SyncLevel syncLevel) {
+			retweetedFromDimension, userDimension, tagsDimension);
+    /**
+     * @param dbHarness storage backend implementation, see {@link DbHarness}
+     * @param syncLevel how to cache and batch writes, see {@link syncLevel}
+     */
+    public TweetCube(DbHarness<LongOp> dbHarness, SyncLevel syncLevel) {
 		/*
 		 * Each rollup defines a combination of features that we'll count. E.g. count
 		 * for every (user,hour) combination.
 		 */
+	    // Count total all-time tweets
+	    Rollup allTweetsRollup = new Rollup();
 		// Count all-time tweets for every user
 		Rollup userRollup = new Rollup(userDimension);
 		// Count tweets for each day for each user
@@ -63,10 +71,14 @@ public class TweetCube {
 		Rollup retweetedFromRollup = new Rollup(retweetedFromDimension);
 		// Count number of retweets for each (originalTweeter,reTweeter) pair
 		Rollup tweeterRetweeterRollup = new Rollup(userDimension, retweetedFromDimension);
-//		// Count occurrences of the hashtag #IranElection
-//		Rollup 
-		
-		List<Rollup> rollups = ImmutableList.<Rollup>of(userRollup, userHourRollup);
+		// Count hashtag occurrences
+		Rollup tagRollup = new Rollup(tagsDimension);
+		// Count hashtag occurrences by hour
+        Rollup hourTagRollup = new Rollup(tagsDimension, timeDimension, HourDayMonthBucketer.hours);
+        
+		List<Rollup> rollups = ImmutableList.<Rollup>of(allTweetsRollup, userRollup, 
+		        userHourRollup, retweetedFromRollup, tweeterRetweeterRollup, tagRollup,
+		        hourTagRollup);
 		
 		/*
 		 * The DataCube defines the core logic that maps input points to database
@@ -76,57 +88,134 @@ public class TweetCube {
 		
 		/*
 		 * The DataCubeIo object connects the DataCube logic layer and the 
-		 * DbHarness IO layer.
+		 * DbHarness IO layer. This is the object we'll use to do reads and writes below.
 		 */
 		dataCubeIo = new DataCubeIo<LongOp>(dataCube, dbHarness, 0, 1000L, syncLevel, null);
 	}
-	
-	public void countTweet(Tweet tweet) throws IOException, InterruptedException {
+
+    /**
+     * Do all the increments necessary to add a tweet to the datacube. May not immediately flush to the DB.
+     */
+	public void countTweet(Tweet tweet) throws IOException, InterruptedException, AsyncException {
 		WriteBuilder writeBuilder = new WriteBuilder(dataCube)
 			.at(timeDimension, tweet.time)
 			.at(userDimension, tweet.username)
-			.at(retweetedFromDimension, tweet.retweetedFrom.or(""));
+			.at(retweetedFromDimension, tweet.retweetedFrom.or(""))
+		    .at(tagsDimension, tweet.hashTags);
 		Batch<LongOp> cubeUpdates = dataCube.getWrites(writeBuilder, new LongOp(1));
 		
-		Optional<Future<?>> optFlushFuture;
-		try {
-			optFlushFuture = dataCubeIo.writeAsync(cubeUpdates, writeBuilder);
-		} catch (Exception e) {
-			// TODO more realistic exception handling
-			throw new RuntimeException(e);
-		}
-		
-		// If we got a future back, then the cube is flushing and we should wait.
-		if(optFlushFuture.isPresent()) {
-			try {
-				optFlushFuture.get().get();
-			} catch (ExecutionException e) {
-				throw new RuntimeException(e);
-			}
-		}
+        dataCubeIo.writeAsync(cubeUpdates, writeBuilder);
 	}
-	
+
+    /**
+     * Get the total number of tweets.
+     */
+	public long getCount() throws InterruptedException, IOException {
+	    return dataCubeIo.get(new ReadBuilder(dataCube)).or(new LongOp(0)).getLong();
+	}
+
+    /**
+     * Get the total number of tweets sent by the given user.
+     */
 	public long getUserCount(String userName) throws InterruptedException, IOException {
 		Optional<LongOp> optCount = dataCubeIo.get(new ReadBuilder(dataCube)
 			.at(userDimension, userName));
-		return optCount.or(new LongOp(0)).getLong();
+		return unpackOrZero(optCount);
 	}
-	
+
+    /**
+     * Get the number of tweets sent by the given user on the given day.
+     */
 	public long getUserDayCount(String userName, DateTime day) 
 			throws InterruptedException, IOException {
 		Optional<LongOp> optCount = dataCubeIo.get(new ReadBuilder(dataCube)
 			.at(userDimension, userName)
 			.at(timeDimension, HourDayMonthBucketer.days, day));
-		return optCount.or(new LongOp(0)).getLong();
+		return unpackOrZero(optCount);
 	}
 
-	public void countAll(Iterator<Tweet> tweets) throws IOException, 
-			InterruptedException {
+    /**
+     * Get the number of times the given user's tweets were retweeted.
+     */
+	public long getRetweetsOf(String sourceUser) throws IOException, InterruptedException {
+	    Optional<LongOp> optCount = dataCubeIo.get(new ReadBuilder(dataCube)
+            .at(retweetedFromDimension, sourceUser));
+	    return unpackOrZero(optCount);
+	}
+
+    /**
+     * Get the number of times that retweeterUser retweeted a tweet by sourceUser.
+     */
+	public long getRetweetsOfBy(String sourceUser, String retweeterUser) throws IOException,
+	        InterruptedException {
+	    Optional<LongOp> optCount = dataCubeIo.get(new ReadBuilder(dataCube)
+	        .at(retweetedFromDimension, sourceUser)
+	        .at(userDimension, retweeterUser));
+	    return unpackOrZero(optCount);
+	}
+
+    /**
+     * Get the number of tweets that included the given hashtag.
+     */
+	public long getTagCount(String hashtag) throws IOException, InterruptedException {
+	    Optional<LongOp> optCount = dataCubeIo.get(new ReadBuilder(dataCube)
+            .at(tagsDimension, hashtag));
+	    return unpackOrZero(optCount);
+	}
+
+    /**
+     * Get the number of hashtag occurrences in the given time bucket.
+     */
+    protected long getTagTimeCount(String hashtag, BucketType timeBucketType, DateTime dateTime)
+            throws IOException, InterruptedException {
+        Optional<LongOp> optCount = dataCubeIo.get(new ReadBuilder(dataCube)
+            .at(tagsDimension, hashtag)
+            .at(timeDimension, timeBucketType, dateTime));
+        return unpackOrZero(optCount);
+    }
+
+    /**
+     * Get the number of hashtag occurrences in the given hour.
+     */
+    public long getTagHourCount(String hashtag, DateTime dateTime) throws IOException, InterruptedException {
+        return getTagTimeCount(hashtag, HourDayMonthBucketer.hours, dateTime);
+    }
+
+    /**
+     * Get the number of hashtag occurrences in the given day.
+     */
+    public long getTagDayCount(String hashtag, DateTime dateTime) throws IOException, InterruptedException {
+        return getTagTimeCount(hashtag, HourDayMonthBucketer.days, dateTime);
+    }
+
+    /**
+     * Get the number of hashtag occurrences in the given month.
+     */
+    public long getTagMonthCount(String hashtag, DateTime dateTime) throws IOException, InterruptedException {
+        return getTagTimeCount(hashtag, HourDayMonthBucketer.months, dateTime);
+    }
+
+    /**
+     * @return the value wrapped in the Optional if it is present, otherwise 0.
+     */
+	private static long unpackOrZero(Optional<LongOp> opt) {
+	    return opt.isPresent() ? opt.get().getLong() : 0L;
+	}
+
+	public void countAll(Iterator<Tweet> tweets) throws IOException, InterruptedException, AsyncException {
+	    int numCounted = 0;
 		while(tweets.hasNext()) {
 			countTweet(tweets.next());
+			numCounted++;
+			if((numCounted%1000) == 0) {
+			    log.info("Counted " + numCounted);
+			}
 		}
 	}
 
+    /**
+     * Write all batched/cached changes to the backing database.
+     */
 	public void flush() throws InterruptedException {
 		dataCubeIo.flush();
 	}

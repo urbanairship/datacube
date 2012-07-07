@@ -15,10 +15,19 @@ public class TweetIterator implements Iterator<Tweet> {
 	public static final String TWEET_RESOURCE = "tweets_25bahman.csv";
 	
 	private final BufferedReader br;
+	private final int stopAfter;
+	
 	private String nextLine;
+	private int numReturned = 0;
 	
 	public TweetIterator() {
-		InputStream is = getClass().getClassLoader().getResourceAsStream(TWEET_RESOURCE);
+	    this(Integer.MAX_VALUE);
+	}
+	
+	public TweetIterator(int stopAfter) {
+	    this.stopAfter = stopAfter;
+	    
+	    InputStream is = getClass().getClassLoader().getResourceAsStream(TWEET_RESOURCE);
 		br = new BufferedReader(new InputStreamReader(is));
 		readNextInternal();
 	}
@@ -33,16 +42,17 @@ public class TweetIterator implements Iterator<Tweet> {
 
 	@Override
 	public boolean hasNext() {
-		return nextLine != null;
+		return (nextLine != null && numReturned < stopAfter);
 	}
 
 	@Override
 	public Tweet next() {
-		if(nextLine == null) {
+		if(nextLine == null || numReturned > stopAfter) {
 			throw new NoSuchElementException();
 		}
 		Tweet tweetToReturn = new Tweet(nextLine);
 		readNextInternal();
+		numReturned++;
 		return tweetToReturn;
 	}
 
@@ -53,7 +63,7 @@ public class TweetIterator implements Iterator<Tweet> {
 	
 	public static class DumpTest {
 		public static void main(String[] args) {
-			TweetIterator it = new TweetIterator();
+			TweetIterator it = new TweetIterator(10);
 			while(it.hasNext()) {
 				System.out.println(it.next());
 			}

@@ -8,30 +8,36 @@ import java.util.List;
 
 import com.google.common.collect.ImmutableList;
 import com.urbanairship.datacube.BucketType;
-import com.urbanairship.datacube.Bucketer;
 import com.urbanairship.datacube.CSerializable;
 import com.urbanairship.datacube.serializables.IntSerializable;
 
 /**
  * You can use this when one of your dimension coordinate types is a straightforward Integer.
  */
-public class BigEndianIntBucketer implements Bucketer<Integer> {
+public class BigEndianIntBucketer extends AbstractIdentityBucketer<Integer> {
     private final static List<BucketType> bucketTypes = ImmutableList.of(BucketType.IDENTITY);
+
+    @Override
+    public CSerializable makeSerializable(Integer coord) {
+        return new IntSerializable(coord);
+    }
     
-    @Override
-    public CSerializable bucketForWrite(Integer coordinate, BucketType bucketType) {
-        assert bucketType == BucketType.IDENTITY;
-        return new IntSerializable(coordinate);
-    }
-
-    @Override
-    public CSerializable bucketForRead(Object coordinate, BucketType bucketType) {
-        assert bucketType == BucketType.IDENTITY;
-        return new IntSerializable((Integer)coordinate);
-    }
-
-    @Override
-    public List<BucketType> getBucketTypes() {
-        return bucketTypes;
-    }
+//    @Override
+//    public CSerializable bucketForWrite(Integer coordinate, BucketType bucketType) {
+//        assert bucketType == BucketType.IDENTITY;
+//        return new IntSerializable(coordinate);
+//    }
+//
+//    @Override
+//    public CSerializable bucketForRead(Object coordinate, BucketType bucketType) {
+//        assert bucketType == BucketType.IDENTITY;
+//        return new IntSerializable((Integer)coordinate);
+//    }
+//
+//    @Override
+//    public List<BucketType> getBucketTypes() {
+//        return bucketTypes;
+//    }
+    
+    
 }

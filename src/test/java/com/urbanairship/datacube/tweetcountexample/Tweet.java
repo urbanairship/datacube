@@ -43,6 +43,18 @@ public class Tweet {
 			retweetedFrom = Optional.absent();
 		}
 	}
+	
+    @Override
+    public String toString() {
+        StringBuilder sb = new StringBuilder();
+        sb.append("(username:" + username);
+        sb.append(", time:" + time);
+        sb.append(", retweeted:" + retweetedFrom);
+        sb.append(", text:" + text);
+        sb.append(", hashtags:" + hashTags);
+        sb.append(")");
+        return sb.toString();
+    }
 }
 	
 
