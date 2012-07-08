@@ -13,10 +13,17 @@ import com.google.common.collect.ImmutableSet;
  * Use this class to describe a rollup that you want the datacube to keep.
  * 
  * For example, if you're counting events with the dimensions (color, size, flavor) and you
- * want to keep a total count for a (color, size) combination, you'd specify that using a Rollup. 
+ * want to keep a total count for all (color, size) combinations, you'd specify that using a Rollup. 
  */
 public class Rollup {
     private final Set<DimensionAndBucketType> components;
+    
+    public Rollup(Dimension<?>... dims) {
+    	this.components = new HashSet<DimensionAndBucketType>();
+    	for(Dimension<?> dim: dims) {
+    		this.components.add(new DimensionAndBucketType(dim, BucketType.IDENTITY));
+    	}
+    }
     
     public Rollup(Set<DimensionAndBucketType> components) {
         this.components = new HashSet<DimensionAndBucketType>(components); // defensive copy

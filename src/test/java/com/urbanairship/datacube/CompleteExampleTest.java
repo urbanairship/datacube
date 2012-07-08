@@ -15,7 +15,6 @@ import org.junit.Test;
 
 import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Maps;
 import com.urbanairship.datacube.DbHarness.CommitType;
 import com.urbanairship.datacube.bucketers.HourDayMonthBucketer;
@@ -161,7 +160,7 @@ public class CompleteExampleTest {
         Rollup hourRollup = new Rollup(time, HourDayMonthBucketer.hours);
         Rollup deviceTypeDayRollup = new Rollup(device, DeviceBucketer.deviceName,
                 time, HourDayMonthBucketer.days);
-        Rollup allRollup = new Rollup(ImmutableSet.<DimensionAndBucketType>of());
+        Rollup allRollup = new Rollup();
         Rollup stateMonthOsRollup = new Rollup(time, HourDayMonthBucketer.months,
                 location, LocationBucketer.usState, 
                 device, DeviceBucketer.osType);
