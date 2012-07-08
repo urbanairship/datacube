@@ -2,12 +2,52 @@
   xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
 
+  <parent>
+    <groupId>org.sonatype.oss</groupId>
+    <artifactId>oss-parent</artifactId>
+    <version>7</version>
+  </parent>
+
   <groupId>com.urbanairship</groupId>
   <artifactId>datacube</artifactId>
   <version>1.1.8</version>
+  <version>1.2.0-SNAPSHOT</version>
+  <packaging>jar</packaging>
 
   <name>datacube</name>
-  <url>http://urbanairship.com</url>
+  <description>OLAP cube-like streaming aggregate library</description>
+  <url>http://github.com/urbanairship/datacube</url>
+  
+  <licenses>
+    <license>
+      <name>The Apache Software License, Version 2.0</name>
+      <url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
+      <distribution>repo</distribution>
+    </license>
+  </licenses>
+
+  <scm>
+    <connection>scm:git:git://github.com:urbanairship/datacube.git</connection>
+    <developerConnection>scm:git:git://github.com:urbanairship/datacube.git</developerConnection>
+    <url>git@github.com:urbanairship/datacube.git</url>
+  </scm>
+
+  <!-- Sonatype requires this element to use their nexus repo -->
+  <developers>
+    <developer>
+      <id>dave</id>
+      <name>Dave Revell</name>
+      <email>dave@urbanairship.com</email>
+      <url>http://urbanairship.com</url>
+      <organization>Urban Airship</organization>
+      <organizationUrl>http://urbanairship.com</organizationUrl>
+      <roles>
+        <role>architect</role>
+        <role>developer</role>
+      </roles>
+      <timezone>-8</timezone>
+    </developer>
+  </developers>
 
   <build>
     <plugins>
@@ -21,7 +61,44 @@
           <target>1.6</target>
         </configuration>
       </plugin>
-    </plugins>
+
+      <!-- This attaches a -sources.jar artifact to the build -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-source-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>attach-sources</id>
+            <goals>
+              <goal>jar</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+
+      <!-- This attaches a -javadoc.jar artifact to the build -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-javadoc-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>attach-javadocs</id>
+            <goals>
+              <goal>jar</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-release-plugin</artifactId>
+        <version>2.3.2</version>
+        <configuration>
+          <tagBase>git://github.com/urbanairship/datacube</tagBase>
+        </configuration>
+      </plugin>
+    </plugins>  
   </build>
   
   <profiles>
@@ -35,7 +112,7 @@
         </property>
       </activation>
       <properties>
-        <hbaseVersion>0.90.6-cdh3u4</hbaseVersion>
+        <hbaseVersion>0.94.0</hbaseVersion>
       </properties>
     </profile>
 
@@ -49,7 +126,7 @@
         </property>
       </activation>
       <properties>
-        <hadoopVersion>0.20.2-cdh3u4</hadoopVersion>
+        <hadoopVersion>1.0.3</hadoopVersion>
       </properties>
     </profile>
 
@@ -83,19 +160,6 @@
       </build>
     </profile>
   </profiles>
-
-  <!-- Include the Cloudera repo to build against CDH hbase if desired -->
-  <repositories>
-    <repository>
-      <id>repository.cloudera.com</id>
-      <url>https://repository.cloudera.com/content/repositories/releases/</url>
-      <snapshots>
-        <enabled>false</enabled>
-      </snapshots>
-    </repository>
-  </repositories>
-
-  <packaging>jar</packaging>
 
   <dependencies>
     <dependency>
