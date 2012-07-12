@@ -30,6 +30,10 @@ public class EmbeddedClusterTestAbstract {
     protected synchronized static HBaseTestingUtility getTestUtil() throws Exception {
         if(hbaseTestUtil == null) {
             hbaseTestUtil = new HBaseTestingUtility();
+            
+            // Workaround for HBASE-5711
+            hbaseTestUtil.getConfiguration().set("dfs.datanode.data.dir.perm", "775");
+            
             hbaseTestUtil.startMiniCluster();
             
              // HBaseTestingUtility will NPE unless we set this
