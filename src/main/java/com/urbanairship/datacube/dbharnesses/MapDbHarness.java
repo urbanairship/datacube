@@ -16,8 +16,8 @@ import java.util.concurrent.TimeoutException;
 
 import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.lang.NotImplementedException;
-import org.apache.log4j.LogManager;
-import org.apache.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Optional;
 import com.urbanairship.datacube.Address;
@@ -33,7 +33,7 @@ import com.urbanairship.datacube.Op;
  * calling a DB just to test the cube logic.
  */
 public class MapDbHarness<T extends Op> implements DbHarness<T> {
-    private final static Logger log = LogManager.getLogger(MapDbHarness.class);
+    private final static Logger log = LoggerFactory.getLogger(MapDbHarness.class);
 
     private static final int casRetries = 10;
     private static final Future<?> nullFuture = new NullFuture();

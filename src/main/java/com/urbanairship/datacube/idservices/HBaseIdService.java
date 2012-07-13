@@ -22,8 +22,8 @@ import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.client.ResultScanner;
 import org.apache.hadoop.hbase.client.Scan;
-import org.apache.log4j.LogManager;
-import org.apache.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Multimap;
@@ -34,7 +34,7 @@ import com.urbanairship.datacube.dbharnesses.WithHTable;
 import com.urbanairship.datacube.dbharnesses.WithHTable.ScanRunnable;
 
 public class HBaseIdService implements IdService {
-    private static final Logger log = LogManager.getLogger(HBaseIdService.class);
+    private static final Logger log = LoggerFactory.getLogger(HBaseIdService.class);
     
     public static final byte[] QUALIFIER = ArrayUtils.EMPTY_BYTE_ARRAY;
     public static final long ALLOC_TIMEOUT_MS = 10000; 
