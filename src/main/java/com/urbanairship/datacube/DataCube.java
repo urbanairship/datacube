@@ -26,7 +26,7 @@ import com.google.common.collect.Sets;
  * stored as a LongOp.
  */
 public class DataCube<T extends Op> {
-    Logger log = LoggerFactory.getLogger(DataCube.class);
+    private static final Logger log = LoggerFactory.getLogger(DataCube.class);
 
     private final List<Dimension<?>> dims;
     private final List<Rollup> rollups;
