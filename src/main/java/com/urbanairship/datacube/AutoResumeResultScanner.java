@@ -12,8 +12,8 @@ import org.apache.hadoop.hbase.client.ResultScanner;
 import org.apache.hadoop.hbase.client.Scan;
 import org.apache.hadoop.hbase.client.ScannerTimeoutException;
 import org.apache.hadoop.hbase.regionserver.LeaseException;
-import org.apache.log4j.LogManager;
-import org.apache.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A ResultScanner that will restart if scan times out on the region servier. This will
@@ -24,7 +24,7 @@ import org.apache.log4j.Logger;
  */
 @NotThreadSafe
 public class AutoResumeResultScanner implements ResultScanner {
-    public static final Logger log = LogManager.getLogger(AutoResumeResultScanner.class);
+    public static final Logger log = LoggerFactory.getLogger(AutoResumeResultScanner.class);
     
     private final HTableInterface hTable;
     private final Scan scan;

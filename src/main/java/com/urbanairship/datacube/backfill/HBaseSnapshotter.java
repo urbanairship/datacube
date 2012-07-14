@@ -30,8 +30,8 @@ import org.apache.hadoop.hbase.mapreduce.TableMapper;
 import org.apache.hadoop.hbase.regionserver.StoreFile.BloomType;
 import org.apache.hadoop.hbase.util.Pair;
 import org.apache.hadoop.mapreduce.Job;
-import org.apache.log4j.LogManager;
-import org.apache.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Takes a "snapshot" of an HBase column family in two steps:
@@ -42,7 +42,7 @@ import org.apache.log4j.Logger;
  * while we're mapreducing over it.
  */
 public class HBaseSnapshotter implements Runnable {
-    private static final Logger log = LogManager.getLogger(HBaseSnapshotter.class);
+    private static final Logger log = LoggerFactory.getLogger(HBaseSnapshotter.class);
     
     private final byte[] sourceTableName;
     private final byte[] destTableName;

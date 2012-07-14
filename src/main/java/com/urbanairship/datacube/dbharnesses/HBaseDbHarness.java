@@ -25,8 +25,8 @@ import org.apache.hadoop.hbase.client.HTablePool;
 import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.util.Bytes;
-import org.apache.log4j.LogManager;
-import org.apache.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Optional;
 import com.google.common.collect.Sets;
@@ -44,7 +44,7 @@ import com.yammer.metrics.core.Timer;
 
 public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
     
-    private static final Logger log = LogManager.getLogger(HBaseDbHarness.class);
+    private static final Logger log = LoggerFactory.getLogger(HBaseDbHarness.class);
 
     public final static byte[] QUALIFIER = ArrayUtils.EMPTY_BYTE_ARRAY;
         

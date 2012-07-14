@@ -10,8 +10,8 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 
-import org.apache.log4j.LogManager;
-import org.apache.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Optional;
 import com.google.common.collect.HashMultimap;
@@ -26,7 +26,7 @@ import com.google.common.collect.Sets;
  * stored as a LongOp.
  */
 public class DataCube<T extends Op> {
-    private static final Logger log = LogManager.getLogger(DataCube.class);
+    private static final Logger log = LoggerFactory.getLogger(DataCube.class);
 
     private final List<Dimension<?>> dims;
     private final List<Rollup> rollups;

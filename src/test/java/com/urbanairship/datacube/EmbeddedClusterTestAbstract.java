@@ -16,18 +16,18 @@ import org.apache.hadoop.hbase.client.HTable;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.client.ResultScanner;
 import org.apache.hadoop.hbase.client.Scan;
-import org.apache.log4j.LogManager;
-import org.apache.log4j.Logger;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Ignore;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Classes that use the embedded HBase/MapReduce test cluster should inherit this class.
  */
 @Ignore
 public class EmbeddedClusterTestAbstract {
-    private static final Logger log = LogManager.getLogger(EmbeddedClusterTestAbstract.class);
+    private static final Logger log = LoggerFactory.getLogger(EmbeddedClusterTestAbstract.class);
     
     public static final String HADOOP_LOG_DIR = "/tmp/datacube_hadoop_logs";
     
