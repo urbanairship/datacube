@@ -17,13 +17,13 @@ import org.apache.hadoop.hbase.client.HBaseAdmin;
 import org.apache.hadoop.hbase.client.HTable;
 import org.apache.hadoop.hbase.io.hfile.Compression.Algorithm;
 import org.apache.hadoop.hbase.regionserver.StoreFile.BloomType;
-import org.apache.log4j.LogManager;
-import org.apache.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.urbanairship.datacube.Deserializer;
 
 public class HBaseBackfill implements Runnable {
-    private static final Logger log = LogManager.getLogger(HBaseBackfill.class);
+    private static final Logger log = LoggerFactory.getLogger(HBaseBackfill.class);
     
     private final Configuration conf;
     private final HBaseBackfillCallback backfillCallback;

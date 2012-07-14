@@ -8,8 +8,8 @@ import java.util.Arrays;
 import java.util.Map;
 
 import org.apache.commons.codec.binary.Hex;
-import org.apache.log4j.LogManager;
-import org.apache.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.Maps;
 import com.urbanairship.datacube.BoxedByteArray;
@@ -21,7 +21,7 @@ import com.urbanairship.datacube.Util;
  * This is useful for testing.
  */
 public class MapIdService implements IdService {
-    private static final Logger log = LogManager.getLogger(MapIdService.class);
+    private static final Logger log = LoggerFactory.getLogger(MapIdService.class);
     
     private final Map<Integer,Map<BoxedByteArray,Long>> idMap = Maps.newHashMap();
     private final Map<Integer,Long> nextIds = Maps.newHashMap();

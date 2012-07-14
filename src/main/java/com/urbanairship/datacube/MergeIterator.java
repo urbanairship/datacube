@@ -14,12 +14,12 @@ import java.util.NoSuchElementException;
 import java.util.PriorityQueue;
 import java.util.TreeSet;
 
-import org.apache.log4j.LogManager;
-import org.apache.log4j.Logger;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.joda.time.format.DateTimeFormatter;
 import org.joda.time.format.ISODateTimeFormat;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ComparisonChain;
@@ -36,7 +36,7 @@ import com.google.common.collect.ListMultimap;
  * This whole class was copied verbatim from Shennendoah. 
  */
 public class MergeIterator<T> implements Iterator<ListMultimap<Iterator<T>,T>>{
-    private static final Logger log = LogManager.getLogger(MergeIterator.class);
+    private static final Logger log = LoggerFactory.getLogger(MergeIterator.class);
     
     private final List<Iterator<T>> iterators;
     private final PriorityQueue<HeapEntry> heap;

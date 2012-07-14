@@ -11,8 +11,8 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.log4j.LogManager;
-import org.apache.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Optional;
 import com.urbanairship.datacube.dbharnesses.AfterExecute;
@@ -62,7 +62,7 @@ import com.yammer.metrics.core.Meter;
  * if the underlying database is stuck in a bad state.
  */
 public class DataCubeIo<T extends Op> {
-    private static final Logger log = LogManager.getLogger(DataCubeIo.class);
+    private static final Logger log = LoggerFactory.getLogger(DataCubeIo.class);
     
     private final DbHarness<T> db;
     private final DataCube<T> cube;

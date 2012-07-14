@@ -17,8 +17,8 @@ import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.hadoop.hbase.util.Pair;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.lib.output.NullOutputFormat;
-import org.apache.log4j.LogManager;
-import org.apache.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.urbanairship.datacube.Deserializer;
 import com.urbanairship.datacube.collectioninputformat.CollectionInputFormat;
@@ -34,7 +34,7 @@ import com.urbanairship.datacube.collectioninputformat.CollectionInputFormat;
  *  TODO InputSplit locality for mapreduce
  */
 public class HBaseBackfillMerger implements Runnable {
-    private static final Logger log = LogManager.getLogger(HBaseBackfillMerger.class);
+    private static final Logger log = LoggerFactory.getLogger(HBaseBackfillMerger.class);
     
     static final String CONFKEY_COLUMN_FAMILY = "hbasebackfiller.cf";
     static final String CONFKEY_LIVECUBE_TABLE_NAME = "hbasebackfiller.liveCubeTableName";

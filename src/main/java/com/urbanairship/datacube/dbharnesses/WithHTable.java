@@ -15,12 +15,12 @@ import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.client.ResultScanner;
 import org.apache.hadoop.hbase.client.Row;
 import org.apache.hadoop.hbase.client.Scan;
-import org.apache.log4j.LogManager;
-import org.apache.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 
 public class WithHTable {
-    private static final Logger log = LogManager.getLogger(WithHTable.class);
+    private static final Logger log = LoggerFactory.getLogger(WithHTable.class);
     
     /**
      * Take an htable from the pool, use it with the given HTableRunnable, and return it to

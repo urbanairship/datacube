@@ -9,8 +9,8 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.codec.binary.Hex;
-import org.apache.log4j.LogManager;
-import org.apache.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
@@ -28,7 +28,7 @@ import com.urbanairship.datacube.IdService;
  * deal with invalidation, so caching is straightforward.
  */
 public class CachingIdService implements IdService {
-    private final static Logger log = LogManager.getLogger(CachingIdService.class);
+    private final static Logger log = LoggerFactory.getLogger(CachingIdService.class);
     
     private final LoadingCache<Key,byte[]> readThroughCache;
     
