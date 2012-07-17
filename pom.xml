@@ -97,6 +97,19 @@
           <tagBase>git://github.com/urbanairship/datacube</tagBase>
         </configuration>
       </plugin>
+      
+      <!-- Defines the HBase dependency used for this build -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-jar-plugin</artifactId>
+        <version>2.0</version>
+        <extensions>false</extensions>
+        <inherited>true</inherited>
+        <configuration>
+          <classifier>${hbaseVersion}</classifier>
+        </configuration>
+      </plugin>
+      
     </plugins>  
   </build>
   
@@ -159,6 +172,16 @@
       </build>
     </profile>
   </profiles>
+
+  <repositories>
+    <repository>
+      <id>repository.cloudera.com</id>
+      <url>https://repository.cloudera.com/content/repositories/releases/</url>
+      <snapshots>
+        <enabled>false</enabled>
+      </snapshots>
+    </repository>
+  </repositories>
 
   <dependencies>
     <dependency>
