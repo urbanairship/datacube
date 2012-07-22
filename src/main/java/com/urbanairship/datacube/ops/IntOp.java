@@ -73,10 +73,10 @@ public class IntOp implements Op {
     }
     
     public String toString() {
-        return Long.toString(val);
+        return Integer.toString(val);
     }
     
-    public long getInt() {
+    public int getInt() {
         return val;
     }
 }
