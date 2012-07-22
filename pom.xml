@@ -1,5 +1,4 @@
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
 
   <parent>
@@ -10,7 +9,7 @@
 
   <groupId>com.urbanairship</groupId>
   <artifactId>datacube</artifactId>
-  <version>1.2.0-SNAPSHOT</version>
+  <version>1.2.0</version>
   <packaging>jar</packaging>
 
   <name>datacube</name>
@@ -29,6 +28,7 @@
     <connection>scm:git:git://github.com:urbanairship/datacube.git</connection>
     <developerConnection>scm:git:git://github.com:urbanairship/datacube.git</developerConnection>
     <url>git@github.com:urbanairship/datacube.git</url>
+    <tag>datacube-1.2.0</tag>
   </scm>
 
   <!-- Sonatype requires this element to use their nexus repo -->
