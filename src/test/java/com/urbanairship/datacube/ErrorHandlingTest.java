@@ -7,6 +7,8 @@ import org.apache.hadoop.hbase.TableNotFoundException;
 import org.apache.hadoop.hbase.client.HTablePool;
 import org.junit.Assert;
 import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.ImmutableList;
 import com.urbanairship.datacube.DbHarness.CommitType;
@@ -20,8 +22,11 @@ import com.urbanairship.datacube.ops.LongOp;
  * Make sure database errors are handled
  */
 public class ErrorHandlingTest extends EmbeddedClusterTestAbstract {
+    private static Logger log = LoggerFactory.getLogger(ErrorHandlingTest.class);
+    
     @Test
     public void test() throws Exception {
+        log.info("You can ignore exceptions and scary stack traces from this test");
         IdService idService = new CachingIdService(5, new MapIdService());
 
         Configuration conf = getTestUtil().getConfiguration();
