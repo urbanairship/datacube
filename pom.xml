@@ -25,8 +25,8 @@
   </licenses>
 
   <scm>
-    <connection>scm:git:git://github.com:urbanairship/datacube.git</connection>
-    <developerConnection>scm:git:git://github.com:urbanairship/datacube.git</developerConnection>
+    <connection>scm:git:git://@github.com/urbanairship/datacube.git</connection>
+    <developerConnection>scm:git:git@github.com:urbanairship/datacube.git</developerConnection>
     <url>git@github.com:urbanairship/datacube.git</url>
     <tag>datacube-1.2.0</tag>
   </scm>
