@@ -72,9 +72,6 @@ public class HourDayMonthBucketer implements Bucketer<DateTime> {
     }
 
     public static DateTime weekFloor(DateTime dt) {
-        DateTime startOfWeek = dt.minusDays(dt.getDayOfWeek() - 1);
-        return dayFloor(dt).withYear(startOfWeek.getYear())
-                .withMonthOfYear(startOfWeek.getMonthOfYear())
-                .withDayOfMonth(startOfWeek.getDayOfMonth());
+        return dayFloor(dt.minusDays(dt.getDayOfWeek() -1));
     }
 }
