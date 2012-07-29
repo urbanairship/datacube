@@ -118,8 +118,21 @@ Read back your rollup values by calling DataCubeIo.get().
 
 ## Building
 
-You can pass -DhadoopVersion and -DhbaseVersion to maven to choose which version of Haodop and HBase to depend on. Hadoop 2 is not yet supported since the artifact names are different. For example: 
+The POM is configured to build with specific versions of HBase and Hadoop. If your versions differ from those in the POM, you can override the versions by passing hbaseVersion and hadooopVersion. For example:
+
+mvn -DhbaseVersion=0.90.6 -DhadoopVersion=0.20.2
+
+The main build artifact jar has a classifier of the form hbase${hbaseVersion}-hadoop${hadoopVersion}, so you can depend on it in another project by doing something like:
 
 ```
-mvn -DhadoopVersion=1.0.2 -DhbaseVersion=0.94.0 package
+<dependency>
+  <groupId>com.urbanairship</groupId>
+  <artifactId>datacube</artifactId>
+  <version>${datacube.version}</version>
+  <classifier>hbase0.94.0-hadoop1.0.3</classifier>
+</dependency>
 ```
+
+You can pass -DhadoopVersion and -DhbaseVersion to maven to choose which version of Haodop and HBase to depend on. Hadoop 2 is not yet supported since the artifact names are different. For example: 
+
+To build against your own version of HBase or Hadoop, just add your repository to the POM and pass -DhbaseVersion or -DhadoopVersion to the datacube build.
