@@ -60,6 +60,7 @@
       </activation>
       <properties>
         <hbaseVersion>0.94.0</hbaseVersion>
+        <versionsManuallySpecied>true</versionsManuallySpecied>
       </properties>
     </profile>
 
@@ -74,8 +75,38 @@
       </activation>
       <properties>
         <hadoopVersion>1.0.3</hadoopVersion>
+        <versionsManuallySpecied>true</versionsManuallySpecied>
       </properties>
     </profile>
+
+    <!--  We want to be able to deploy artifacts with various classifiers. We want
+          a different classifier for each combination of hbaseVersion and hadoopVersion.
+          We also need to be able to produce an artifact with no classifier, which will
+          use the default hadoop and hbase versions. To do all of this, we set a
+          classifier of hbaseX.Y.Z-hadoop-A.B.C iff either version number was changed
+          from the defaults hardcoded in this POM. Otherwise we won't set a classifier,
+          so we'll generate a plain un-classifier'ed artifact using the default versions. -->
+    <profile>
+      <activation>
+        <property>
+          <name>versionsManuallySpecified</name>
+        </property>
+      </activation>
+        <build>
+          <plugins>
+            <plugin>
+              <groupId>org.apache.maven.plugins</groupId>
+	            <artifactId>maven-jar-plugin</artifactId>
+	            <version>2.4</version>
+	            <extensions>false</extensions>
+	            <inherited>true</inherited>
+	            <configuration>
+	              <classifier>hbase${hbaseVersion}-hadoop${hadoopVersion}</classifier>
+	            </configuration>
+	          </plugin>
+	        </plugins>
+	      </build>
+	</profile>
 
     <profile>
       <!-- GPG sign release artifacts. Copied from:
@@ -157,17 +188,6 @@
         <version>2.3.2</version>
         <configuration>
           <tagBase>git://github.com/urbanairship/datacube</tagBase>
-        </configuration>
-      </plugin>
-      
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-jar-plugin</artifactId>
-        <version>2.4</version>
-        <extensions>false</extensions>
-        <inherited>true</inherited>
-        <configuration>
-          <classifier>hbase${hbaseVersion}-hadoop${hadoopVersion}</classifier>
         </configuration>
       </plugin>
     </plugins>  
