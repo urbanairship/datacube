@@ -47,7 +47,7 @@
       <timezone>-8</timezone>
     </developer>
   </developers>  
-  
+
   <profiles>
     <!-- Set hbaseVersion if not specified on the command line -->
     <profile>
@@ -60,7 +60,6 @@
       </activation>
       <properties>
         <hbaseVersion>0.94.0</hbaseVersion>
-        <versionsManuallySpecied>true</versionsManuallySpecied>
       </properties>
     </profile>
 
@@ -75,39 +74,62 @@
       </activation>
       <properties>
         <hadoopVersion>1.0.3</hadoopVersion>
-        <versionsManuallySpecied>true</versionsManuallySpecied>
       </properties>
     </profile>
-
+    
     <!--  We want to be able to deploy artifacts with various classifiers. We want
           a different classifier for each combination of hbaseVersion and hadoopVersion.
           We also need to be able to produce an artifact with no classifier, which will
-          use the default hadoop and hbase versions. To do all of this, we set a
-          classifier of hbaseX.Y.Z-hadoop-A.B.C iff either version number was changed
-          from the defaults hardcoded in this POM. Otherwise we won't set a classifier,
-          so we'll generate a plain un-classifier'ed artifact using the default versions. -->
+          use the default hadoop and hbase versions. To deploy a "main artifact" with
+          no classifier, we h -->
     <profile>
+      <id>set-classifier-since-hbaseVersion-set-manually</id>
       <activation>
+        <activeByDefault>true</activeByDefault>
         <property>
-          <name>versionsManuallySpecified</name>
+          <name>hbaseVersion</name>
         </property>
       </activation>
-        <build>
-          <plugins>
-            <plugin>
-              <groupId>org.apache.maven.plugins</groupId>
-	            <artifactId>maven-jar-plugin</artifactId>
-	            <version>2.4</version>
-	            <extensions>false</extensions>
-	            <inherited>true</inherited>
-	            <configuration>
-	              <classifier>hbase${hbaseVersion}-hadoop${hadoopVersion}</classifier>
-	            </configuration>
-	          </plugin>
-	        </plugins>
-	      </build>
-	</profile>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-jar-plugin</artifactId>
+            <version>2.4</version>
+            <extensions>false</extensions>
+            <inherited>true</inherited>
+            <configuration>
+              <classifier>hbase${hbaseVersion}-hadoop${hadoopVersion}</classifier>
+            </configuration>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
 
+    <profile>
+      <id>set-classifier-since-hadoopVersion-set-manually</id>
+      <activation>
+        <activeByDefault>true</activeByDefault>
+        <property>
+          <name>hadoopVersion</name>
+        </property>
+      </activation>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-jar-plugin</artifactId>
+            <version>2.4</version>
+            <extensions>false</extensions>
+            <inherited>true</inherited>
+            <configuration>
+              <classifier>hbase${hbaseVersion}-hadoop${hadoopVersion}</classifier>
+            </configuration>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+    
     <profile>
       <!-- GPG sign release artifacts. Copied from:
       https://docs.sonatype.org/display/Repository/How+To+Generate+PGP+Signatures+With+Maven -->
