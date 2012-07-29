@@ -19,7 +19,9 @@ public class HourDayMonthBucketer implements Bucketer<DateTime> {
     public static final BucketType hours = new BucketType("hour", new byte[]{1}); 
     public static final BucketType days = new BucketType("day", new byte[]{2});
     public static final BucketType months = new BucketType("month", new byte[]{3});
-    
+    public static final BucketType years = new BucketType("year", new byte[]{4});
+    public static final BucketType weeks = new BucketType("weeks", new byte[]{5});
+
     @Override
     public CSerializable bucketForWrite(DateTime coordinateField, BucketType bucketType) {
         return bucket(coordinateField, bucketType);
@@ -38,6 +40,10 @@ public class HourDayMonthBucketer implements Bucketer<DateTime> {
             returnVal = dayFloor(dt);
         } else if(bucketType == months) {
             returnVal = monthFloor(dt);
+        } else if(bucketType == years) {
+            returnVal = yearFloor(dt);
+        } else if(bucketType == weeks) {
+            returnVal = weekFloor(dt);
         } else {
             throw new RuntimeException("Unexpected bucket type " + bucketType);
         }
@@ -46,7 +52,7 @@ public class HourDayMonthBucketer implements Bucketer<DateTime> {
 
     @Override
     public List<BucketType> getBucketTypes() {
-        return ImmutableList.of(hours, days, months);
+        return ImmutableList.of(hours, days, months, years, weeks);
     }
     
     public static DateTime hourFloor(DateTime dt) {
@@ -59,5 +65,13 @@ public class HourDayMonthBucketer implements Bucketer<DateTime> {
     
     public static DateTime monthFloor(DateTime dt) {
         return dayFloor(dt).withDayOfMonth(1);
+    }
+
+    public static DateTime yearFloor(DateTime dt) {
+        return monthFloor(dt).withMonthOfYear(1);
+    }
+
+    public static DateTime weekFloor(DateTime dt) {
+        return dayFloor(dt.minusDays(dt.getDayOfWeek() -1));
     }
 }
