@@ -9,6 +9,12 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
+import com.google.common.io.Closeables;
+
+import org.apache.hadoop.hbase.client.ResultScanner;
+
+import org.apache.hadoop.fs.Path;
+
 import org.apache.commons.lang.ArrayUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.client.HTable;
@@ -82,48 +88,68 @@ public class HBaseBackfillMerger implements Runnable {
     
     public boolean runWithCheckedExceptions() throws IOException, InterruptedException {
         HTable backfilledHTable = null;
+        HTable liveCubeHTable = null;
+        ResultScanner liveCubeScanner = null;
         try {
-            Job job = new Job(conf);
-            backfilledHTable = new HTable(conf, backfilledTableName);
-            
-            Pair<byte[][],byte[][]> allRegionsStartAndEndKeys = backfilledHTable.getStartEndKeys();
-            byte[][] internalSplitKeys = BackfillUtil.getSplitKeys(allRegionsStartAndEndKeys);
-            Collection<Scan> scans = scansThisCubeOnly(cubeNameKeyPrefix, internalSplitKeys);
-            
-            // Get the scans that will cover this table, and store them in the job configuration to be used
-            // as input splits.
-            
-            if(log.isDebugEnabled()) {
-                log.debug("Scans: " + scans);
-            }
-            CollectionInputFormat.setCollection(job, Scan.class, scans);
-            
-            // We cannot allow map tasks to retry, or we could increment the same key multiple times.
-            job.getConfiguration().set("mapred.map.max.attempts", "1");
-
-            job.setJobName("DataCube HBase backfiller");
-            job.setJarByClass(HBaseBackfillMerger.class);
-            job.getConfiguration().set(CONFKEY_DESERIALIZER, opDeserializer.getName());
-            job.setMapperClass(HBaseBackfillMergeMapper.class);
-            job.setInputFormatClass(CollectionInputFormat.class);
-            job.setNumReduceTasks(0); // No reducers, mappers do all the work
-            job.setOutputFormatClass(NullOutputFormat.class); 
-            job.getConfiguration().set(CONFKEY_LIVECUBE_TABLE_NAME, new String(liveCubeTableName));
-            job.getConfiguration().set(CONFKEY_SNAPSHOT_TABLE_NAME, new String(snapshotTableName));
-            job.getConfiguration().set(CONFKEY_BACKFILLED_TABLE_NAME, new String(backfilledTableName));
-            job.getConfiguration().set(CONFKEY_COLUMN_FAMILY, new String(cf));
-            job.getConfiguration().set("mapred.map.tasks.speculative.execution", "false");
-            job.getConfiguration().set("mapred.reduce.tasks.speculative.execution", "false");
-            
-            try {
-                job.waitForCompletion(true);
-                return job.isSuccessful();
-            } catch (ClassNotFoundException e) {
-                log.error("", e);
-                throw new RuntimeException(e);
+            // If the live table is empty, we just efficiently copy the backfill in
+            liveCubeHTable = new HTable(conf, liveCubeTableName);
+            liveCubeScanner = liveCubeHTable.getScanner(cf);
+            if (!liveCubeScanner.iterator().hasNext()) {
+                log.info("Live cube is empty, running a straight copy from the backfill table");
+                
+                HBaseSnapshotter hbaseSnapshotter = new HBaseSnapshotter(conf, backfilledTableName, cf, liveCubeTableName, 
+                  new Path("/tmp/backfill_snapshot_hfiles"), true, null, null);
+                return hbaseSnapshotter.runWithCheckedExceptions();
+            }  else {          
+          
+                Job job = new Job(conf);
+                backfilledHTable = new HTable(conf, backfilledTableName);
+                
+                Pair<byte[][],byte[][]> allRegionsStartAndEndKeys = backfilledHTable.getStartEndKeys();
+                byte[][] internalSplitKeys = BackfillUtil.getSplitKeys(allRegionsStartAndEndKeys);
+                Collection<Scan> scans = scansThisCubeOnly(cubeNameKeyPrefix, internalSplitKeys);
+                
+                // Get the scans that will cover this table, and store them in the job configuration to be used
+                // as input splits.
+                
+                if(log.isDebugEnabled()) {
+                    log.debug("Scans: " + scans);
+                }
+                CollectionInputFormat.setCollection(job, Scan.class, scans);
+                
+                // We cannot allow map tasks to retry, or we could increment the same key multiple times.
+                job.getConfiguration().set("mapred.map.max.attempts", "1");
+    
+                job.setJobName("DataCube HBase backfiller");
+                job.setJarByClass(HBaseBackfillMerger.class);
+                job.getConfiguration().set(CONFKEY_DESERIALIZER, opDeserializer.getName());
+                job.setMapperClass(HBaseBackfillMergeMapper.class);
+                job.setInputFormatClass(CollectionInputFormat.class);
+                job.setNumReduceTasks(0); // No reducers, mappers do all the work
+                job.setOutputFormatClass(NullOutputFormat.class); 
+                job.getConfiguration().set(CONFKEY_LIVECUBE_TABLE_NAME, new String(liveCubeTableName));
+                job.getConfiguration().set(CONFKEY_SNAPSHOT_TABLE_NAME, new String(snapshotTableName));
+                job.getConfiguration().set(CONFKEY_BACKFILLED_TABLE_NAME, new String(backfilledTableName));
+                job.getConfiguration().set(CONFKEY_COLUMN_FAMILY, new String(cf));
+                job.getConfiguration().set("mapred.map.tasks.speculative.execution", "false");
+                job.getConfiguration().set("mapred.reduce.tasks.speculative.execution", "false");
+                
+                try {
+                    job.waitForCompletion(true);
+                    return job.isSuccessful();
+                } catch (ClassNotFoundException e) {
+                    log.error("", e);
+                    throw new RuntimeException(e);
+                }
             }
         } finally {
-            if(backfilledHTable != null) {
+            if (liveCubeScanner != null) {
+                liveCubeScanner.close();
+            }
+            if (liveCubeHTable != null) {
+                liveCubeHTable.close();
+            }
+            if (backfilledHTable != null) {
                 backfilledHTable.close();
             }
         }
