@@ -94,7 +94,9 @@ public class HBaseBackfillMerger implements Runnable {
             // If the live table is empty, we just efficiently copy the backfill in
             liveCubeHTable = new HTable(conf, liveCubeTableName);
             liveCubeScanner = liveCubeHTable.getScanner(cf);
-            if (!liveCubeScanner.iterator().hasNext()) {
+            boolean liveCubeIsEmpty = !liveCubeScanner.iterator().hasNext();
+            liveCubeScanner.close();
+            if (liveCubeIsEmpty) {
                 log.info("Live cube is empty, running a straight copy from the backfill table");
                 
                 HBaseSnapshotter hbaseSnapshotter = new HBaseSnapshotter(conf, backfilledTableName, cf, liveCubeTableName, 
