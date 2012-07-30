@@ -83,13 +83,32 @@ public class DataCube<T extends Op> {
                 outputAddress.at(dimension, BucketTypeAndBucket.WILDCARD);
             }
             
+            boolean allBucketsPresent = true;
+            Map<DimensionAndBucketType,byte[]> buckets = writeBuilder.getBuckets();
             for(DimensionAndBucketType dimAndBucketType: rollup.getComponents()) {
                 Dimension<?> dimension = dimAndBucketType.dimension;
                 BucketType bucketType = dimAndBucketType.bucketType;
-                byte[] bucket = writeBuilder.getBuckets().get(dimAndBucketType);
+                byte[] bucket = buckets.get(dimAndBucketType);
+                if(bucket == null) {
+                    allBucketsPresent = false;
+                    if(!dimension.isNullable()) {
+                        throw new IllegalArgumentException(
+                                "Didn't get a value for non-nullable dimension " + 
+                                dimension.getName());
+                    }
+                    if(log.isDebugEnabled()) {
+                        log.debug("Skipping rollup since bucket is missing for " + 
+                                dimension.getName());
+                    }
+                    break;
+                }
                 outputAddress.at(dimension, bucketType, bucket);
             }
             
+            if(!allBucketsPresent) {
+                continue; // skip this rollup since at least one of its input 
+                          // dimensions wasn't specified.
+            }
             
             boolean shouldWrite = true;
             
