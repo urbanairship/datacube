@@ -4,9 +4,9 @@ Copyright 2012 Urban Airship and Contributors
 
 package com.urbanairship.datacube;
 
-import java.util.List;
-
 import com.google.common.collect.ImmutableList;
+
+import java.util.List;
 
 public interface Bucketer<F> {
     /**
@@ -22,19 +22,26 @@ public interface Bucketer<F> {
     /**
      * When reading from the cube, the reader specifies some coordinates from which to read.
      * The bucketer can choose which cube coordinates to read from based on these input
-     * coordinates. For example, if the reader asks for hourly counts (the Hourly BucketType) and 
+     * coordinates. For example, if the reader asks for hourly counts (the Hourly BucketType) and
      * passes a timestamp, the bucketer could return the timestamp rounded down to the hour floor.
      */
     public CSerializable bucketForRead(Object coordinate, BucketType bucketType);
 
     /**
      * Return all bucket types that exist in this dimension. The bucketer should be able to
-     * handle calls to {@link #bucketForRead(Object, BucketType)} and 
+     * handle calls to {@link #bucketForRead(Object, BucketType)} and
      * {@link Bucketer#bucketForWrite(Object, BucketType)} for these BucketTypes.
      */
     public List<BucketType> getBucketTypes();
-    
-    
+
+    /**
+     * Returns an instance of the deserialized Bucket
+     * @param key
+     * @param btype
+     * @return
+     */
+    F readBucket(BoxedByteArray key, BucketType btype);
+
     /**
      * This identity/no-op bucketer class is implicitly used for dimensions that don't choose a
      * bucketer.
@@ -51,6 +58,11 @@ public interface Bucketer<F> {
         @Override
         public List<BucketType> getBucketTypes() {
             return ImmutableList.of(BucketType.IDENTITY);
+        }
+
+        @Override
+        public CSerializable readBucket(BoxedByteArray key, BucketType btype) {
+            return (CSerializable)key;
         }
 
         @Override

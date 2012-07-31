@@ -10,9 +10,9 @@ import com.urbanairship.datacube.Util;
 /**
  * Use this in your bucketer if you're using longs as dimension coordinates.
  */
-public class LongSerializable implements CSerializable {
+public class LongSerializable implements CSerializable<Long> {
     private final long l;
-    
+
     public LongSerializable(long l) {
         this.l = l;
     }
@@ -20,5 +20,10 @@ public class LongSerializable implements CSerializable {
     @Override
     public byte[] serialize() {
         return Util.longToBytes(l);
+    }
+
+    @Override
+    public Long deserialize(byte[] serObj) {
+        return Util.bytesToLong(serObj);
     }
 }

@@ -266,7 +266,7 @@ public class DataCubeIo<T extends Op> {
                 } else if(flushException instanceof RuntimeException) {
                     throw new RuntimeException(flushException);
                 } else {
-                    throw new RuntimeException("Unreachable");
+                    throw new RuntimeException("Unreachable", ee);
                 }
             } 
         } else {
