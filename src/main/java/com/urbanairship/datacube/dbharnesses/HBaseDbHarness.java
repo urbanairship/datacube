@@ -6,6 +6,7 @@ package com.urbanairship.datacube.dbharnesses;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -123,13 +124,17 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
         get.addFamily(cf);
         Result result = WithHTable.get(pool, tableName, get);
         if(result == null || result.isEmpty()) {
-            log.debug("Returning absent for address " + c + " key " + 
-                    Base64.encodeBase64String(rowKey));
+            if(log.isDebugEnabled()) {
+                log.debug("Returning absent for cube:" + Arrays.toString(uniqueCubeName) + 
+                        " for address:" + c + " key " + Base64.encodeBase64String(rowKey));
+            }
             return Optional.absent();
         } else {
             T deserialized = deserializer.fromBytes(result.value());
-            log.debug("Returning value for address " + c + ": " + " key " +
-                    Base64.encodeBase64String(rowKey) + ": " + deserialized);
+            if(log.isDebugEnabled()) {
+                log.debug("Returning value for cube:" + Arrays.toString(uniqueCubeName) + " address:" + 
+                        c + ": " + " key " + Base64.encodeBase64String(rowKey) + ": " + deserialized);
+            }
             return Optional.of(deserialized);
         }
     }
@@ -277,6 +282,10 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
                 long writeDurationNanos = System.nanoTime() - nanoTimeBeforeWrite;
                 singleWriteTimer.update(writeDurationNanos, TimeUnit.NANOSECONDS);
                 
+                if(log.isDebugEnabled()) {
+                    log.debug("Succesfully wrote cube:" + Arrays.toString(uniqueCubeName) + 
+                            " address:" + address);
+                }
                 succesfullyWritten.add(address);
             }
         } catch (IOException e) {
