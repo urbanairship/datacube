@@ -10,12 +10,23 @@ import com.google.common.collect.Maps;
 
 public class Batch<T extends Op> {
     private Map<Address,T> map;
-    
-    Batch() {
+
+    /**
+     * Normally you should not create your own Batches but instead have {@link DataCubeIo} create
+     * them for you. You can use this if you intend to bypass the high-level magic and you really
+     * know what you're doing.
+     */
+    public Batch() {
         this.map = Maps.newHashMap();
     }
-    
-    Batch(Map<Address,T> map) {
+
+    /**
+     * Normally you should not create your own Batches but instead have {@link DataCubeIo} create
+     * them for you. You can use this if you intend to bypass the high-level magic and you really
+     * know what you're doing.
+     * @param map some Ops to wrap in this Batch
+     */
+    public Batch(Map<Address,T> map) {
         this.map = map;
     }
     
