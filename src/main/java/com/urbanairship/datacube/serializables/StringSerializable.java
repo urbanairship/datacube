@@ -20,9 +20,14 @@ public class StringSerializable implements CSerializable {
 
     @Override
     public byte[] serialize() {
+        return staticSerialize(s);
+    }
+
+    public static byte[] staticSerialize(String s) {
         try {
             return s.getBytes("UTF8");
         } catch (UnsupportedEncodingException e) {
+            // No reasonable JVM will lack UTF8
             throw new RuntimeException(e);
         }
     }

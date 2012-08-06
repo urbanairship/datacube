@@ -19,6 +19,10 @@ public class LongSerializable implements CSerializable {
 
     @Override
     public byte[] serialize() {
+        return staticSerialize(l);
+    }
+
+    public static byte[] staticSerialize(long l) {
         return Util.longToBytes(l);
     }
 }

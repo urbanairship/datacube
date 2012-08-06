@@ -5,6 +5,7 @@ Copyright 2012 Urban Airship and Contributors
 package com.urbanairship.datacube.serializables;
 
 import com.urbanairship.datacube.CSerializable;
+import org.apache.hadoop.hbase.util.Bytes;
 
 /**
 *   Use this in your bucketer if you're using booleans as dimension coordinates.
@@ -20,7 +21,11 @@ public class BooleanSerializable implements CSerializable{
 
     @Override
     public byte[] serialize() {
-        if (this.bool){
+        return staticSerialize(bool);
+    }
+
+    public static byte[] staticSerialize(boolean b) {
+        if (b) {
             return TRUE_SERIAL;
         } else {
             return FALSE_SERIAL;
