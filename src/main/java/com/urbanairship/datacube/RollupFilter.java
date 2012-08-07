@@ -6,6 +6,12 @@ package com.urbanairship.datacube;
 
 import com.google.common.base.Optional;
 
+/**
+ * {@deprecated UA hacked this in for a particular use case but found a better solution later by
+ * Address-level cube manipulation. This is an ugly bit of abstraction-breaking that will probably
+ * be removed soon.}
+ */
+@Deprecated
 public interface RollupFilter {
     /**
      * A low-level hook for intercepting writes after bucketing before they are applied to the
@@ -18,6 +24,10 @@ public interface RollupFilter {
      * the RollupFilter. This is a good way to provide a userid to check for uniqueness, for
      * example.
      * @return whether the write should proceed (false to drop the write for this address).
+     * @deprecated UA hacked this in for a particular use case but found a better solution later by
+     * Address-level cube manipulation. This is an ugly bit of abstraction-breaking that will
+     * probably be removed soon.
      */
+    @Deprecated
     public boolean filter(Address address, Optional<Object> attachment);
 }
