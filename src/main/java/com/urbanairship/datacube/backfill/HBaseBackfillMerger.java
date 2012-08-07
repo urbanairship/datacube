@@ -98,11 +98,12 @@ public class HBaseBackfillMerger implements Runnable {
             liveCubeScanner.close();
             if (liveCubeIsEmpty) {
                 log.info("Live cube is empty, running a straight copy from the backfill table");
-                
-                HBaseSnapshotter hbaseSnapshotter = new HBaseSnapshotter(conf, backfilledTableName, cf, liveCubeTableName, 
-                  new Path("/tmp/backfill_snapshot_hfiles"), true, null, null);
+
+                HBaseSnapshotter hbaseSnapshotter = new HBaseSnapshotter(conf, backfilledTableName,
+                        cf, liveCubeTableName, new Path("/tmp/backfill_snapshot_hfiles"), true,
+                        cubeNameKeyPrefix, Bytes.add(cubeNameKeyPrefix, fiftyBytesFF));
                 return hbaseSnapshotter.runWithCheckedExceptions();
-            }  else {          
+            }  else {
           
                 Job job = new Job(conf);
                 backfilledHTable = new HTable(conf, backfilledTableName);
