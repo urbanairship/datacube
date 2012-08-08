@@ -1,0 +1,8 @@
+1.2.3
+=====
+Deprecated RollupFilter in favor of low-level Address/Batch access
+Bug fix for overcounting in hbase backfill merger when cubes share a table
+Bug fix for EnumSerializable returning incorrect values
+Nullable dimensions
+Add week and year buckets to HourDayMonthBucketer
+
