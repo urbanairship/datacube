@@ -18,7 +18,22 @@ public class Util {
     public static byte[] longToBytes(long l) {
         return ByteBuffer.allocate(8).putLong(l).array();
     }
-    
+
+    /**
+     * Write a big-endian integer into the least significant bytes of a byte array.
+     */
+    public static byte[] intToBytesWithLen(int x, int len) {
+        if(len <= 4) {
+            return trailingBytes(intToBytes(x), len);
+        } else {
+            ByteBuffer bb = ByteBuffer.allocate(len);
+            bb.position(len-4);
+            bb.putInt(x);
+            assert bb.remaining() == 0;
+            return bb.array();
+        }
+    }
+
     public static long bytesToLong(byte[] bytes) {
         if(bytes.length < 8) {
             throw new IllegalArgumentException("Input array was too small: " +
@@ -61,6 +76,8 @@ public class Util {
     public static byte[] trailingBytes(byte[] bs, int numBytes) {
         return Arrays.copyOfRange(bs, bs.length-numBytes, bs.length);
     }
+
+
     
     /**
      * Only use this for testing/debugging. Inefficient.

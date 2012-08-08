@@ -14,6 +14,12 @@ import java.util.Map.Entry;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
+/**
+ * This class is mostly intended for internal use by datacube code. By using this class directly you
+ * can skip the bucketers and manipulate individual cube values without higher-level magic.
+ *
+ * If you're just trying to use the datacube normally, check out {@link DataCubeIo}, {@link ReadBuilder}
+ */
 public class Address {
 //    private static final Logger log = LogManager.getLogger(Address.class);
     
@@ -26,7 +32,7 @@ public class Address {
     public Address(DataCube<?> cube) {
         this.cube = cube;
     }
-    
+
     public void at(Dimension<?> dimension, byte[] value) {
         if(dimension.isBucketed()) {
             throw new IllegalArgumentException("Dimension " + dimension + 
@@ -35,11 +41,11 @@ public class Address {
         at(dimension, BucketType.IDENTITY, value);
     }
     
-    void at(Dimension<?> dimension, BucketType bucketType, byte[] bucket) {
+    public void at(Dimension<?> dimension, BucketType bucketType, byte[] bucket) {
         buckets.put(dimension, new BucketTypeAndBucket(bucketType, bucket));
     }
     
-    void at(Dimension<?> dimension, BucketTypeAndBucket bucketAndCoord) {
+    public void at(Dimension<?> dimension, BucketTypeAndBucket bucketAndCoord) {
         buckets.put(dimension, bucketAndCoord);
     }
     
@@ -47,7 +53,7 @@ public class Address {
         return buckets.get(dimension);
     }
     
-    Map<Dimension<?>,BucketTypeAndBucket> getBuckets() {
+    public Map<Dimension<?>,BucketTypeAndBucket> getBuckets() {
         return buckets;
     }
     

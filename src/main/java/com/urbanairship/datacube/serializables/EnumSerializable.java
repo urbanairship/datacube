@@ -28,11 +28,14 @@ public class EnumSerializable implements CSerializable {
     
     @Override
     public byte[] serialize() {
-        byte[] ordinalBytes = Util.intToBytes(ordinal);
-        
-        int startAtIndex = 4-numFieldBytes;
-        
-        return Arrays.copyOfRange(ordinalBytes, startAtIndex, 4);
+        return staticSerialize(ordinal, numFieldBytes);
     }
-    
+
+    public static byte[] staticSerialize(Enum<?> enumInstance, int numFieldBytes) {
+        return staticSerialize(enumInstance.ordinal(), numFieldBytes);
+    }
+
+    public static byte[] staticSerialize(int ordinal, int numFieldBytes) {
+        return Util.intToBytesWithLen(ordinal, numFieldBytes);
+    }
 }

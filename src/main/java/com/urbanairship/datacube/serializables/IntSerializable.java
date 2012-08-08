@@ -11,14 +11,18 @@ import com.urbanairship.datacube.Util;
  * Use this in your bucketer if you're using ints as dimension coordinates.
  */
 public class IntSerializable implements CSerializable {
-    private final int i;
+    private final int x;
     
-    public IntSerializable(int l) {
-        this.i = l;
+    public IntSerializable(int x) {
+        this.x = x;
     }
 
     @Override
     public byte[] serialize() {
-        return Util.intToBytes(i);
+        return staticSerialize(x);
+    }
+
+    public static byte[] staticSerialize(int x) {
+        return Util.intToBytes(x);
     }
 }

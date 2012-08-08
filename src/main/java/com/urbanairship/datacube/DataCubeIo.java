@@ -147,10 +147,10 @@ public class DataCubeIo<T extends Op> {
         
         Batch<T> newBatch = cube.getWrites(at, op);
         
-        return writeAsync(newBatch, at);
+        return writeAsync(newBatch);
     }
-    
-    public Optional<Future<?>> writeAsync(Batch<T> newBatch, WriteBuilder at) throws AsyncException, InterruptedException {
+
+    public Optional<Future<?>> writeAsync(Batch<T> newBatch) throws AsyncException, InterruptedException {
         Batch<T> batchToFlush = null;
 
         switch(syncLevel) {

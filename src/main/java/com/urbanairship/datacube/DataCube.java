@@ -111,7 +111,8 @@ public class DataCube<T extends Op> {
             }
             
             boolean shouldWrite = true;
-            
+
+            @SuppressWarnings("deprecation") // TODO eventually remove RollupFilters entirely
             RollupFilter rollupFilter = filters.get(rollup); 
             if(rollupFilter != null) {
                 Object attachment = writeBuilder.getRollupFilterAttachments().get(rollupFilter);
