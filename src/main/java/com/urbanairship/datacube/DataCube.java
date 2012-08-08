@@ -4,20 +4,13 @@ Copyright 2012 Urban Airship and Contributors
 
 package com.urbanairship.datacube;
 
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.Set;
-
+import com.google.common.base.Optional;
+import com.google.common.collect.*;
 import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
 
-import com.google.common.base.Optional;
-import com.google.common.collect.HashMultimap;
-import com.google.common.collect.Maps;
-import com.google.common.collect.Multimap;
-import com.google.common.collect.Sets;
+import java.util.*;
+import java.util.Map.Entry;
 
 /**
  * A hypercube abstraction for storing number-like data. Good for storing counts of events
@@ -33,9 +26,11 @@ public class DataCube<T extends Op> {
     private final Multimap<Dimension<?>,BucketType> bucketsOfInterest;
     private final Set<Set<DimensionAndBucketType>> validAddressSet;
     private final Map<Rollup,RollupFilter> filters = Maps.newHashMap();
+    // TODO: final, replace temp constructor
+    private List<Slice> slices = Collections.emptyList();
 
     /**
-     * @param dims see {@link Dimension} 
+     * @param dims see {@link Dimension}
      * @param rollups see {@link Rollup}
      */
     public DataCube(List<Dimension<?>> dims, List<Rollup> rollups) {
@@ -46,19 +41,19 @@ public class DataCube<T extends Op> {
         bucketsOfInterest = HashMultimap.create();
 
         if(dims.size() > Short.MAX_VALUE) {
-            throw new IllegalArgumentException("May not have more than " + Short.MAX_VALUE + 
+            throw new IllegalArgumentException("May not have more than " + Short.MAX_VALUE +
                     " dimensions");
         }
-        
+
         for(Rollup rollup: rollups) {
             for(DimensionAndBucketType dimAndBucketType: rollup.getComponents()) {
                 if(!dims.contains(dimAndBucketType.dimension)) {
-                    throw new IllegalArgumentException("Rollup dimension " + 
+                    throw new IllegalArgumentException("Rollup dimension " +
                             dimAndBucketType.dimension + " is not a dimension in this cube");
                 }
-                
+
                 if(!dimAndBucketType.dimension.getBucketer().getBucketTypes().contains(dimAndBucketType.bucketType)) {
-                    throw new IllegalArgumentException("Rollup specified bucket type " + 
+                    throw new IllegalArgumentException("Rollup specified bucket type " +
                             dimAndBucketType.bucketType + " which doesn't exist for dimension " +
                             dimAndBucketType.dimension);
                 }
@@ -68,44 +63,88 @@ public class DataCube<T extends Op> {
         }
     }
 
+        // TODO: temporary constructor
+    public DataCube(List<Dimension<?>> dimensions, List<Rollup> rollups, ImmutableList<Slice> slices) {
+        this(dimensions, rollups);
+        this.slices = slices;
+    }
+
     /**
      * Get a batch of writes that, when applied to the database, will make the change given by
      * "op".
      */
-    public Batch<T> getWrites(WriteBuilder writeBuilder, T op) {
-        Map<Address,T> outputMap = Maps.newHashMap(); 
-        
+    public Batch<Op> getWrites(WriteBuilder writeBuilder, Op op) {
+        Map<Address,Op> outputMap = Maps.newHashMap();
+
         for(Rollup rollup: rollups) {
             Address outputAddress = new Address(this);
-            
+
             // Start out with all dimensions wildcard, overwrite with other values later
             for(Dimension<?> dimension: dims) {
                 outputAddress.at(dimension, BucketTypeAndBucket.WILDCARD);
             }
-            
+
             for(DimensionAndBucketType dimAndBucketType: rollup.getComponents()) {
                 Dimension<?> dimension = dimAndBucketType.dimension;
                 BucketType bucketType = dimAndBucketType.bucketType;
                 byte[] bucket = writeBuilder.getBuckets().get(dimAndBucketType);
                 outputAddress.at(dimension, bucketType, bucket);
             }
-            
-            
+
+
             boolean shouldWrite = true;
-            
-            RollupFilter rollupFilter = filters.get(rollup); 
+
+            RollupFilter rollupFilter = filters.get(rollup);
             if(rollupFilter != null) {
                 Object attachment = writeBuilder.getRollupFilterAttachments().get(rollupFilter);
                 Optional<Object> attachmentOpt = Optional.fromNullable(attachment);
                 shouldWrite = rollupFilter.filter(outputAddress, attachmentOpt);
             }
-            
+
             if(shouldWrite) {
                 outputMap.put(outputAddress, op);
             }
         }
-        
-        return new Batch<T>(outputMap);
+
+        // derive writes based on the slices registered with this cube
+        for(Slice slice : this.slices) {
+            Map<DimensionAndBucketType,byte[]> buckets = writeBuilder.getBuckets();
+            // every slice writes only one address, based on the
+            // "variable" and "fixed" dimensions provided
+            // the operation performed on the column-family is
+            // a ColumnOp<T extends Op>, which holds an Op for a
+            // key/column name
+            Address sliceOutAddr = new Address(this);
+
+            Dimension<?> sliceDimension = slice.getVariableDimension();
+            sliceOutAddr.at(sliceDimension, Slice.getWildcardValueBytes());
+            Set<DimensionAndBucketType> dims = slice.getDimensionsAndBucketTypes();
+
+            for(DimensionAndBucketType dimbucket : dims) {
+            	Dimension<?> dim = dimbucket.dimension;
+            	BucketType btype = dimbucket.bucketType;
+            	byte[] value = buckets.get(dimbucket);
+
+                sliceOutAddr.at(dim, btype, value);
+            }
+
+            byte[] columnKey = null;
+
+            for(Map.Entry<DimensionAndBucketType, byte[]> dimAndBtype : buckets.entrySet()) {
+            	if(dimAndBtype.getKey().dimension.equals(sliceDimension)) {
+            		columnKey = dimAndBtype.getValue();
+            		break;
+            	}
+            }
+
+            if(columnKey == null) {
+            	throw new RuntimeException("unable to find column key");
+            }
+
+            outputMap.put(sliceOutAddr, new ColumnOp(columnKey, op));
+        }
+
+        return new Batch<Op>(outputMap);
     }
 
     public List<Dimension<?>> getDimensions() {
@@ -124,10 +163,10 @@ public class DataCube<T extends Op> {
             if(bucketTypeAndCoord == BucketTypeAndBucket.WILDCARD) {
                 continue;
             }
-            
+
             Dimension<?> dimension = e.getKey();
             BucketType bucketType = bucketTypeAndCoord.bucketType;
-            
+
             dimsAndBucketsSpecified.add(new DimensionAndBucketType(dimension, bucketType));
         }
 
@@ -144,7 +183,7 @@ public class DataCube<T extends Op> {
         errMsg.append(". To query, you must provide one of these complete sets of dimensions and buckets: (");
         boolean firstLoop = true;
         for(Rollup rollup: rollups) {
-            if(!firstLoop) { 
+            if(!firstLoop) {
                 errMsg.append(",");
             }
             firstLoop = false;
@@ -157,9 +196,9 @@ public class DataCube<T extends Op> {
     Multimap<Dimension<?>,BucketType> getBucketsOfInterest() {
         return bucketsOfInterest;
     }
-    
+
     public void addFilter(Rollup rollup, RollupFilter filter) {
         filters.put(rollup, filter);
     }
-    
+
 }
