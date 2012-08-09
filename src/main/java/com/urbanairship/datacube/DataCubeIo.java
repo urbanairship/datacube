@@ -313,7 +313,12 @@ public class DataCubeIo<T extends Op> {
      */
     public <K> Optional<Map<K, T>> getSlice(ReadBuilder at, Bucketer<K> bucketer, BucketType btype) {
         Address sliceAddr = at.build();
-        Optional<Map<BoxedByteArray, T>> optional = db.getSlice(sliceAddr);
+        Optional<Map<BoxedByteArray, T>> optional = null;
+        try {
+            optional = db.getSlice(sliceAddr);
+        } catch (Exception e) {
+            return Optional.absent();
+        }
 
         if(!optional.isPresent()) {
             return Optional.absent();

@@ -46,10 +46,10 @@ public interface DbHarness<T extends Op> {
     /**
      * Performs a read of a preaggregated slice operation and returns a Map
      * of the results
-     * @param the slices' address
+     * @param sliceAddr the slices' address
      * @return An optional Map with Dimension values as keys and counter as value
      */
-    <K> Optional<Map<K, T>> getSlice(Address sliceAddr);
+    Optional<Map<BoxedByteArray, T>> getSlice(Address sliceAddr) throws IOException, InterruptedException;
 
     public List<Optional<T>> multiGet(List<Address> addresses) throws IOException;
 

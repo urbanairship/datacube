@@ -263,9 +263,9 @@ public class MapDbHarness<T extends Op> implements DbHarness<T> {
 
 
     @Override
-    public <M> Optional<Map<M, T>> getSlice(Address sliceAddr) {
-        Map<M, BoxedByteArray> columnMap;
-        Map<M, T> resultMap = new HashMap<M, T>();
+    public Optional<Map<BoxedByteArray, T>> getSlice(Address sliceAddr) {
+        Map<BoxedByteArray, BoxedByteArray> columnMap;
+        Map<BoxedByteArray, T> resultMap = new HashMap<BoxedByteArray, T>();
 
         try {
             Optional<byte[]> result = getRaw(sliceAddr);
@@ -276,7 +276,7 @@ public class MapDbHarness<T extends Op> implements DbHarness<T> {
 
             columnMap = deserializeMap(result.get());
 
-            for(Map.Entry<M, BoxedByteArray> entry : columnMap.entrySet()) {
+            for(Map.Entry<BoxedByteArray, BoxedByteArray> entry : columnMap.entrySet()) {
                 T deserializedOp = this.deserializer.fromBytes(entry.getValue().bytes);
                 resultMap.put(entry.getKey(), deserializedOp);
             }

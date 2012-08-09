@@ -21,12 +21,16 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
 import com.urbanairship.datacube.bucketers.HourDayMonthBucketer;
 import com.urbanairship.datacube.bucketers.StringToBytesBucketer;
+import com.urbanairship.datacube.dbharnesses.HBaseDbHarness;
 import com.urbanairship.datacube.dbharnesses.MapDbHarness;
 import com.urbanairship.datacube.idservices.MapIdService;
 import com.urbanairship.datacube.ops.LongOp;
+import org.apache.hadoop.hbase.client.HTablePool;
+import org.apache.hadoop.hbase.util.Bytes;
 import org.joda.time.DateTime;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -38,13 +42,16 @@ import java.util.concurrent.ConcurrentMap;
 
 /**
  * This test is intended for specification of a possible
- * mechanism for preaggregating SLICEs of the cube.
+ * mechanism for preaggregating SLICEs of the mapCube.
  * See {@link Slice} for a longer explanation.
  */
-public class SliceTest {
+public class SliceTest extends EmbeddedClusterTestAbstract {
 
-    final String[] colors = {"red", "yellow", "green"};
-    final String[] sizes = {"small", "medium", "big"};
+    private static final byte[] cf = Bytes.toBytes("d");
+    private static final byte[] table = Bytes.toBytes("slice_name");
+
+    private final static String[] colors = {"red", "yellow", "green"};
+    private final static String[] sizes = {"small", "medium", "big"};
 
     /**
      * those timestamps should lie within one month
@@ -53,22 +60,22 @@ public class SliceTest {
 
 
     private static final long NUM_APPLES = 10L;
-    private DataCubeIo<LongOp> cubeIo;
+    private DataCubeIo<LongOp> mapCubeIo;
     private Dimension<String> colorDimension;
     private Dimension<String> sizeDimension;
-    private DataCube<LongOp> cube;
+    private DataCube<LongOp> mapCube;
     private ConcurrentMap<BoxedByteArray,byte[]> backingMap;
     private Dimension<DateTime> timeDimension;
+    private DataCube<LongOp> hbaseCube;
+    private DataCubeIo<LongOp> hbaseCubeIo;
+
+    @BeforeClass
+    public static void init() throws Exception {
+        getTestUtil().createTable(table, cf).close();
+    }
 
     @Before
-    public void setUp() throws IOException, InterruptedException {
-
-        backingMap = Maps.newConcurrentMap();
-        // TODO: should the Slice-wildcard value be somehow registered with the id service?
-        IdService idService = new MapIdService();
-        DbHarness<LongOp> dbHarness = new MapDbHarness<LongOp>(backingMap, LongOp.DESERIALIZER,
-            DbHarness.CommitType.READ_COMBINE_CAS, idService);
-
+    public void setUp() throws Exception {
         colorDimension = new Dimension<String>("colorDimension", new StringToBytesBucketer(), true,6);
         sizeDimension = new Dimension<String>("sizeDimension", new StringToBytesBucketer(), true, 6);
         timeDimension = new Dimension<DateTime>("time", new HourDayMonthBucketer(), true, 4);
@@ -80,7 +87,7 @@ public class SliceTest {
         Rollup monthRollup = new Rollup(colorDimension, BucketType.IDENTITY, sizeDimension, BucketType.IDENTITY,
             timeDimension, HourDayMonthBucketer.months);
 
-        List<Rollup> rollups = ImmutableList.<Rollup>of(daysRollup, monthRollup);
+        List<Rollup> rollups = ImmutableList.of(daysRollup, monthRollup);
 
         Set<DimensionAndBucketType> sizeTimeDaysDimBuckets = new HashSet<DimensionAndBucketType>();
         sizeTimeDaysDimBuckets.add(new DimensionAndBucketType(sizeDimension, BucketType.IDENTITY));
@@ -95,37 +102,73 @@ public class SliceTest {
         Slice sliceColorMonths = new Slice(colorDimension, sizeTimeMonthsDimBuckets); // first dimension given is the "slice dimension"
         ImmutableList<Slice> slices = ImmutableList.of(sliceColorDays, sliceColorMonths);
 
-        cube = new DataCube<LongOp>(dimensions, rollups, slices);
-        cubeIo = new DataCubeIo<LongOp>(cube, dbHarness, 1, Long.MAX_VALUE, SyncLevel.FULL_SYNC);
+        backingMap = Maps.newConcurrentMap();
+        // TODO: should the Slice-wildcard value be somehow registered with the id service?
+        IdService idService = new MapIdService();
+        DbHarness<LongOp> mapDbHarness = new MapDbHarness<LongOp>(backingMap, LongOp.DESERIALIZER,
+            DbHarness.CommitType.READ_COMBINE_CAS, idService);
 
-        // Fill the cube with testdata:
+        mapCube = new DataCube<LongOp>(dimensions, rollups, slices);
+        mapCubeIo = new DataCubeIo<LongOp>(mapCube, mapDbHarness, 1, Long.MAX_VALUE, SyncLevel.FULL_SYNC);
+
+
+        HTablePool pool = new HTablePool(getTestUtil().getConfiguration(), Integer.MAX_VALUE);
+        DbHarness<LongOp> hbaseDbHarness = new HBaseDbHarness<LongOp>(pool, Bytes.toBytes("slice_cube"),
+                table, cf, LongOp.DESERIALIZER, idService,
+                DbHarness.CommitType.INCREMENT);
+
+        hbaseCube = new DataCube<LongOp>(dimensions, rollups, slices);
+        hbaseCubeIo = new DataCubeIo<LongOp>(mapCube, hbaseDbHarness, 1, Long.MAX_VALUE, SyncLevel.FULL_SYNC);
+
+        // Fill the mapCube with testdata:
         // Every day, 10 of each kind
+        generateApples(NUM_APPLES, times, colors, sizes, mapCubeIo, mapCube);
+        generateApples(NUM_APPLES, times, colors, sizes, hbaseCubeIo, hbaseCube);
+    }
+
+    private void generateApples(long num, Long[] times, String[] colors, String[] sizes, DataCubeIo cubeIo, DataCube cube)
+        throws IOException, InterruptedException {
+
         for(Long timestamp : times) {
             DateTime date = new DateTime(timestamp);
 
             for(String color : colors) {
                 for(String size : sizes) {
-                    for(int i = 0; i < NUM_APPLES; i++) {
+                    for(int i = 0; i < num; i++) {
                         cubeIo.writeSync(new LongOp(1), new WriteBuilder(cube)
-                            .at(colorDimension, color)
-                            .at(sizeDimension, size)
-                            .at(timeDimension, date));
+                            .at(this.colorDimension, color)
+                            .at(this.sizeDimension, size)
+                            .at(this.timeDimension, date));
                     }
                 }
             }
         }
-
-
     }
 
     @Test
-    public void testSimpleSlice() throws IOException, InterruptedException {
+    public void testSimpleInMemSlice() throws IOException, InterruptedException {
 
-        Optional<Map<String,LongOp>> results = cubeIo.getSlice(new ReadBuilder(cube)
+        Optional<Map<String,LongOp>> results = mapCubeIo.getSlice(new ReadBuilder(mapCube)
             .sliceFor(colorDimension)
             .at(sizeDimension, sizes[0])
             .at(timeDimension, HourDayMonthBucketer.days, new DateTime(times[0])), new StringToBytesBucketer(), BucketType.IDENTITY);
 
+        verifyAppleSlice(results);
+    }
+
+
+    @Test
+    public void testHbaseSimpleSlice() throws IOException, InterruptedException {
+
+        Optional<Map<String,LongOp>> results = hbaseCubeIo.getSlice(new ReadBuilder(hbaseCube)
+            .sliceFor(colorDimension)
+            .at(sizeDimension, sizes[0])
+            .at(timeDimension, HourDayMonthBucketer.days, new DateTime(times[0])), new StringToBytesBucketer(), BucketType.IDENTITY);
+
+        verifyAppleSlice(results);
+    }
+
+    private void verifyAppleSlice(Optional<Map<String, LongOp>> results) {
         Assert.assertTrue(results.isPresent());
         Map<String,LongOp> sliceMap = results.get();
 
@@ -135,7 +178,7 @@ public class SliceTest {
         Assert.assertEquals(NUM_APPLES, sliceMap.get("green").getLong());
         Assert.assertEquals(NUM_APPLES, sliceMap.get("yellow").getLong());
 
-        results = cubeIo.getSlice(new ReadBuilder(cube)
+        results = mapCubeIo.getSlice(new ReadBuilder(mapCube)
             .sliceFor(colorDimension)
             .at(sizeDimension, sizes[0])
             .at(timeDimension, HourDayMonthBucketer.months, new DateTime(times[0])),
@@ -152,9 +195,20 @@ public class SliceTest {
 
     @Test(expected = IllegalArgumentException.class)
     public void testDirectSliceWrite() throws IOException, InterruptedException {
-        cubeIo.writeSync(new LongOp(1), new WriteBuilder(cube)
+        mapCubeIo.writeSync(new LongOp(1), new WriteBuilder(mapCube)
             .at(colorDimension, Slice.getWildcardValue())
             .at(sizeDimension, sizes[0])
             .at(timeDimension, new DateTime(times[0])));
+    }
+
+    @Test
+    public void testHbaseNonExistingSlice() {
+        Optional<Map<String, LongOp>> results = hbaseCubeIo.getSlice(new ReadBuilder(mapCube)
+            .sliceFor(sizeDimension)
+            .at(colorDimension, colors[0])
+            .at(timeDimension, HourDayMonthBucketer.months, new DateTime(times[0])),
+            new StringToBytesBucketer(), BucketType.IDENTITY);
+
+        Assert.assertFalse(results.isPresent());
     }
 }

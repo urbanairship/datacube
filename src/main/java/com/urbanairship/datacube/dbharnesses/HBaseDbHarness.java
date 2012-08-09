@@ -23,10 +23,7 @@ import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.*;
 
 public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
@@ -121,8 +118,21 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
     }
 
     @Override
-    public Optional<Map<String, Long>> getSlice(Address sliceAddr) {
-        throw new NotImplementedException("Slicing not implemented in HBaseDbHarness");
+    public Optional<Map<BoxedByteArray, T>> getSlice(Address sliceAddr) throws IOException, InterruptedException {
+        get(sliceAddr);
+        final byte[] rowKey = ArrayUtils.addAll(uniqueCubeName, sliceAddr.toKey(idService));
+        Get sliceGet = new Get(rowKey);
+        Result result = WithHTable.get(pool, tableName, sliceGet);
+        NavigableMap<byte[], byte[]> familyMap = result.getFamilyMap(cf);
+
+        Map<BoxedByteArray, T> columnMap = new HashMap<BoxedByteArray, T>(familyMap.size());
+        for(Map.Entry<byte[], byte[]> familyEntry : familyMap.entrySet()) {
+            BoxedByteArray convertedKey = new BoxedByteArray(familyEntry.getKey());
+            T convertedValue = this.deserializer.fromBytes(familyEntry.getValue());
+            columnMap.put(convertedKey, convertedValue);
+        }
+
+        return Optional.of(columnMap);
     }
 
     /**
@@ -193,10 +203,10 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
         }
     }
 
-    private void increment(byte[] rowKey, Op op) throws IOException {
+    private void increment(byte[] rowKey, Op op, byte[] qualifier) throws IOException {
         long amount = Bytes.toLong(op.serialize());
         incrementSize.update(amount);
-        WithHTable.increment(pool, tableName, rowKey, cf, QUALIFIER, amount);
+        WithHTable.increment(pool, tableName, rowKey, cf, qualifier, amount);
     }
 
     @SuppressWarnings("unchecked")
@@ -254,12 +264,27 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
 
                 switch(commitType) {
                 case INCREMENT:
-                    increment(rowKey, op);
+                    Op execOp;
+                    byte[] qualifier;
+                    if(op instanceof ColumnOp) {
+                        execOp = ((ColumnOp) op).getWrappedOp();
+                        qualifier = ((ColumnOp) op).getKey();
+                    } else {
+                        execOp = op;
+                        qualifier = QUALIFIER;
+                    }
+                    increment(rowKey, execOp, qualifier);
                     break;
                 case READ_COMBINE_CAS:
+                    if(op instanceof ColumnOp) {
+                        throw new NotImplementedException("Slices are not implemented for READ_COMBINE_CAS at the moment");
+                    }
                     readCombineCas(rowKey, op);
                     break;
                 case OVERWRITE:
+                    if(op instanceof ColumnOp) {
+                        throw new NotImplementedException("Slices are not implemented for OVERWRITE at the moment");
+                    }
                     overwrite(rowKey, op);
                     break;
                 default:
