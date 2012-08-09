@@ -46,7 +46,7 @@ public class Slice {
 
     private ImmutableSet<DimensionAndBucketType> dimsAndBuckets;
     private static final String SLICE_WILDCARD_VALUE = "SLICE_";
-    private Dimension<String> variableDim;
+    private Dimension<?> variableDim;
     private static final byte[] SLICE_WILDCARD_VALUE_BYTES = Bytes.toBytes(Slice.SLICE_WILDCARD_VALUE);
 
     /**
@@ -54,7 +54,7 @@ public class Slice {
      * @param sliceDimension the dimension to base the slice on
      * @param dimsAndBuckets dimensions for whose buckets values should be preaggregated
      */
-    public Slice(Dimension<String> sliceDimension, Set<DimensionAndBucketType> dimsAndBuckets) {
+    public Slice(Dimension<?> sliceDimension, Set<DimensionAndBucketType> dimsAndBuckets) {
     	this.dimsAndBuckets = ImmutableSet.copyOf(dimsAndBuckets);
         this.variableDim = sliceDimension;
     }
