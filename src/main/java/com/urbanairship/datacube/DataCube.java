@@ -6,8 +6,9 @@ package com.urbanairship.datacube;
 
 import com.google.common.base.Optional;
 import com.google.common.collect.*;
-import org.apache.log4j.LogManager;
-import org.apache.log4j.Logger;
+import com.urbanairship.datacube.ops.IRowOp;
+import com.urbanairship.datacube.ops.RowOp;
+import com.urbanairship.datacube.ops.SerializableOp;
 
 import java.util.*;
 import java.util.Map.Entry;
@@ -18,8 +19,8 @@ import java.util.Map.Entry;
  * @param <T> the type of values stored in the cube. For example, a long counter could be
  * stored as a LongOp.
  */
-public class DataCube<T extends Op> {
-    private static final Logger log = LogManager.getLogger(DataCube.class);
+public class DataCube<T extends SerializableOp> {
+	public static final BoxedByteArray EMPTY_COLUMN_QUALIFIER = new BoxedByteArray("".getBytes());
 
     private final List<Dimension<?>> dims;
     private final List<Rollup> rollups;
@@ -73,8 +74,8 @@ public class DataCube<T extends Op> {
      * Get a batch of writes that, when applied to the database, will make the change given by
      * "op".
      */
-    public Batch<Op> getWrites(WriteBuilder writeBuilder, Op op) {
-        Map<Address,Op> outputMap = Maps.newHashMap();
+    public Batch<T> getWrites(WriteBuilder writeBuilder, SerializableOp op) {
+        Map<Address,IRowOp> outputMap = Maps.newHashMap();
 
         for(Rollup rollup: rollups) {
             Address outputAddress = new Address(this);
@@ -102,7 +103,9 @@ public class DataCube<T extends Op> {
             }
 
             if(shouldWrite) {
-                outputMap.put(outputAddress, op);
+            	IRowOp singleOpRowOp = new RowOp(outputAddress);
+            	singleOpRowOp.addColumnOp(EMPTY_COLUMN_QUALIFIER, op);
+                outputMap.put(outputAddress, singleOpRowOp);
             }
         }
 
@@ -141,10 +144,12 @@ public class DataCube<T extends Op> {
             	throw new RuntimeException("unable to find column key");
             }
 
-            outputMap.put(sliceOutAddr, new ColumnOp(columnKey, op));
+            IRowOp sliceRowOp = new RowOp(sliceOutAddr);
+            sliceRowOp.addColumnOp(new BoxedByteArray(columnKey), op);
+            outputMap.put(sliceOutAddr, sliceRowOp);
         }
 
-        return new Batch<Op>(outputMap);
+        return new Batch<T>(outputMap);
     }
 
     public List<Dimension<?>> getDimensions() {

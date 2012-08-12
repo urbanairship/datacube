@@ -10,6 +10,8 @@ import com.urbanairship.datacube.DbHarness.CommitType;
 import com.urbanairship.datacube.bucketers.BigEndianLongBucketer;
 import com.urbanairship.datacube.dbharnesses.HBaseDbHarness;
 import com.urbanairship.datacube.idservices.MapIdService;
+import com.urbanairship.datacube.ops.SerializableOp;
+
 import junit.framework.Assert;
 import org.apache.commons.lang.ArrayUtils;
 import org.apache.commons.lang.NotImplementedException;
@@ -76,7 +78,7 @@ public class HBaseFlushExecutorTest extends EmbeddedClusterTestAbstract {
         }
     }
 
-    private static class BytesOp implements Op {
+    private static class BytesOp implements SerializableOp {
         public final byte[] bytes;
 
         public BytesOp(long l) {
@@ -107,9 +109,15 @@ public class HBaseFlushExecutorTest extends EmbeddedClusterTestAbstract {
         }
 
         @Override
-        public Object deserialize(byte[] serObj) {
+        public SerializableOp deserialize(byte[] serObj) {
             throw new NotImplementedException("Not needed in test");
         }
+
+		@Override
+		public Op inverse() {
+			// TODO Auto-generated method stub
+			return null;
+		}
     }
 
     private static class BytesOpDeserializer implements Deserializer<BytesOp> {

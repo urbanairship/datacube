@@ -5,11 +5,13 @@ Copyright 2012 Urban Airship and Contributors
 package com.urbanairship.datacube.dbharnesses;
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 
 import org.apache.hadoop.hbase.client.Delete;
 import org.apache.hadoop.hbase.client.Get;
 import org.apache.hadoop.hbase.client.HTableInterface;
 import org.apache.hadoop.hbase.client.HTablePool;
+import org.apache.hadoop.hbase.client.Increment;
 import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.client.ResultScanner;
@@ -17,6 +19,8 @@ import org.apache.hadoop.hbase.client.Row;
 import org.apache.hadoop.hbase.client.Scan;
 import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
+
+import com.urbanairship.datacube.BoxedByteArray;
 
 
 public class WithHTable {
@@ -79,6 +83,32 @@ public class WithHTable {
             @Override
             public Long runWith(HTableInterface hTable) throws IOException {
                 return hTable.incrementColumnValue(row, cf, qual, amount);
+            }
+        });
+    }
+    
+    // TODO: docstr
+    /**
+     * Increments multiple columns contained within colOpMap within a row
+     * @param pool
+     * @param tableName
+     * @param row
+     * @param cf
+     * @param colOpMap
+     * @return
+     * @throws IOException
+     */
+    public static Result increment(HTablePool pool, byte[] tableName, final byte[] row,
+            final byte[] cf, final Map<BoxedByteArray, Long> colOpMap) throws IOException {
+        return run(pool, tableName, new HTableRunnable<Result> () {
+            @Override
+            public Result runWith(HTableInterface hTable) throws IOException {
+                Increment columnsIncrement = new Increment(row);
+                for(Map.Entry<BoxedByteArray, Long> colOp : colOpMap.entrySet()) {
+	                columnsIncrement.addColumn(cf, colOp.getKey().bytes, colOp.getValue());
+                }
+                
+                return hTable.increment(columnsIncrement);
             }
         });
     }

@@ -7,6 +7,7 @@ package com.urbanairship.datacube;
 import com.google.common.base.Optional;
 import com.urbanairship.datacube.dbharnesses.AfterExecute;
 import com.urbanairship.datacube.dbharnesses.FullQueueException;
+import com.urbanairship.datacube.ops.SerializableOp;
 
 import java.io.IOException;
 import java.util.List;
@@ -18,7 +19,7 @@ import java.util.concurrent.Future;
  *
  * Implementations are expected to be thread-safe.
  */
-public interface DbHarness<T extends Op> {
+public interface DbHarness<T extends SerializableOp> {
     /**
      * Apply some ops to the database, combining them with ops that might already be stored there.
      * The passed batch will be modified by runBatch() to remove all ops that were successfully
@@ -35,7 +36,7 @@ public interface DbHarness<T extends Op> {
      * @throws FullQueueException if the queue of pending batches to be flushed is full, and no more
      * batches can be accepted right now. The caller can retry soon.
      */
-    public Future<?> runBatchAsync(Batch<Op> batch, AfterExecute<T> afterExecute) throws FullQueueException;
+    public Future<?> runBatchAsync(Batch<T> batch, AfterExecute<T> afterExecute) throws FullQueueException;
 
     /**
      * @return absent if the bucket doesn't exist, or the bucket if it does.

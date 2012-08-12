@@ -9,6 +9,8 @@ import com.urbanairship.datacube.DbHarness.CommitType;
 import com.urbanairship.datacube.bucketers.BigEndianLongBucketer;
 import com.urbanairship.datacube.dbharnesses.HBaseDbHarness;
 import com.urbanairship.datacube.idservices.MapIdService;
+import com.urbanairship.datacube.ops.SerializableOp;
+
 import org.apache.commons.lang.ArrayUtils;
 import org.apache.commons.lang.NotImplementedException;
 import org.apache.hadoop.hbase.client.HTablePool;
@@ -92,7 +94,7 @@ public class HBaseCasTest extends EmbeddedClusterTestAbstract {
         Assert.assertEquals((long)(updatesPerThread * numThreads), cellValueLong);
     }
 
-    private static class BytesOp implements Op {
+    private static class BytesOp implements SerializableOp {
         public final byte[] bytes;
 
         public BytesOp(byte[] bytes) {
@@ -105,8 +107,8 @@ public class HBaseCasTest extends EmbeddedClusterTestAbstract {
         }
 
         @Override
-        public Object deserialize(byte[] serObj) {
-            throw new NotImplementedException("Not needed in test");
+        public SerializableOp deserialize(byte[] serObj) {
+        	return new BytesOp(serObj);
         }
 
         @Override
@@ -126,6 +128,16 @@ public class HBaseCasTest extends EmbeddedClusterTestAbstract {
 
             return new BytesOp(Bytes.toBytes(subtracted));
         }
+
+		@Override
+		public Op inverse() {
+			// TODO Auto-generated method stub
+			return null;
+		}
+		
+		public String toString() {
+			return Long.toString(Util.bytesToLong(bytes));
+		}
     }
 
     private static class BytesOpDeserializer implements Deserializer<BytesOp> {

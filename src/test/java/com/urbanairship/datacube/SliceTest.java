@@ -126,7 +126,7 @@ public class SliceTest extends EmbeddedClusterTestAbstract {
         generateApples(NUM_APPLES, times, colors, sizes, hbaseCubeIo, hbaseCube);
     }
 
-    private void generateApples(long num, Long[] times, String[] colors, String[] sizes, DataCubeIo cubeIo, DataCube cube)
+    private void generateApples(long num, Long[] times, String[] colors, String[] sizes, DataCubeIo<LongOp> cubeIo, DataCube<LongOp> cube)
         throws IOException, InterruptedException {
 
         for(Long timestamp : times) {

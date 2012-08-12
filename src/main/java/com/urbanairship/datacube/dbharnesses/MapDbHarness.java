@@ -6,6 +6,9 @@ package com.urbanairship.datacube.dbharnesses;
 
 import com.google.common.base.Optional;
 import com.urbanairship.datacube.*;
+import com.urbanairship.datacube.ops.IRowOp;
+import com.urbanairship.datacube.ops.SerializableOp;
+
 import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.lang.NotImplementedException;
 import org.apache.log4j.LogManager;
@@ -22,7 +25,7 @@ import java.util.concurrent.*;
  * For testing, this is is a backing store for a cube that lives in memory. It saves us from
  * calling a DB just to test the cube logic.
  */
-public class MapDbHarness<T extends Op> implements DbHarness<T> {
+public class MapDbHarness<T extends SerializableOp> implements DbHarness<T> {
     private final static Logger log = LogManager.getLogger(MapDbHarness.class);
 
     private static final int casRetries = 10;
@@ -48,13 +51,12 @@ public class MapDbHarness<T extends Op> implements DbHarness<T> {
     /**
      * Actually synchronous and not asyncronous, which is allowed.
      */
-    @SuppressWarnings("unchecked")
     @Override
-    public Future<?> runBatchAsync(Batch<Op> batch, AfterExecute<T> afterExecute) {
+    public Future<?> runBatchAsync(Batch<T> batch, AfterExecute<T> afterExecute) {
 
-        for(Map.Entry<Address,Op> entry: batch.getMap().entrySet()) {
+        for(Map.Entry<Address,IRowOp> entry: batch.getMap().entrySet()) {
             Address address = entry.getKey();
-            Op opFromBatch = entry.getValue();
+            IRowOp opFromBatch = entry.getValue();
 
             BoxedByteArray mapKey;
             try {
@@ -64,45 +66,28 @@ public class MapDbHarness<T extends Op> implements DbHarness<T> {
             }
 
             if(commitType == CommitType.READ_COMBINE_CAS) {
-            	if(opFromBatch instanceof ColumnOp<?>) {
-            		try {
+					try {
 						readCombineCasColumn(afterExecute, address, opFromBatch, mapKey);
-					} catch (Exception e) {
+					} catch (ClassNotFoundException e) {
 						e.printStackTrace();
-						throw new RuntimeException("Failed executing CAS for OP: " + opFromBatch, e);
+						throw new RuntimeException("Unable to deserialize column-map, because class is unknown", e);
+					} catch (IOException e) {
+						e.printStackTrace();
+						throw new RuntimeException("Failed deserializing object due to unknown reasons", e);
 					}
-            	} else {
-	                readCombineCas(afterExecute, address, opFromBatch, mapKey);
-            	}
+	                //`readCombineCas(afterExecute, address, opFromBatch, mapKey);
             } else if(commitType == CommitType.OVERWRITE) {
-                if (opFromBatch instanceof ColumnOp<?>) {
-                    ColumnOp<String> mapOp = (ColumnOp<String>) opFromBatch;
-                    BoxedByteArray colKey = new BoxedByteArray(mapOp.getKey());
-
-                    Map<BoxedByteArray, BoxedByteArray> columnMap;
-
-                    if(!map.containsKey(mapKey)) {
-                        columnMap = new HashMap<BoxedByteArray, BoxedByteArray>();
-                    }
-                    else {
-                        try {
-                            columnMap = deserializeMap(map.get(mapKey));
-                        } catch (Exception e) {
-                            throw new RuntimeException(
-                                String.format("Could not deserialize map enty: %s class: %s", mapKey, map.get(mapKey).getClass()));
-                        }
-                    }
-
-                    BoxedByteArray serOp = new BoxedByteArray(mapOp.getWrappedOp().serialize());
-                    columnMap.put(colKey, serOp);
-                    try {
-                        map.put(mapKey, serializeMap(columnMap));
-                    } catch (IOException e) {
-                        throw new RuntimeException("Was unable to serialize column map", e);
-                    }
-
-                } else {
-                    map.put(mapKey, opFromBatch.serialize());
+            	Map<BoxedByteArray, BoxedByteArray> columnMap = new HashMap<BoxedByteArray, BoxedByteArray>();
+            	
+            	for(Map.Entry<BoxedByteArray, SerializableOp> colOp : opFromBatch.getColumnOps().entrySet()) {
+	                BoxedByteArray serOp = new BoxedByteArray(colOp.getValue().serialize());
+            		columnMap.put(colOp.getKey(), serOp);
+            	}
+            	
+                try {
+                    map.put(mapKey, serializeMap(columnMap));
+                } catch (IOException e) {
+                    throw new RuntimeException("Was unable to serialize column map", e);
                 }
 
                 if(log.isDebugEnabled()) {
@@ -118,17 +103,11 @@ public class MapDbHarness<T extends Op> implements DbHarness<T> {
         return nullFuture;
     }
 
-    private void readCombineCasColumn(AfterExecute<T> afterExecute, Address address, Op opFromBatch, BoxedByteArray mapKey) throws IOException, ClassNotFoundException {
-    	if(!(opFromBatch instanceof ColumnOp<?>)) {
-    		throw new RuntimeException("Only applicable to ColumnOps, got " + opFromBatch.getClass() + " instead");
-    	}
+    private void readCombineCasColumn(AfterExecute<T> afterExecute, Address address, IRowOp opFromBatch, BoxedByteArray mapKey) throws IOException, ClassNotFoundException {
 
         int casRetriesRemaining = casRetries;
 
     	do {
-	    	ColumnOp<String> mapOp = (ColumnOp<String>)opFromBatch;
-	    	Op wrappedOp = mapOp.getWrappedOp();
-
 	    	// check if key is avaliable
 	    	Optional<byte[]> currentValueOptional = Optional.absent();
 	    	byte[] currentValue = null;
@@ -139,26 +118,33 @@ public class MapDbHarness<T extends Op> implements DbHarness<T> {
 				e.printStackTrace();
 			}
 
-	    	BoxedByteArray columnKey = new BoxedByteArray(mapOp.getKey());
 	    	boolean success = false;
 
 	    	if(currentValueOptional.isPresent()) {
 	    		currentValue = currentValueOptional.get();
 		    	Map<BoxedByteArray, BoxedByteArray> columnMap = deserializeMap(currentValue);
-		    	Op combinedOp;
-
-		    	if(columnMap.containsKey(columnKey)) {
-			    	Op currentColumnOp = deserializer.fromBytes(columnMap.get(columnKey).bytes);
-			    	combinedOp = wrappedOp.add(currentColumnOp);
-		    	} else {
-		    		combinedOp = wrappedOp;
+		    	
+		    	for(Map.Entry<BoxedByteArray, SerializableOp> colOp : opFromBatch.getColumnOps().entrySet()) {
+			    	SerializableOp combinedOp;
+	
+			    	if(columnMap.containsKey(colOp.getKey())) {
+				    	SerializableOp currentColumnOp = deserializer.fromBytes(columnMap.get(colOp.getKey()).bytes);
+				    	combinedOp = (SerializableOp) colOp.getValue().add(currentColumnOp);
+			    	} else {
+			    		combinedOp = colOp.getValue();
+			    	}
+			    	
+			    	columnMap.put(colOp.getKey(), new BoxedByteArray(combinedOp.serialize()));
 		    	}
 
-		    	columnMap.put(columnKey, new BoxedByteArray(combinedOp.serialize()));
 		    	success = map.replace(mapKey, currentValue, serializeMap(columnMap));
 	    	} else {
 	    		Map<BoxedByteArray, BoxedByteArray> newColumnMap = new ConcurrentHashMap<BoxedByteArray, BoxedByteArray>();
-	    		newColumnMap.put(columnKey, new BoxedByteArray(wrappedOp.serialize()));
+                for(Map.Entry<BoxedByteArray, SerializableOp> colOp : opFromBatch.getColumnOps().entrySet()) {
+                	BoxedByteArray columnKey = colOp.getKey();
+                	BoxedByteArray value = new BoxedByteArray(colOp.getValue().serialize());
+		    		newColumnMap.put(columnKey, value);
+                }
 	    		if(map.putIfAbsent(mapKey, serializeMap(newColumnMap)) == null) {
 	    			success = true;
 	    		}
@@ -177,59 +163,6 @@ public class MapDbHarness<T extends Op> implements DbHarness<T> {
             throw e;
         }
 
-    }
-
-    private void readCombineCas(AfterExecute<T> afterExecute, Address address, Op opFromBatch, BoxedByteArray mapKey) {
-        int casRetriesRemaining = casRetries;
-        do {
-            Optional<byte[]> oldBytes;
-            try {
-                oldBytes = getRaw(address);
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            }
-
-            Op newOp;
-            if(oldBytes.isPresent()) {
-                Op oldOp = deserializer.fromBytes(oldBytes.get());
-                newOp = opFromBatch.add(oldOp);
-                if(log.isDebugEnabled()) {
-                    log.debug("Combined " + oldOp + " and " +  opFromBatch + " into " +
-                            newOp);
-                }
-            } else {
-                newOp = opFromBatch;
-            }
-
-            if(oldBytes.isPresent()) {
-                // Compare and swap, if the key is still mapped to the same byte array.
-                if(map.replace(mapKey, oldBytes.get(), newOp.serialize())) {
-                    if(log.isDebugEnabled()) {
-                        log.debug("Successful CAS overwrite at key " +
-                                Hex.encodeHexString(mapKey.bytes)  + " with " +
-                                Hex.encodeHexString(newOp.serialize()));
-                    }
-                    break;
-                }
-            } else {
-                // Compare and swap, if the key is still absent from the map.
-                if(map.putIfAbsent(mapKey, newOp.serialize()) == null) {
-                    // null is returned when there was no existing mapping for the
-                    // given key, which is the success case.
-                    if(log.isDebugEnabled()) {
-                        log.debug("Successful CAS insert without existing key for key " +
-                                Hex.encodeHexString(mapKey.bytes) + " with " +
-                                Hex.encodeHexString(newOp.serialize()));
-                    }
-                    break;
-                }
-            }
-        } while (casRetriesRemaining-- > 0);
-        if(casRetriesRemaining == -1) {
-            RuntimeException e = new RuntimeException("CAS retries exhausted");
-            afterExecute.afterExecute(e);
-            throw e;
-        }
     }
 
     private <K,V> Map<K,V> deserializeMap(byte[] serializedMap) throws IOException, ClassNotFoundException {
@@ -255,7 +188,20 @@ public class MapDbHarness<T extends Op> implements DbHarness<T> {
     public Optional<T> get(Address address) throws IOException, InterruptedException {
         Optional<byte[]> bytes = getRaw(address);
         if(bytes.isPresent()) {
-            return Optional.of(deserializer.fromBytes(bytes.get()));
+	        try {
+				Map<BoxedByteArray, BoxedByteArray> columnMap = deserializeMap(bytes.get());
+				// TODO: reference to datacube does not belong here
+				BoxedByteArray emptyColumnBytes = columnMap.get(DataCube.EMPTY_COLUMN_QUALIFIER);
+				
+				if(emptyColumnBytes == null) {
+					return Optional.absent();
+				}
+				// TODO: empty column constant
+	            return Optional.of(deserializer.fromBytes(emptyColumnBytes.bytes));
+			} catch (ClassNotFoundException e) {
+				e.printStackTrace();
+				throw new RuntimeException("Unable to deserialize column map", e);
+			}
         } else {
             return Optional.absent();
         }

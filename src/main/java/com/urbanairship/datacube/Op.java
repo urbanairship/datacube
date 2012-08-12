@@ -10,8 +10,9 @@ import com.urbanairship.datacube.ops.LongOp;
 /**
  * A cell mutation or cell bucket. For example, a cube storing counters would contain Ops that 
  * are numbers (see e.g. {@link LongOp}).
+ * T being the type this operation wraps
  */
-public interface Op extends CSerializable {
+public interface Op {
     /**
      * @return an Op that combines the effect of this and otherOp.
      */
@@ -30,6 +31,11 @@ public interface Op extends CSerializable {
      *   
      */
     public Op subtract(Op otherOp);
+    
+    /**
+     * @return an operation representing the inverse of this operation
+     */
+    public Op inverse();
     
     /**
      * Subclasses must override equals() and hashCode().

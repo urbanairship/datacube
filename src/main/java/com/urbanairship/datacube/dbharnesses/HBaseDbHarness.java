@@ -7,6 +7,8 @@ package com.urbanairship.datacube.dbharnesses;
 import com.google.common.base.Optional;
 import com.google.common.collect.Sets;
 import com.urbanairship.datacube.*;
+import com.urbanairship.datacube.ops.IRowOp;
+import com.urbanairship.datacube.ops.SerializableOp;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Gauge;
 import com.yammer.metrics.core.Histogram;
@@ -26,7 +28,7 @@ import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.*;
 
-public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
+public class HBaseDbHarness<T extends SerializableOp> implements DbHarness<T> {
     private static final Logger log = LogManager.getLogger(HBaseDbHarness.class);
 
     public final static byte[] QUALIFIER = ArrayUtils.EMPTY_BYTE_ARRAY;
@@ -46,7 +48,7 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
     private final Timer singleWriteTimer;
     private final Histogram incrementSize;
 
-    private final Set<Batch<Op>> batchesInFlight = Sets.newHashSet();
+    private final Set<Batch<T>> batchesInFlight = Sets.newHashSet();
 
     public HBaseDbHarness(HTablePool pool, byte[] uniqueCubeName, byte[] tableName,
             byte[] cf, Deserializer<T> deserializer, IdService idService, CommitType commitType)
@@ -144,7 +146,7 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
      * future will never have an ExecutionException.
      */
     @Override
-    public Future<?> runBatchAsync(Batch<Op> batch, AfterExecute<T> afterExecute) throws FullQueueException {
+    public Future<?> runBatchAsync(Batch<T> batch, AfterExecute<T> afterExecute) throws FullQueueException {
         /*
          * Since ThreadPoolExecutor throws RejectedExecutionException when its queue is full,
          * we have to backoff and retry if execute() throws RejectedExecutionHandler.
@@ -165,10 +167,10 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
     }
 
     private class FlushWorkerRunnable implements Callable<Object> {
-        private final Batch<Op> batch;
+        private final Batch<T> batch;
         private final AfterExecute<T> afterExecute;
 
-        public FlushWorkerRunnable(Batch<Op> batch, AfterExecute<T> afterExecute) {
+        public FlushWorkerRunnable(Batch<T> batch, AfterExecute<T> afterExecute) {
             this.batch = batch;
             this.afterExecute = afterExecute;
         }
@@ -203,30 +205,47 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
         }
     }
 
-    private void increment(byte[] rowKey, Op op, byte[] qualifier) throws IOException {
-        long amount = Bytes.toLong(op.serialize());
-        incrementSize.update(amount);
-        WithHTable.increment(pool, tableName, rowKey, cf, qualifier, amount);
+    private void increment(byte[] rowKey, Map<BoxedByteArray, SerializableOp> ops) throws IOException {
+    	Map<BoxedByteArray, Long> serializedColumns = new HashMap<BoxedByteArray, Long>();
+    	
+    	for(Map.Entry<BoxedByteArray, SerializableOp> colOp : ops.entrySet()) {
+    		byte[] serAmount = colOp.getValue().serialize();
+	        long amount = Bytes.toLong(serAmount);
+    		serializedColumns.put(colOp.getKey(), amount);
+    	}
+    	
+        WithHTable.increment(pool, tableName, rowKey, cf, serializedColumns);
     }
 
-    @SuppressWarnings("unchecked")
-    private void readCombineCas(byte[] rowKey, Op newOp) throws IOException {
+    /**
+     * Executes read-combine-cas for multiple operations
+     * @param rowKey
+     * @param colOpsMap
+     * @throws IOException
+     */
+    private void readCombineCas(byte[] rowKey, Map<BoxedByteArray, SerializableOp> colOpsMap) throws IOException {
+    	for(Map.Entry<BoxedByteArray, SerializableOp> colOp : colOpsMap.entrySet()) {
+    		readCombineCas(rowKey, colOp.getKey().bytes, colOp.getValue());
+    	}
+    }
+    
+    private void readCombineCas(byte[] rowKey, byte[] columnQualifier, SerializableOp newOp) throws IOException {
         Get get = new Get(rowKey);
         get.addColumn(cf, QUALIFIER);
         Result result = WithHTable.get(pool, tableName, get);
 
         byte[] prevSerializedOp = result.getValue(cf, QUALIFIER);
-        Op combinedOp;
+        SerializableOp combinedOp;
         if(prevSerializedOp == null) {
             combinedOp = newOp;
         } else {
-            Op previousOp = (T)deserializer.fromBytes(prevSerializedOp);
-            combinedOp = (T)previousOp.add(newOp);
+            SerializableOp previousOp = (SerializableOp)deserializer.fromBytes(prevSerializedOp);
+            combinedOp = (SerializableOp)previousOp.add(newOp);
         }
 
 
         Put put = new Put(rowKey);
-        put.add(cf, QUALIFIER, combinedOp.serialize());
+        put.add(cf, columnQualifier, combinedOp.serialize());
 
         for(int i=0; i<numCasRetries; i++) {
             if(WithHTable.checkAndPut(pool, tableName, rowKey, cf, QUALIFIER, prevSerializedOp, put)) {
@@ -240,23 +259,25 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
                 " tries");
     }
 
-    private void overwrite(byte[] rowKey, Op op) throws IOException {
+    private void overwrite(byte[] rowKey, Map<BoxedByteArray, SerializableOp> colOpsMap) throws IOException {
         Put put = new Put(rowKey);
-        put.add(cf, QUALIFIER, op.serialize());
+        for(Map.Entry<BoxedByteArray, SerializableOp> colOp : colOpsMap.entrySet()) {
+	        put.add(cf, colOp.getKey().bytes, colOp.getValue().serialize());
+        }
         WithHTable.put(pool, tableName, put);
     }
 
-    private void flushBatch(Batch<Op> batch) throws IOException, InterruptedException  {
-        Map<Address,Op> batchMap = batch.getMap();
+    private void flushBatch(Batch<T> batch) throws IOException, InterruptedException  {
+        Map<Address,IRowOp> batchMap = batch.getMap();
 
         List<Address> succesfullyWritten = new ArrayList<Address>(batch.getMap().size());
 
         long nanoTimeBeforeBatch = System.nanoTime();
 
         try {
-            for(Map.Entry<Address,Op> entry: batchMap.entrySet()) {
+            for(Map.Entry<Address,IRowOp> entry: batchMap.entrySet()) {
                 Address address = entry.getKey();
-                Op op = entry.getValue();
+                IRowOp rowOp = entry.getValue();
 
                 byte[] rowKey = ArrayUtils.addAll(uniqueCubeName, address.toKey(idService));
 
@@ -264,28 +285,13 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
 
                 switch(commitType) {
                 case INCREMENT:
-                    Op execOp;
-                    byte[] qualifier;
-                    if(op instanceof ColumnOp) {
-                        execOp = ((ColumnOp) op).getWrappedOp();
-                        qualifier = ((ColumnOp) op).getKey();
-                    } else {
-                        execOp = op;
-                        qualifier = QUALIFIER;
-                    }
-                    increment(rowKey, execOp, qualifier);
+                    increment(rowKey, rowOp.getColumnOps());
                     break;
                 case READ_COMBINE_CAS:
-                    if(op instanceof ColumnOp) {
-                        throw new NotImplementedException("Slices are not implemented for READ_COMBINE_CAS at the moment");
-                    }
-                    readCombineCas(rowKey, op);
+                    readCombineCas(rowKey, rowOp.getColumnOps());
                     break;
                 case OVERWRITE:
-                    if(op instanceof ColumnOp) {
-                        throw new NotImplementedException("Slices are not implemented for OVERWRITE at the moment");
-                    }
-                    overwrite(rowKey, op);
+                    overwrite(rowKey, rowOp.getColumnOps());
                     break;
                 default:
                     throw new RuntimeException("Unsupported commit type " + commitType);
@@ -325,21 +331,21 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
         // As soon as all those batches are done, the "flush" is complete. Disregard all batches
         // that arrive after the flush starts.
 
-        Set<Batch<Op>> batchesToWaitFor;
+        Set<Batch<T>> batchesToWaitFor;
         synchronized(batchesInFlight) {
             batchesToWaitFor = Sets.newHashSet(batchesInFlight);
         }
         while(true) {
-            Set<Batch<Op>> justFinished = Sets.newHashSet();
+            Set<Batch<T>> justFinished = Sets.newHashSet();
             synchronized(batchesInFlight) {
-                for(Batch<Op> batch: batchesToWaitFor) {
+                for(Batch<T> batch: batchesToWaitFor) {
                     if(!batchesInFlight.contains(batch)) {
                         justFinished.add(batch);
                     }
                 }
             }
 
-            for(Batch<Op> finishedBatch: justFinished) {
+            for(Batch<T> finishedBatch: justFinished) {
                 batchesToWaitFor.remove(finishedBatch);
             }
 

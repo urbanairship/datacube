@@ -7,15 +7,17 @@ package com.urbanairship.datacube;
 import java.util.Map;
 
 import com.google.common.collect.Maps;
+import com.urbanairship.datacube.ops.IRowOp;
+import com.urbanairship.datacube.ops.SerializableOp;
 
-public class Batch<T extends Op> {
-    private Map<Address,T> map;
+public class Batch<T extends SerializableOp> {
+    private Map<Address,IRowOp> map;
     
     Batch() {
         this.map = Maps.newHashMap();
     }
     
-    Batch(Map<Address,T> map) {
+    Batch(Map<Address,IRowOp> map) {
         this.map = map;
     }
     
@@ -23,26 +25,25 @@ public class Batch<T extends Op> {
         this.putAll(b.getMap());
     }
     
-    @SuppressWarnings("unchecked")
-    public void putAll(Map<Address,T> other) {
+    public void putAll(Map<Address,IRowOp> other) {
 //        DebugHack.log("In Batch.putAll() with existing map size " + map.size() + " and incoming map size " +
 //                other.size());
-        for(Map.Entry<Address,T> entry: other.entrySet()) {
+        for(Map.Entry<Address,IRowOp> entry: other.entrySet()) {
             Address c = entry.getKey();
-            T alreadyExistingVal = map.get(entry.getKey());
-            T newVal;
+            IRowOp alreadyExistingVal = map.get(entry.getKey());
+            IRowOp newVal;
             if(alreadyExistingVal == null) {
 //                DebugHack.log("No existing value in batch, not combining");
                 newVal = entry.getValue();
             } else {
 //                DebugHack.log("Combining entries in batch");
-                newVal = (T)alreadyExistingVal.add(entry.getValue());
+                newVal = (IRowOp)alreadyExistingVal.add(entry.getValue());
             }
             this.map.put(c, newVal);
         }
     }
     
-    public Map<Address,T> getMap() {
+    public Map<Address,IRowOp> getMap() {
         return map;
     }
     

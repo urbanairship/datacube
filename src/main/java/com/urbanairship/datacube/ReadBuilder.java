@@ -12,6 +12,7 @@ import java.util.Arrays;
 public class ReadBuilder {
     private final Address address;
     boolean built = false;
+    boolean hasForSlice = false;
 
     public ReadBuilder(DataCube<?> cube) {
         address = new Address(cube);
@@ -48,7 +49,12 @@ public class ReadBuilder {
     }
 
     public <O> ReadBuilder sliceFor(Dimension<?> dimension) {
+    	if(this.hasForSlice) {
+    		throw new RuntimeException("Multiple variable dimensions are not supported");
+    	}
+    	
         address.at(dimension, BucketType.IDENTITY, Slice.getWildcardValueBytes());
+        this.hasForSlice = true;
         return this;
     }
 }

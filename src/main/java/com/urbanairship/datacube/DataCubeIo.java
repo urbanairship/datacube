@@ -7,6 +7,7 @@ package com.urbanairship.datacube;
 import com.google.common.base.Optional;
 import com.urbanairship.datacube.dbharnesses.AfterExecute;
 import com.urbanairship.datacube.dbharnesses.FullQueueException;
+import com.urbanairship.datacube.ops.SerializableOp;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Gauge;
 import com.yammer.metrics.core.Meter;
@@ -58,7 +59,7 @@ import java.util.concurrent.*;
  * will throw AsyncException and refuse to write. This prevents clients blithely throwing away data
  * if the underlying database is stuck in a bad state.
  */
-public class DataCubeIo<T extends Op> {
+public class DataCubeIo<T extends SerializableOp> {
     private static final Logger log = LogManager.getLogger(DataCubeIo.class);
 
     private final DbHarness<T> db;
@@ -79,7 +80,7 @@ public class DataCubeIo<T extends Op> {
     private final Meter ageFlushes;
     private final Meter sizeFlushes;
 
-    private Batch<Op> batchInProgress = new Batch<Op>();
+    private Batch<T> batchInProgress = new Batch<T>();
     private long batchFlushDeadlineMs;
 
     public DataCubeIo(DataCube<T> cube, DbHarness<T> db, int batchSize, long maxBatchAgeMs,
@@ -135,20 +136,20 @@ public class DataCubeIo<T extends Op> {
      * method will return null when the database flush is finished, and rethrow any exceptions as
      * ExecutionExceptions (see {@link java.util.concurrent.Future}).
      */
-    public Optional<Future<?>> writeAsync(Op op, WriteBuilder at) throws AsyncException, InterruptedException {
+    public Optional<Future<?>> writeAsync(SerializableOp op, WriteBuilder at) throws AsyncException, InterruptedException {
         if(asyncException != null) {
             throw asyncException;
         }
 
         writesMeter.mark();
 
-        Batch<Op> newBatch = cube.getWrites(at, op);
+        Batch<T> newBatch = cube.getWrites(at, op);
 
         return writeAsync(newBatch, at);
     }
 
-    public Optional<Future<?>> writeAsync(Batch<Op> newBatch, WriteBuilder at) throws AsyncException, InterruptedException {
-        Batch<Op> batchToFlush = null;
+    public Optional<Future<?>> writeAsync(Batch<T> newBatch, WriteBuilder at) throws AsyncException, InterruptedException {
+        Batch<T> batchToFlush = null;
 
         switch(syncLevel) {
         case FULL_SYNC:
@@ -185,7 +186,7 @@ public class DataCubeIo<T extends Op> {
 
                 if(shouldFlush) {
                     batchToFlush = batchInProgress;
-                    batchInProgress = new Batch<Op>();
+                    batchInProgress = new Batch<T>();
                 }
             }
             break;
@@ -204,7 +205,7 @@ public class DataCubeIo<T extends Op> {
     /**
      * Hand off a batch to the DbHarness layer, retrying on FullQueueException.
      */
-    private Future<?> runBatch(Batch<Op> batch) throws InterruptedException {
+    private Future<?> runBatch(Batch<T> batch) throws InterruptedException {
 //        DebugHack.log("Running batch with stack trace:");
 //        for(StackTraceElement elem: Thread.currentThread().getStackTrace()) {
 //            DebugHack.log("\t" + elem.toString());
@@ -236,7 +237,7 @@ public class DataCubeIo<T extends Op> {
      * You can only use this function if this DataCubeIo was constructed with
      * {@link SyncLevel#FULL_SYNC} or {@link SyncLevel#BATCH_SYNC}.
      */
-    public void writeSync(T op, WriteBuilder at) throws IOException, InterruptedException {
+    public void writeSync(SerializableOp op, WriteBuilder at) throws IOException, InterruptedException {
         if(syncLevel == SyncLevel.BATCH_ASYNC) {
             throw new IllegalArgumentException("You can't use WriteSync for this cube with " +
                     "SyncLevel " + syncLevel);
@@ -284,10 +285,10 @@ public class DataCubeIo<T extends Op> {
     }
 
     public void flush() throws InterruptedException {
-        Batch<Op> batchToFlush;
+        Batch<T> batchToFlush;
         synchronized(lock) {
             batchToFlush = batchInProgress;
-            batchInProgress = new Batch<Op>();
+            batchInProgress = new Batch<T>();
         }
         runBatch(batchToFlush);
         db.flush();

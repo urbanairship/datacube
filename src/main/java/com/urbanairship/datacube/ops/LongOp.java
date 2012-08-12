@@ -11,7 +11,7 @@ import com.urbanairship.datacube.Util;
 /**
  * Cube oplog mutation type for storing a long counter.
  */
-public class LongOp implements Op {
+public class LongOp implements SerializableOp {
     private final long val;
     public static final LongOpDeserializer DESERIALIZER = new LongOpDeserializer();
 
@@ -31,6 +31,36 @@ public class LongOp implements Op {
     public Op subtract(Op otherOp) {
         return new LongOp(this.val - ((LongOp)otherOp).val);
     }
+
+    @Override
+    public byte[] serialize() {
+        return Util.longToBytes(val);
+    }
+
+    @Override
+    public LongOp deserialize(byte[] serObj) {
+        return DESERIALIZER.fromBytes(serObj);
+    }
+
+    public static class LongOpDeserializer implements Deserializer<LongOp> {
+        @Override
+        public LongOp fromBytes(byte[] bytes) {
+            return new LongOp(Util.bytesToLong(bytes));
+        }
+    }
+
+    public String toString() {
+        return Long.toString(val);
+    }
+
+    public long getLong() {
+        return val;
+    }
+
+	@Override
+	public Op inverse() {
+		return new LongOp(-val);
+	}
 
     /**
      * Eclipse auto-generated
@@ -58,30 +88,5 @@ public class LongOp implements Op {
         if (val != other.val)
             return false;
         return true;
-    }
-
-    @Override
-    public byte[] serialize() {
-        return Util.longToBytes(val);
-    }
-
-    @Override
-    public LongOp deserialize(byte[] serObj) {
-        return DESERIALIZER.fromBytes(serObj);
-    }
-
-    public static class LongOpDeserializer implements Deserializer<LongOp> {
-        @Override
-        public LongOp fromBytes(byte[] bytes) {
-            return new LongOp(Util.bytesToLong(bytes));
-        }
-    }
-
-    public String toString() {
-        return Long.toString(val);
-    }
-
-    public long getLong() {
-        return val;
     }
 }
