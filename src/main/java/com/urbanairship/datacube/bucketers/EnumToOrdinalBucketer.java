@@ -5,8 +5,12 @@ Copyright 2012 Urban Airship and Contributors
 package com.urbanairship.datacube.bucketers;
 
 import com.google.common.collect.ImmutableList;
-import com.urbanairship.datacube.*;
-import com.urbanairship.datacube.serializables.BytesSerializable;
+import com.urbanairship.datacube.BoxedByteArray;
+import com.urbanairship.datacube.BucketType;
+import com.urbanairship.datacube.Bucketer;
+import com.urbanairship.datacube.CSerializable;
+import com.urbanairship.datacube.serializables.EnumSerializable;
+
 import org.apache.commons.lang.NotImplementedException;
 
 import java.util.List;
@@ -18,26 +22,23 @@ public class EnumToOrdinalBucketer<T extends Enum<?>>  implements Bucketer<T> {
         this.numBytes = numBytes;
     }
 
-    private CSerializable bucketInternal(T coordinate, BucketType bucketType) {
+    private CSerializable<T> bucketInternal(T coordinate, BucketType bucketType) {
         if(bucketType != BucketType.IDENTITY) {
             throw new IllegalArgumentException("You can only use " +
                     EnumToOrdinalBucketer.class.getSimpleName() +
                     " with the default identity bucketer");
         }
-        int ordinal = coordinate.ordinal();
-        byte[] bytes = Util.trailingBytes(Util.intToBytes(ordinal), numBytes);
-
-        return new BytesSerializable(bytes);
+        return new EnumSerializable<T>(coordinate, numBytes);
     }
 
     @Override
-    public CSerializable bucketForWrite(T coordinate, BucketType bucketType) {
+    public CSerializable<T> bucketForWrite(T coordinate, BucketType bucketType) {
         return bucketInternal(coordinate, bucketType);
     }
 
     @SuppressWarnings("unchecked")
     @Override
-    public CSerializable bucketForRead(Object coordinate, BucketType bucketType) {
+    public CSerializable<T> bucketForRead(Object coordinate, BucketType bucketType) {
         return bucketInternal((T)coordinate, bucketType);
     }
 

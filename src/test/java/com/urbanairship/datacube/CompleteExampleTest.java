@@ -59,20 +59,20 @@ public class CompleteExampleTest {
                     case PORTLAND:
                     case SALEM:
                         // These cities are in Oregon
-                        return new EnumSerializable(UsState.OREGON, 1);
+                        return new EnumSerializable<UsState>(UsState.OREGON, 1);
                     case SANFRANCISCO:
                     case SACRAMENTO:
                         // These cities are in California
-                        return new EnumSerializable(UsState.CALIFORNIA, 1);
+                        return new EnumSerializable<UsState>(UsState.CALIFORNIA, 1);
                     case OLYMPIA:
                     case SEATTLE:
                         // These cities are in Washington
-                        return new EnumSerializable(UsState.WASHINGTON, 1);
+                        return new EnumSerializable<UsState>(UsState.WASHINGTON, 1);
                     default:
                         throw new RuntimeException("Unknown city " + city);
                     }
                 } else if(bucketType == usCity) {
-                    return new EnumSerializable(city, 1);
+                    return new EnumSerializable<City>(city, 1);
                 } else {
                     throw new RuntimeException("Unknown bucket type " + bucketType);
                 }
@@ -81,9 +81,9 @@ public class CompleteExampleTest {
             @Override
             public CSerializable bucketForRead(Object coordinateField, BucketType bucketType) {
                 if(coordinateField instanceof City) {
-                    return new EnumSerializable((City)coordinateField, 1);
+                    return new EnumSerializable<City>((City)coordinateField, 1);
                 } else if(coordinateField instanceof UsState) {
-                    return new EnumSerializable((UsState)coordinateField, 1);
+                    return new EnumSerializable<UsState>((UsState)coordinateField, 1);
                 } else {
                     throw new RuntimeException("Unrecognized object of type " +
                             coordinateField.getClass().getName());
@@ -115,15 +115,15 @@ public class CompleteExampleTest {
                     switch(deviceType) {
                     case HTC_MYTOUCH:
                     case SAMSUNG_GALAXY:
-                        return new EnumSerializable(OsManufacturer.ANDROID, 1);
+                        return new EnumSerializable<OsManufacturer>(OsManufacturer.ANDROID, 1);
                     case IPAD:
                     case IPHONE:
-                        return new EnumSerializable(OsManufacturer.APPLE, 1);
+                        return new EnumSerializable<OsManufacturer>(OsManufacturer.APPLE, 1);
                     default:
                         throw new RuntimeException("Unknown device " + deviceType);
                     }
                 } else if(bucketType == deviceName) {
-                    return new EnumSerializable(deviceType, 1);
+                    return new EnumSerializable<DeviceType>(deviceType, 1);
                 } else {
                     throw new RuntimeException("Unknown bucket type " + bucketType);
                 }
@@ -132,9 +132,9 @@ public class CompleteExampleTest {
             @Override
             public CSerializable bucketForRead(Object coordinateField, BucketType bucketType) {
                 if(coordinateField instanceof DeviceType) {
-                    return new EnumSerializable((DeviceType)coordinateField, 1);
+                    return new EnumSerializable<DeviceType>((DeviceType)coordinateField, 1);
                 } else if(coordinateField instanceof OsManufacturer) {
-                    return new EnumSerializable((OsManufacturer)coordinateField, 1);
+                    return new EnumSerializable<OsManufacturer>((OsManufacturer)coordinateField, 1);
                 } else {
                     throw new RuntimeException("Unexpected coordinate class " +
                             coordinateField.getClass());

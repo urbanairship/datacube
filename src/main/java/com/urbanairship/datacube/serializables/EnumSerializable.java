@@ -13,12 +13,12 @@ import java.util.Arrays;
  * When using an enum as a dimension bucket type, this wrapper eliminates the boilerplate
  * of serializing it to an ordinal. Use this in your bucketer.
  */
-public class EnumSerializable implements CSerializable<Enum<?>> {
+public class EnumSerializable<T extends Enum<?>> implements CSerializable<T> {
     private final int ordinal;
     private final int numFieldBytes;
-    private Enum<?> enumInstance;
+    private T enumInstance;
 
-    public <E extends Enum> EnumSerializable(E enumInstance, int numFieldBytes) {
+    public EnumSerializable(T enumInstance, int numFieldBytes) {
         this.ordinal = enumInstance.ordinal();
         this.enumInstance = enumInstance;
         this.numFieldBytes = numFieldBytes;
@@ -39,9 +39,9 @@ public class EnumSerializable implements CSerializable<Enum<?>> {
     }
 
     @Override
-    public Enum<?> deserialize(byte[] serObj) {
+    public T deserialize(byte[] serObj) {
         int enumOrdinal = Util.bytesToInt(serObj);
-        return enumInstance.getClass().getEnumConstants()[enumOrdinal];
+        return (T)enumInstance.getClass().getEnumConstants()[enumOrdinal];
     }
 
 }

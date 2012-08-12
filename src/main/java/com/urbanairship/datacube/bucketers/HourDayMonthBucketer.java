@@ -9,6 +9,7 @@ import com.urbanairship.datacube.BoxedByteArray;
 import com.urbanairship.datacube.BucketType;
 import com.urbanairship.datacube.Bucketer;
 import com.urbanairship.datacube.CSerializable;
+import com.urbanairship.datacube.serializables.DateTimeSerializable;
 import com.urbanairship.datacube.serializables.LongSerializable;
 import org.joda.time.DateTime;
 
@@ -23,16 +24,16 @@ public class HourDayMonthBucketer implements Bucketer<DateTime> {
     private static final LongSerializable LONG_SERIALIZABLE = new LongSerializable(0L);
 
     @Override
-    public CSerializable bucketForWrite(DateTime coordinateField, BucketType bucketType) {
+    public CSerializable<DateTime> bucketForWrite(DateTime coordinateField, BucketType bucketType) {
         return bucket(coordinateField, bucketType);
     }
 
     @Override
-    public CSerializable bucketForRead(Object coordinateField, BucketType bucketType) {
+    public CSerializable<DateTime> bucketForRead(Object coordinateField, BucketType bucketType) {
         return bucket((DateTime)coordinateField, bucketType);
     }
 
-    private CSerializable bucket(DateTime dt, BucketType bucketType) {
+    private CSerializable<DateTime> bucket(DateTime dt, BucketType bucketType) {
         DateTime returnVal;
         if(bucketType == hours) {
             returnVal = hourFloor(dt);
@@ -47,7 +48,7 @@ public class HourDayMonthBucketer implements Bucketer<DateTime> {
         } else {
             throw new RuntimeException("Unexpected bucket type " + bucketType);
         }
-        return new LongSerializable(returnVal.getMillis());
+        return new DateTimeSerializable(returnVal.getMillis());
     }
 
     @Override
@@ -56,8 +57,8 @@ public class HourDayMonthBucketer implements Bucketer<DateTime> {
     }
 
     @Override
-    public DateTime readBucket(BoxedByteArray key, BucketType btype) {
-        return new DateTime(LONG_SERIALIZABLE.deserialize(key.bytes));
+    public DateTime readBucket(BoxedByteArray serializedLong, BucketType btype) {
+        return new DateTime(LONG_SERIALIZABLE.deserialize(serializedLong.bytes));
     }
 
     public static DateTime hourFloor(DateTime dt) {

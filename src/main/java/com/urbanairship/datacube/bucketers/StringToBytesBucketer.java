@@ -23,16 +23,16 @@ public class StringToBytesBucketer implements Bucketer<String> {
     private static final StringSerializable STRING_SERIALIZABLE = new StringSerializable("");
 
     @Override
-    public CSerializable bucketForWrite(String coordinateField, BucketType bucketType) {
+    public CSerializable<String> bucketForWrite(String coordinateField, BucketType bucketType) {
         return bucket(coordinateField, bucketType);
     }
 
     @Override
-    public CSerializable bucketForRead(Object coordinateField, BucketType bucketType) {
+    public CSerializable<String> bucketForRead(Object coordinateField, BucketType bucketType) {
         return bucket((String)coordinateField, bucketType);
     }
 
-    private CSerializable bucket(String coordinateField, BucketType bucketType) {
+    private CSerializable<String> bucket(String coordinateField, BucketType bucketType) {
         return new StringSerializable(coordinateField);
     }
 

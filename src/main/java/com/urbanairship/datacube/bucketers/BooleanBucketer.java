@@ -25,16 +25,16 @@ public class BooleanBucketer implements Bucketer<Boolean> {
     private static final BooleanSerializable BOOLEAN_SERIALIZABLE = new BooleanSerializable(false);
 
     @Override
-    public CSerializable bucketForWrite(Boolean coordinateField, BucketType bucketType) {
+    public CSerializable<Boolean> bucketForWrite(Boolean coordinateField, BucketType bucketType) {
         return bucket(coordinateField, bucketType);
     }
 
     @Override
-    public CSerializable bucketForRead(Object coordinateField, BucketType bucketType) {
+    public CSerializable<Boolean> bucketForRead(Object coordinateField, BucketType bucketType) {
         return bucket((Boolean)coordinateField, bucketType);
     }
 
-    private CSerializable bucket(Boolean coordinateField, BucketType bucketType) {
+    private CSerializable<Boolean> bucket(Boolean coordinateField, BucketType bucketType) {
         return new BooleanSerializable(coordinateField);
     }
 

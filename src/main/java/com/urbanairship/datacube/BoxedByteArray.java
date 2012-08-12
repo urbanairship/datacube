@@ -12,7 +12,8 @@ import java.util.Arrays;
 public class BoxedByteArray implements Serializable {
 //    private static final Logger log = LogManager.getLogger(BoxedByteArray.class);
 
-    public final byte[] bytes;
+	private static final long serialVersionUID = -2414206688013867209L;
+	public final byte[] bytes;
 
     public BoxedByteArray(byte[] bytes) {
         this.bytes = bytes;
