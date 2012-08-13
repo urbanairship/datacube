@@ -22,7 +22,10 @@ public class LongOp implements SerializableOp {
     @Override
     public Op add(Op otherOp) {
         if(!(otherOp instanceof LongOp)) {
-            throw new RuntimeException();
+            if(otherOp == null) {
+                throw new RuntimeException("otherOp must not be null");
+            }
+            throw new RuntimeException("Other Op is not an instance of LongOp, but " + otherOp.getClass());
         }
         return new LongOp(val + ((LongOp)otherOp).val);
     }
