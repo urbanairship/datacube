@@ -26,7 +26,7 @@ multiple artifacts like we do for Hadoop and HBase dependencies.
   a. click "Staging repositories"
   b. find the repo containing the artifacts just uploaded
   c. check the artifacts in the repo to make sure there's no bogus crap in there
-  d. hit the "close" button to promote that repo
+  d. hit the "close" button then the "release" button to promote that repo
 
 6. Edit pom.xml to change x.y.z to x.y.z+1-SNAPSHOT and commit. Push the master branch back to 
  Github, which will send both this commit and the earlier commit (the one that removed -SNAPSHOT) 
