@@ -16,7 +16,7 @@ multiple artifacts like we do for Hadoop and HBase dependencies.
 
  for hbaseVersion in 0.92.1 0.90.5 0.94.0 ; do
    for hadoopVersion in 0.20.2 1.0.3 ; do
-     mvn -DhadoopVersion=$hadoopVersion -DhbaseVersion=0.92.1 -Prelease-sign-artifacts clean deploy
+     mvn -DhadoopVersion=$hadoopVersion -DhbaseVersion=$hbaseVersion -Prelease-sign-artifacts clean deploy
    done
  done
 
