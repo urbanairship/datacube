@@ -19,9 +19,7 @@ public interface Bucketer<F> {
      * When writing to the cube at some address, the address will have one coordinate for each
      * dimension in the cube, for example (time: 348524388, location: portland). For each
      * dimension, for each bucket type within that dimension, the bucketer must transform the
-     * input data into the bucket that should be used to store the data. For example, the
-     * bucketer for the location dimension might return "oregon" when asked for the State bucket
-     * type.
+     * input data into the bucket that should be used to store the data.
      */
 	public SetMultimap<BucketType,CSerializable> bucketForWrite(F coordinate);
 	
@@ -34,9 +32,7 @@ public interface Bucketer<F> {
 	public CSerializable bucketForRead(Object coordinate, BucketType bucketType);
 	
     /**
-     * Return all bucket types that exist in this dimension. The bucketer should be able to
-     * handle calls to {@link #bucketForRead(Object, BucketType)} and 
-     * {@link Bucketer#bucketForWrite(Object, BucketType)} for these BucketTypes.
+     * Return all bucket types that exist in this dimension.
      */
     public List<BucketType> getBucketTypes();
     
