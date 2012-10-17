@@ -23,25 +23,10 @@ import java.util.List;
 public class BooleanBucketer extends AbstractIdentityBucketer<Boolean> {
     private static final BooleanBucketer instance = new BooleanBucketer();
 
-//    @Override
-//    public SetMultimap<BucketType,CSerializable> bucketForWrite(Boolean coordinateField) {
-//        return bucket(BucketType.IDENTITYcoordinateField, );
-//    }
-
-//    @Override
-//    public CSerializable bucketForRead(Object coordinateField, BucketType bucketType) {
-//        return bucket((Boolean)coordinateField, bucketType);
-//    }
-
     @Override
     public CSerializable makeSerializable(Boolean coordinateField) {
         return new BooleanSerializable(coordinateField);
     }
-
-//    @Override
-//    public List<BucketType> getBucketTypes() {
-//        return ImmutableList.of(BucketType.IDENTITY);
-//    }
 
     /**
      * One instance of this class can be reused by multiple cubes/dimensions/etc.

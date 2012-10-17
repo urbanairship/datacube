@@ -21,23 +21,4 @@ public class BigEndianIntBucketer extends AbstractIdentityBucketer<Integer> {
     public CSerializable makeSerializable(Integer coord) {
         return new IntSerializable(coord);
     }
-    
-//    @Override
-//    public CSerializable bucketForWrite(Integer coordinate, BucketType bucketType) {
-//        assert bucketType == BucketType.IDENTITY;
-//        return new IntSerializable(coordinate);
-//    }
-//
-//    @Override
-//    public CSerializable bucketForRead(Object coordinate, BucketType bucketType) {
-//        assert bucketType == BucketType.IDENTITY;
-//        return new IntSerializable((Integer)coordinate);
-//    }
-//
-//    @Override
-//    public List<BucketType> getBucketTypes() {
-//        return bucketTypes;
-//    }
-    
-    
 }

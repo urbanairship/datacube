@@ -23,7 +23,6 @@ public interface Bucketer<F> {
      * bucketer for the location dimension might return "oregon" when asked for the State bucket
      * type.
      */
-//    public CSerializable bucketForWrite(F coordinate, BucketType bucketType);
 	public SetMultimap<BucketType,CSerializable> bucketForWrite(F coordinate);
 	
     /**
@@ -32,7 +31,6 @@ public interface Bucketer<F> {
      * coordinates. For example, if the reader asks for hourly counts (the Hourly BucketType) and 
      * passes a timestamp, the bucketer could return the timestamp rounded down to the hour floor.
      */
-//    public CSerializable bucketForRead(Object coordinate, BucketType bucketType);
 	public CSerializable bucketForRead(Object coordinate, BucketType bucketType);
 	
     /**
@@ -52,10 +50,6 @@ public interface Bucketer<F> {
         
         @Override
         public SetMultimap<BucketType,CSerializable> bucketForWrite(CSerializable coordinate) {
-//            if(bucketType != BucketType.IDENTITY) {
-//                throw new AssertionError();
-//            }
-//            return coordinate;
             return ImmutableSetMultimap.of(BucketType.IDENTITY, coordinate);
         }
 

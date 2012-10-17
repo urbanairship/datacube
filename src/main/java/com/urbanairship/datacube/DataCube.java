@@ -11,15 +11,11 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 
+import com.google.common.collect.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Optional;
-import com.google.common.collect.HashMultimap;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-import com.google.common.collect.Multimap;
-import com.google.common.collect.Sets;
 
 /**
  * A hypercube abstraction for storing number-like data. Good for storing counts of events
@@ -59,11 +55,6 @@ public class DataCube<T extends Op> {
                             dimAndBucketType.dimension + " is not a dimension in this cube");
                 }
                 
-//                if(!dimAndBucketType.dimension.getBucketer().getBucketTypes().contains(dimAndBucketType.bucketType)) {
-//                    throw new IllegalArgumentException("Rollup specified bucket type " + 
-//                            dimAndBucketType.bucketType + " which doesn't exist for dimension " +
-//                            dimAndBucketType.dimension);
-//                }
                 bucketsOfInterest.put(dimAndBucketType.dimension, dimAndBucketType.bucketType);
             }
             validAddressSet.add(new HashSet<DimensionAndBucketType>(rollup.getComponents()));
@@ -81,12 +72,32 @@ public class DataCube<T extends Op> {
             
             List<Set<byte[]>> coordSets = 
                     new ArrayList<Set<byte[]>>(rollup.getComponents().size());
-            
+
+            boolean dimensionHadNoBucket = false;
             for(DimensionAndBucketType dimAndBucketType: rollup.getComponents()) {
                 Dimension<?> dimension = dimAndBucketType.dimension;
                 BucketType bucketType = dimAndBucketType.bucketType;
-                Set<byte[]> coords = writeBuilder.getBuckets().get(dimension).get(bucketType);
+
+                SetMultimap<BucketType,byte[]> bucketsForDimension =
+                        writeBuilder.getBuckets().get(dimension);
+
+                if(bucketsForDimension == null || bucketsForDimension.isEmpty()) {
+                    dimensionHadNoBucket = true;
+                    break;
+                }
+
+                Set<byte[]> coords = bucketsForDimension.get(bucketType);
+                if(coords == null || coords.isEmpty()) {
+                    dimensionHadNoBucket = true;
+                    break;
+                }
                 coordSets.add(coords);
+            }
+
+            if(dimensionHadNoBucket) {
+                // Skip this rollup since one of its input buckets was not present.
+                log.debug("Skipping rollup due to dimension with no buckets");
+                continue;
             }
             
             Set<List<byte[]>> crossProduct = Sets.cartesianProduct(coordSets);

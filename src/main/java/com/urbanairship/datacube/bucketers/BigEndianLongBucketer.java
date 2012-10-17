@@ -37,18 +37,4 @@ public class BigEndianLongBucketer implements Bucketer<Long> {
     public List<BucketType> getBucketTypes() {
         return bucketTypes;
     }
-
-//	@Override
-//	public Map<byte[], CSerializable> bucketForWrite(Long coordinate) {
-//		return ImmutableMap.<byte[],CSerializable>of(ArrayUtils.EMPTY_BYTE_ARRAY, 
-//				new LongSerializable(coordinate));
-//	}
-
-//	@Override
-//	public CSerializable bucketForRead(Object coordinate, byte[] bucketType) {
-//		assert Arrays.equals(bucketType, ArrayUtils.EMPTY_BYTE_ARRAY);
-//		return new LongSerializable((Long)coordinate);
-//	}
-	
-	
 }

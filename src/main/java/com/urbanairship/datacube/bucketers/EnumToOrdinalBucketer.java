@@ -20,31 +20,6 @@ public class EnumToOrdinalBucketer<T extends Enum<?>> extends AbstractIdentityBu
         this.numBytes = numBytes;
     }
     
-//    private CSerializable bucketInternal(T coordinate, BucketType bucketType) {
-//        if(bucketType != BucketType.IDENTITY) {
-//            throw new IllegalArgumentException("You can only use " + 
-//                    EnumToOrdinalBucketer.class.getSimpleName() + 
-//                    " with the default identity bucketer");
-//        }
-//        
-//    }
-//
-//    @Override
-//    public CSerializable bucketForWrite(T coordinate, BucketType bucketType) {
-//        return bucketInternal(coordinate, bucketType);
-//    }
-//
-//    @SuppressWarnings("unchecked")
-//    @Override
-//    public CSerializable bucketForRead(Object coordinate, BucketType bucketType) {
-//        return bucketInternal((T)coordinate, bucketType);
-//    }
-//
-//    @Override
-//    public List<BucketType> getBucketTypes() {
-//        return ImmutableList.of(BucketType.IDENTITY);
-//    }
-
     @Override
     public CSerializable makeSerializable(T coordinate) {
         int ordinal = coordinate.ordinal();

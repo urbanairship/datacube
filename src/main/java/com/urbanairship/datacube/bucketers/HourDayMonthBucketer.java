@@ -31,11 +31,6 @@ public class HourDayMonthBucketer implements Bucketer<DateTime> {
     
     private final List<BucketType> bucketTypes;
     
-//    @Override
-//    public CSerializable bucketForWrite(DateTime coordinateField, BucketType bucketType) {
-//        return bucket(coordinateField, bucketType);
-//    }
-    
     // TODO move this class to TimeBucker and have HourDayMonthBucketer be a subclass that
     // just calls super(ImmutableList.of(hours, days, months))
     public HourDayMonthBucketer() {
