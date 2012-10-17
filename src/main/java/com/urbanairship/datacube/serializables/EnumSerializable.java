@@ -17,6 +17,10 @@ public class EnumSerializable implements CSerializable {
     private final int ordinal;
     private final int numFieldBytes;
     
+    /**
+     * @param numFieldBytes the number of bytes to produce for serialized version of this 
+     * enum
+     */
     public EnumSerializable(Enum<?> enumInstance, int numFieldBytes) {
         this.ordinal = enumInstance.ordinal();
         this.numFieldBytes = numFieldBytes;

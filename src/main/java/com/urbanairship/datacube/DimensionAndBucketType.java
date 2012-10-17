@@ -14,12 +14,6 @@ public class DimensionAndBucketType {
     public final BucketType bucketType;
     
     public DimensionAndBucketType(Dimension<?> dimension, BucketType bucketType) {
-        List<BucketType> knownBucketTypes = dimension.getBucketer().getBucketTypes(); 
-        if(!knownBucketTypes.contains(bucketType)) {
-            throw new IllegalArgumentException("The given dimension " + dimension + 
-                    " doesn't have a bucket type " + bucketType + ". Its available bucket types are" +
-                    knownBucketTypes);
-        }
         this.dimension = dimension;
         this.bucketType = bucketType;
     }
@@ -29,12 +23,6 @@ public class DimensionAndBucketType {
      * doesn't use bucketing.
      */
     public DimensionAndBucketType(Dimension<?> dimension) {
-        if(dimension.isBucketed()) {
-            List<BucketType> knownBucketTypes = dimension.getBucketer().getBucketTypes();
-            throw new IllegalArgumentException("The dimension " + dimension + 
-                    " is a bucketed dimension, you must choose a bucket when specifying an" +
-                    " Rollup. The available buckets are: " + knownBucketTypes); 
-        }
         this.dimension = dimension;
         this.bucketType = BucketType.IDENTITY;
     }

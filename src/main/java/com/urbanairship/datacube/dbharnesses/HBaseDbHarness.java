@@ -57,8 +57,8 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
     private final IdService idService;
     private final ThreadPoolExecutor flushExecutor;
     private final CommitType commitType; 
-    private final int numIoeRetries;
-    private final int numCasRetries;
+    private final int numIoeTries;
+    private final int numCasTries;
     private final Timer flushSuccessTimer;
     private final Timer flushFailTimer;
     private final Timer singleWriteTimer;
@@ -75,7 +75,7 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
     
     public HBaseDbHarness(HTablePool pool, byte[] uniqueCubeName, byte[] tableName, 
             byte[] cf, Deserializer<T> deserializer, IdService idService, CommitType commitType, 
-            int numFlushThreads, int numIoeRetries, int numCasRetries, String metricsScope)
+            int numFlushThreads, int numIoeTries, int numCasTries, String metricsScope)
                     throws IOException {
         this.pool = pool;
         this.deserializer = deserializer;
@@ -84,8 +84,8 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
         this.cf = cf;
         this.idService = idService;
         this.commitType = commitType;
-        this.numIoeRetries = numIoeRetries;
-        this.numCasRetries = numCasRetries;
+        this.numIoeTries = numIoeTries;
+        this.numCasTries = numCasTries;
         
         flushSuccessTimer = Metrics.newTimer(HBaseDbHarness.class, "successfulBatchFlush", 
                 metricsScope, TimeUnit.MILLISECONDS, TimeUnit.SECONDS);
@@ -181,7 +181,7 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
         public Object call() throws Exception {
             IOException lastIOException = null;
             try {
-                for(int attempt=0; attempt<numIoeRetries; attempt++) {
+                for(int attempt=0; attempt<numIoeTries; attempt++) {
                     try {
                         flushBatch(batch);
                         afterExecute.afterExecute(null); // null => no exception
@@ -189,7 +189,7 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
                     } catch (IOException e) {
                         lastIOException = e;
                         log.error("IOException in worker thread flushing to HBase on attempt " + 
-                                attempt + "/" + numIoeRetries + ", will retry", e);
+                                attempt + "/" + numIoeTries + ", will retry", e);
                         Thread.sleep(500);
                     }
                 }
@@ -232,15 +232,15 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
         Put put = new Put(rowKey);
         put.add(cf, QUALIFIER, combinedOp.serialize());
         
-        for(int i=0; i<numCasRetries; i++) {
+        for(int i=0; i<numCasTries; i++) {
             if(WithHTable.checkAndPut(pool, tableName, rowKey, cf, QUALIFIER, prevSerializedOp, put)) {
                 return; // successful write
             } else {
-                log.warn("checkAndPut failed on try " + (i+1) + " out of " + numCasRetries);
+                log.warn("checkAndPut failed on try " + (i+1) + " out of " + numCasTries);
             }
         }
         
-        throw new IOException("Exhausted retries doing checkAndPut after " + numCasRetries + 
+        throw new IOException("Exhausted retries doing checkAndPut after " + numCasTries + 
                 " tries");
     }
     
