@@ -4,20 +4,18 @@ Copyright 2012 Urban Airship and Contributors
 
 package com.urbanairship.datacube;
 
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 
+import com.google.common.collect.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Optional;
-import com.google.common.collect.HashMultimap;
-import com.google.common.collect.Maps;
-import com.google.common.collect.Multimap;
-import com.google.common.collect.Sets;
 
 /**
  * A hypercube abstraction for storing number-like data. Good for storing counts of events
@@ -57,14 +55,9 @@ public class DataCube<T extends Op> {
                             dimAndBucketType.dimension + " is not a dimension in this cube");
                 }
                 
-                if(!dimAndBucketType.dimension.getBucketer().getBucketTypes().contains(dimAndBucketType.bucketType)) {
-                    throw new IllegalArgumentException("Rollup specified bucket type " + 
-                            dimAndBucketType.bucketType + " which doesn't exist for dimension " +
-                            dimAndBucketType.dimension);
-                }
                 bucketsOfInterest.put(dimAndBucketType.dimension, dimAndBucketType.bucketType);
             }
-            validAddressSet.add(rollup.getComponents());
+            validAddressSet.add(new HashSet<DimensionAndBucketType>(rollup.getComponents()));
         }
     }
 
@@ -76,52 +69,69 @@ public class DataCube<T extends Op> {
         Map<Address,T> outputMap = Maps.newHashMap(); 
         
         for(Rollup rollup: rollups) {
-            Address outputAddress = new Address(this);
             
-            // Start out with all dimensions wildcard, overwrite with other values later
-            for(Dimension<?> dimension: dims) {
-                outputAddress.at(dimension, BucketTypeAndBucket.WILDCARD);
-            }
-            
-            boolean allBucketsPresent = true;
-            Map<DimensionAndBucketType,byte[]> buckets = writeBuilder.getBuckets();
+            List<Set<byte[]>> coordSets = 
+                    new ArrayList<Set<byte[]>>(rollup.getComponents().size());
+
+            boolean dimensionHadNoBucket = false;
             for(DimensionAndBucketType dimAndBucketType: rollup.getComponents()) {
                 Dimension<?> dimension = dimAndBucketType.dimension;
                 BucketType bucketType = dimAndBucketType.bucketType;
-                byte[] bucket = buckets.get(dimAndBucketType);
-                if(bucket == null) {
-                    allBucketsPresent = false;
-                    if(!dimension.isNullable()) {
-                        throw new IllegalArgumentException(
-                                "Didn't get a value for non-nullable dimension " + 
-                                dimension.getName());
-                    }
-                    if(log.isDebugEnabled()) {
-                        log.debug("Skipping rollup since bucket is missing for " + 
-                                dimension.getName());
-                    }
+
+                SetMultimap<BucketType,byte[]> bucketsForDimension =
+                        writeBuilder.getBuckets().get(dimension);
+
+                if(bucketsForDimension == null || bucketsForDimension.isEmpty()) {
+                    dimensionHadNoBucket = true;
                     break;
                 }
-                outputAddress.at(dimension, bucketType, bucket);
-            }
-            
-            if(!allBucketsPresent) {
-                continue; // skip this rollup since at least one of its input 
-                          // dimensions wasn't specified.
-            }
-            
-            boolean shouldWrite = true;
 
-            @SuppressWarnings("deprecation") // TODO eventually remove RollupFilters entirely
-            RollupFilter rollupFilter = filters.get(rollup); 
-            if(rollupFilter != null) {
-                Object attachment = writeBuilder.getRollupFilterAttachments().get(rollupFilter);
-                Optional<Object> attachmentOpt = Optional.fromNullable(attachment);
-                shouldWrite = rollupFilter.filter(outputAddress, attachmentOpt);
+                Set<byte[]> coords = bucketsForDimension.get(bucketType);
+                if(coords == null || coords.isEmpty()) {
+                    dimensionHadNoBucket = true;
+                    break;
+                }
+                coordSets.add(coords);
+            }
+
+            if(dimensionHadNoBucket) {
+                // Skip this rollup since one of its input buckets was not present.
+                log.debug("Skipping rollup due to dimension with no buckets");
+                continue;
             }
             
-            if(shouldWrite) {
-                outputMap.put(outputAddress, op);
+            Set<List<byte[]>> crossProduct = Sets.cartesianProduct(coordSets);
+            
+            for(List<byte[]> crossProductTuple: crossProduct) {
+                Address outputAddress = new Address(this);
+                
+                // Start out with all dimensions wildcard, overwrite with other values later
+                for(Dimension<?> dimension: dims) {
+                    outputAddress.at(dimension, BucketTypeAndBucket.WILDCARD);
+                }
+                
+                for(int i=0; i<crossProductTuple.size(); i++) {
+                    byte[] coord = crossProductTuple.get(i);
+                    Dimension<?> dim = rollup.getComponents().get(i).dimension;
+                    BucketType bucketType = rollup.getComponents().get(i).bucketType;
+                    
+                    outputAddress.at(dim, new BucketTypeAndBucket(bucketType, coord));
+                }
+                
+                boolean shouldWrite = true;
+                
+                // If there is a RollupFilter for this Rollup, it may prevent this write
+                // from proceeding for application-specific reasons.
+                RollupFilter rollupFilter = filters.get(rollup);
+                if(rollupFilter != null) {
+                    Optional<Object> attachment = Optional.fromNullable(
+                            writeBuilder.getRollupFilterAttachments().get(rollupFilter));
+                    shouldWrite = rollupFilter.filter(outputAddress, attachment);
+                }
+                
+                if(shouldWrite) {
+                    outputMap.put(outputAddress, op);
+                }
             }
         }
         
