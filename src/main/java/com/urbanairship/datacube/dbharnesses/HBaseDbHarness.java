@@ -95,11 +95,11 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
                 metricsScope, TimeUnit.MILLISECONDS, TimeUnit.SECONDS);
         incrementSize = Metrics.newHistogram(HBaseDbHarness.class, "incrementSize", 
                 metricsScope, true);
-        
-        
+
+        String cubeName = new String(uniqueCubeName);
         BlockingQueue<Runnable> workQueue = new LinkedBlockingQueue<Runnable>(numFlushThreads);
         this.flushExecutor = new ThreadPoolExecutor(numFlushThreads, numFlushThreads, 1,
-                TimeUnit.MINUTES, workQueue, new NamedThreadFactory("HBase DB flusher"));
+                TimeUnit.MINUTES, workQueue, new NamedThreadFactory("HBase DB flusher "+cubeName));
 
         Metrics.newGauge(HBaseDbHarness.class, "asyncFlushQueueDepth", metricsScope, new Gauge<Integer>() {
             @Override

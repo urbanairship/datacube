@@ -27,7 +27,7 @@ public class ErrorHandlingTest extends EmbeddedClusterTestAbstract {
     @Test
     public void test() throws Exception {
         log.info("You can ignore exceptions and scary stack traces from this test");
-        IdService idService = new CachingIdService(5, new MapIdService());
+        IdService idService = new CachingIdService(5, new MapIdService(),"test");
 
         Configuration conf = getTestUtil().getConfiguration();
         HTablePool pool = new HTablePool(conf, Integer.MAX_VALUE);

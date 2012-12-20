@@ -6,8 +6,9 @@ package com.urbanairship.datacube.idservices;
 
 import java.io.IOException;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
 
+import com.yammer.metrics.Metrics;
+import com.yammer.metrics.core.Gauge;
 import org.apache.commons.codec.binary.Hex;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -31,19 +32,20 @@ public class CachingIdService implements IdService {
     private final static Logger log = LoggerFactory.getLogger(CachingIdService.class);
     
     private final LoadingCache<Key,byte[]> readThroughCache;
+
+    private final Gauge cacheSize;
+    private final Gauge cacheEffectiveness;
     
-    public CachingIdService(int numCached, final IdService wrappedIdService) {
+    public CachingIdService(int numCached, final IdService wrappedIdService, final String cacheName) {
         readThroughCache = CacheBuilder.newBuilder()
                 .maximumSize(numCached)
-                // We expect cache eviction to occur most often due to the size limit. However
-                // we also add a time limit so old unused entries won't sit around on the
-                // heap forever.
-                .expireAfterAccess(1, TimeUnit.HOURS)
-                .removalListener(new RemovalListener<Key,byte[]>() {
+                .softValues()
+                .recordStats()
+                .removalListener(new RemovalListener<Key, byte[]>() {
                     @Override
                     public void onRemoval(RemovalNotification<Key, byte[]> notification) {
-                        if(log.isDebugEnabled()) {
-                            log.debug("Evicting cache key " + notification.getKey() + ", value " + 
+                        if (log.isDebugEnabled()) {
+                            log.debug("Evicting cache key " + notification.getKey() + ", value " +
                                     Hex.encodeHexString(notification.getValue()));
                         }
                     }
@@ -60,6 +62,20 @@ public class CachingIdService implements IdService {
                         return uniqueId;
                     }
                 });
+
+        cacheSize = Metrics.newGauge(CachingIdService.class, cacheName+" ID Cache size", new Gauge<Long>() {
+            @Override
+            public Long value() {
+                return readThroughCache.size();
+            }
+        });
+
+        cacheEffectiveness = Metrics.newGauge(CachingIdService.class, cacheName+"ID Cache effectiveness", new Gauge<Double>() {
+            @Override
+            public Double value() {
+                return readThroughCache.stats().hitRate();
+            }
+        });
     }
     
     

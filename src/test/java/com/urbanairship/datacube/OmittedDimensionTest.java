@@ -24,7 +24,7 @@ public class OmittedDimensionTest {
     @Test
     public void testAddress() throws Exception {
         ConcurrentMap<BoxedByteArray, byte[]> backingMap = Maps.newConcurrentMap();
-        IdService idService = new CachingIdService(4, new MapIdService());
+        IdService idService = new CachingIdService(4, new MapIdService(), "test");
         DbHarness<LongOp> dbHarness = new MapDbHarness<LongOp>(backingMap, LongOp.DESERIALIZER, CommitType.OVERWRITE, idService);
 
         List<Dimension<?>> dims = ImmutableList.<Dimension<?>>of(X, Y, Z);

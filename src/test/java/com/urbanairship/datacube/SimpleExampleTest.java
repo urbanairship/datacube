@@ -24,7 +24,7 @@ public class SimpleExampleTest {
      */
     @Test
     public void writeAndRead() throws Exception {
-        IdService idService = new CachingIdService(5, new MapIdService());
+        IdService idService = new CachingIdService(5, new MapIdService(), "test");
         ConcurrentMap<BoxedByteArray,byte[]> backingMap = 
                 new ConcurrentHashMap<BoxedByteArray,byte[]>();
         
