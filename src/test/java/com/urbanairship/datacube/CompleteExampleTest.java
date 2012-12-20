@@ -178,7 +178,7 @@ public class CompleteExampleTest {
 
         DataCube<LongOp> dataCube = new DataCube<LongOp>(dimensions, rollups);
         ConcurrentMap<BoxedByteArray,byte[]> backingMap = Maps.newConcurrentMap();
-        IdService idService = new CachingIdService(4, new MapIdService());
+        IdService idService = new CachingIdService(4, new MapIdService(),"test");
         DbHarness<LongOp> dbHarness = new MapDbHarness<LongOp>(backingMap,
                 LongOp.DESERIALIZER, CommitType.READ_COMBINE_CAS, idService);
         DataCubeIo<LongOp> dataCubeIo = new DataCubeIo<LongOp>(dataCube, dbHarness, 1,
