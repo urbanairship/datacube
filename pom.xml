@@ -15,7 +15,19 @@
   <name>datacube</name>
   <description>OLAP cube-like streaming aggregate library</description>
   <url>http://github.com/urbanairship/datacube</url>
-
+    
+  <distributionManagement>
+    <repository>
+      <id>releases</id>
+      <url>http://nexus.prod.urbanairship.com/content/repositories/releases</url>
+    </repository>
+    
+    <snapshotRepository>
+      <id>releases</id>
+      <url>http://nexus.prod.urbanairship.com/content/repositories/snapshots</url>
+    </snapshotRepository>
+  </distributionManagement>
+  
   <build>
     <plugins>
       <!-- Maven 2 won't build as Java 1.6 unless we configure this -->
