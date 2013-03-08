@@ -8,7 +8,7 @@ import java.io.IOException;
 import java.util.concurrent.ExecutionException;
 
 import com.yammer.metrics.Metrics;
-import com.yammer.metrics.core.Gauge;
+import com.yammer.metrics.core.GaugeMetric;
 import org.apache.commons.codec.binary.Hex;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -33,8 +33,8 @@ public class CachingIdService implements IdService {
     
     private final LoadingCache<Key,byte[]> readThroughCache;
 
-    private final Gauge cacheSize;
-    private final Gauge cacheEffectiveness;
+    private final GaugeMetric cacheSize;
+    private final GaugeMetric cacheEffectiveness;
     
     public CachingIdService(int numCached, final IdService wrappedIdService, final String cacheName) {
         readThroughCache = CacheBuilder.newBuilder()
@@ -63,14 +63,14 @@ public class CachingIdService implements IdService {
                     }
                 });
 
-        cacheSize = Metrics.newGauge(CachingIdService.class, cacheName+" ID Cache size", new Gauge<Long>() {
+        cacheSize = Metrics.newGauge(CachingIdService.class, cacheName+" ID Cache size", new GaugeMetric<Long>() {
             @Override
             public Long value() {
                 return readThroughCache.size();
             }
         });
 
-        cacheEffectiveness = Metrics.newGauge(CachingIdService.class, cacheName+"ID Cache effectiveness", new Gauge<Double>() {
+        cacheEffectiveness = Metrics.newGauge(CachingIdService.class, cacheName+"ID Cache effectiveness", new GaugeMetric<Double>() {
             @Override
             public Double value() {
                 return readThroughCache.stats().hitRate();

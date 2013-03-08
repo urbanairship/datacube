@@ -39,9 +39,9 @@ import com.urbanairship.datacube.IdService;
 import com.urbanairship.datacube.NamedThreadFactory;
 import com.urbanairship.datacube.Op;
 import com.yammer.metrics.Metrics;
-import com.yammer.metrics.core.Gauge;
-import com.yammer.metrics.core.Histogram;
-import com.yammer.metrics.core.Timer;
+import com.yammer.metrics.core.GaugeMetric;
+import com.yammer.metrics.core.HistogramMetric;
+import com.yammer.metrics.core.TimerMetric;
 
 public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
     
@@ -59,10 +59,10 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
     private final CommitType commitType; 
     private final int numIoeTries;
     private final int numCasTries;
-    private final Timer flushSuccessTimer;
-    private final Timer flushFailTimer;
-    private final Timer singleWriteTimer;
-    private final Histogram incrementSize;
+    private final TimerMetric flushSuccessTimer;
+    private final TimerMetric flushFailTimer;
+    private final TimerMetric singleWriteTimer;
+    private final HistogramMetric incrementSize;
     
     private final Set<Batch<T>> batchesInFlight = Sets.newHashSet();
     
@@ -101,14 +101,14 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
         this.flushExecutor = new ThreadPoolExecutor(numFlushThreads, numFlushThreads, 1,
                 TimeUnit.MINUTES, workQueue, new NamedThreadFactory("HBase DB flusher "+cubeName));
 
-        Metrics.newGauge(HBaseDbHarness.class, "asyncFlushQueueDepth", metricsScope, new Gauge<Integer>() {
+        Metrics.newGauge(HBaseDbHarness.class, "asyncFlushQueueDepth", metricsScope, new GaugeMetric<Integer>() {
             @Override
             public Integer value() {
                 return flushExecutor.getQueue().size();
             }
         });
         
-        Metrics.newGauge(HBaseDbHarness.class, "asyncFlushersActive", metricsScope, new Gauge<Integer>() {
+        Metrics.newGauge(HBaseDbHarness.class, "asyncFlushersActive", metricsScope, new GaugeMetric<Integer>() {
             @Override
             public Integer value() {
                 return flushExecutor.getActiveCount();
