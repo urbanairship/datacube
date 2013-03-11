@@ -1,11 +1,6 @@
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
-
-  <parent>
-    <groupId>org.sonatype.oss</groupId>
-    <artifactId>oss-parent</artifactId>
-    <version>7</version>
-  </parent>
 
   <groupId>com.urbanairship</groupId>
   <artifactId>datacube</artifactId>
@@ -15,19 +10,19 @@
   <name>datacube</name>
   <description>OLAP cube-like streaming aggregate library</description>
   <url>http://github.com/urbanairship/datacube</url>
-    
+
   <distributionManagement>
     <repository>
       <id>releases</id>
       <url>http://nexus.prod.urbanairship.com/content/repositories/releases</url>
     </repository>
-    
+
     <snapshotRepository>
       <id>releases</id>
       <url>http://nexus.prod.urbanairship.com/content/repositories/snapshots</url>
     </snapshotRepository>
   </distributionManagement>
-  
+
   <build>
     <plugins>
       <!-- Maven 2 won't build as Java 1.6 unless we configure this -->
@@ -52,7 +47,7 @@
               <goal>test-jar</goal>
             </goals>
           </execution>
-        </executions> 
+        </executions>
       </plugin>
 
       <!-- This attaches a -javadoc.jar artifact to the build -->
@@ -80,7 +75,7 @@
       </plugin>
     </plugins>
   </build>
-  
+
   <licenses>
     <license>
       <name>The Apache Software License, Version 2.0</name>
@@ -111,7 +106,7 @@
       </roles>
       <timezone>-8</timezone>
     </developer>
-  </developers>  
+  </developers>
 
   <profiles>
     <!-- Set hbaseVersion if not specified on the command line -->
@@ -141,7 +136,7 @@
         <hadoopVersion>1.0.3</hadoopVersion>
       </properties>
     </profile>
-    
+
     <!--  We want to be able to deploy artifacts with various classifiers. We want
           a different classifier for each combination of hbaseVersion and hadoopVersion.
           We also need to be able to produce an artifact with no classifier, which will
@@ -194,48 +189,7 @@
         </plugins>
       </build>
     </profile>
-    
-    <profile>
-      <!-- GPG sign release artifacts. Copied from:
-      https://docs.sonatype.org/display/Repository/How+To+Generate+PGP+Signatures+With+Maven -->
-      <id>release-sign-artifacts</id>
-      <activation>
-        <property>
-          <name>performRelease</name>
-          <value>true</value>
-        </property>
-      </activation>
-      <build>
-        <plugins>
-          <plugin>
-            <groupId>org.apache.maven.plugins</groupId>
-            <artifactId>maven-gpg-plugin</artifactId>
-            <version>1.1</version>
-            <executions>
-              <execution>
-                <id>sign-artifacts</id>
-                <phase>verify</phase>
-                <goals>
-                  <goal>sign</goal>
-                </goals>
-              </execution>
-            </executions>
-          </plugin>
-        </plugins>
-      </build>
-    </profile>
   </profiles>
-
-  <!-- Uncomment this repo to build against CDH hbase if desired -->
-  <!-- <repositories>
-    <repository>
-      <id>repository.cloudera.com</id>
-      <url>https://repository.cloudera.com/content/repositories/releases/</url>
-      <snapshots>
-        <enabled>false</enabled>
-      </snapshots>
-    </repository>
-  </repositories> -->
 
   <dependencies>
     <dependency>
@@ -243,6 +197,7 @@
       <artifactId>commons-codec</artifactId>
       <version>1.6</version>
     </dependency>
+
     <dependency>
       <groupId>com.yammer.metrics</groupId>
       <artifactId>metrics-core</artifactId>
@@ -256,34 +211,119 @@
         </exclusion>
       </exclusions>
     </dependency>
+
     <dependency>
       <groupId>com.google.guava</groupId>
       <artifactId>guava</artifactId>
       <version>12.0.1</version>
     </dependency>
+
     <dependency>
       <groupId>joda-time</groupId>
       <artifactId>joda-time</artifactId>
       <version>1.6.2</version>
     </dependency>
+
     <dependency>
       <groupId>commons-lang</groupId>
       <artifactId>commons-lang</artifactId>
       <version>2.6</version>
-    </dependency>
-             
-    <!-- Test Deps -->
-    <dependency>
-      <groupId>junit</groupId>
-      <artifactId>junit</artifactId>
-      <version>4.5</version>
-      <scope>test</scope>
     </dependency>
 
     <dependency>
       <groupId>org.apache.hbase</groupId>
       <artifactId>hbase</artifactId>
       <version>${hbaseVersion}</version>
+      <exclusions>
+        <exclusion>
+          <artifactId>jersey-json</artifactId>
+          <groupId>com.sun.jersey</groupId>
+        </exclusion>
+        <exclusion>
+          <artifactId>jsp-2.1</artifactId>
+          <groupId>org.mortbay.jetty</groupId>
+        </exclusion>
+        <exclusion>
+          <artifactId>servlet-api-2.5</artifactId>
+          <groupId>org.mortbay.jetty</groupId>
+        </exclusion>
+        <exclusion>
+          <artifactId>jackson-jaxrs</artifactId>
+          <groupId>org.codehaus.jackson</groupId>
+        </exclusion>
+        <exclusion>
+          <artifactId>jackson-mapper-asl</artifactId>
+          <groupId>org.codehaus.jackson</groupId>
+        </exclusion>
+        <exclusion>
+          <artifactId>jersey-server</artifactId>
+          <groupId>com.sun.jersey</groupId>
+        </exclusion>
+        <exclusion>
+          <artifactId>jersey-core</artifactId>
+          <groupId>com.sun.jersey</groupId>
+        </exclusion>
+        <exclusion>
+          <artifactId>jackson-core-asl</artifactId>
+          <groupId>org.codehaus.jackson</groupId>
+        </exclusion>
+        <exclusion>
+          <artifactId>jruby-complete</artifactId>
+          <groupId>org.jruby</groupId>
+        </exclusion>
+        <exclusion>
+          <artifactId>jasper-compiler</artifactId>
+          <groupId>tomcat</groupId>
+        </exclusion>
+        <exclusion>
+          <artifactId>jackson-xc</artifactId>
+          <groupId>org.codehaus.jackson</groupId>
+        </exclusion>
+        <exclusion>
+          <artifactId>jsp-api-2.1</artifactId>
+          <groupId>org.mortbay.jetty</groupId>
+        </exclusion>
+        <exclusion>
+          <artifactId>jaxb-api</artifactId>
+          <groupId>javax.xml.bind</groupId>
+        </exclusion>
+        <exclusion>
+          <artifactId>jetty-util</artifactId>
+          <groupId>org.mortbay.jetty</groupId>
+        </exclusion>
+        <exclusion>
+          <artifactId>jetty</artifactId>
+          <groupId>org.mortbay.jetty</groupId>
+        </exclusion>
+        <exclusion>
+          <artifactId>netty</artifactId>
+          <groupId>org.jboss.netty</groupId>
+        </exclusion>
+        <exclusion>
+          <artifactId>jasper-runtime</artifactId>
+          <groupId>tomcat</groupId>
+        </exclusion>
+        <exclusion>
+          <artifactId>servlet-api</artifactId>
+          <groupId>javax.servlet</groupId>
+        </exclusion>
+        <exclusion>
+          <artifactId>avro</artifactId>
+          <groupId>org.apache.avro</groupId>
+        </exclusion>
+        <exclusion>
+          <artifactId>avro-ipc</artifactId>
+          <groupId>org.apache.avro</groupId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+
+    <!-- Test Deps -->
+    <dependency>
+      <groupId>junit</groupId>
+      <artifactId>junit</artifactId>
+      <version>4.5</version>
+      <scope>test</scope>
     </dependency>
 
     <dependency>
