@@ -6,7 +6,7 @@ package com.urbanairship.datacube.ops;
 
 import com.urbanairship.datacube.Deserializer;
 import com.urbanairship.datacube.Op;
-import org.apache.hadoop.hbase.util.Bytes;
+import com.urbanairship.datacube.Util;
 
 /**
  * Cube oplog mutation type for storing a double value.
@@ -60,13 +60,13 @@ public class DoubleOp implements Op {
 
     @Override
     public byte[] serialize() {
-        return Bytes.toBytes(val);
+        return Util.longToBytes(Double.doubleToRawLongBits(val));
     }
 
     public static class DoubleOpDeserializer implements Deserializer<DoubleOp> {
         @Override
         public DoubleOp fromBytes(byte[] bytes) {
-            return new DoubleOp(Bytes.toDouble(bytes));
+            return new DoubleOp(Double.longBitsToDouble(Util.bytesToLong(bytes)));
         }
     }
 
