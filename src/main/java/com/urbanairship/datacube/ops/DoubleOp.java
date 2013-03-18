@@ -29,6 +29,9 @@ public class DoubleOp implements Op {
 
     @Override
     public Op subtract(Op otherOp) {
+        if(!(otherOp instanceof DoubleOp)) {
+            throw new RuntimeException();
+        }
         return new DoubleOp(this.val - ((DoubleOp)otherOp).val);
     }
 
