@@ -5,8 +5,8 @@ Copyright 2012 Urban Airship and Contributors
 package com.urbanairship.datacube;
 
 import com.urbanairship.datacube.serializables.*;
-import org.junit.Test;
 import org.junit.Assert;
+import org.junit.Test;
 
 import java.nio.ByteBuffer;
 
