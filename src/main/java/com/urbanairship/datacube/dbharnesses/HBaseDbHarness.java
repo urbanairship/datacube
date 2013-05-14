@@ -4,20 +4,13 @@ Copyright 2012 Urban Airship and Contributors
 
 package com.urbanairship.datacube.dbharnesses;
 
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.Callable;
-import java.util.concurrent.Future;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.RejectedExecutionException;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
-
+import com.google.common.base.Optional;
+import com.google.common.collect.Sets;
+import com.urbanairship.datacube.*;
+import com.yammer.metrics.Metrics;
+import com.yammer.metrics.core.Gauge;
+import com.yammer.metrics.core.Histogram;
+import com.yammer.metrics.core.Timer;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.lang.ArrayUtils;
 import org.apache.commons.lang.NotImplementedException;
@@ -29,19 +22,9 @@ import org.apache.hadoop.hbase.util.Bytes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.base.Optional;
-import com.google.common.collect.Sets;
-import com.urbanairship.datacube.Address;
-import com.urbanairship.datacube.Batch;
-import com.urbanairship.datacube.DbHarness;
-import com.urbanairship.datacube.Deserializer;
-import com.urbanairship.datacube.IdService;
-import com.urbanairship.datacube.NamedThreadFactory;
-import com.urbanairship.datacube.Op;
-import com.yammer.metrics.Metrics;
-import com.yammer.metrics.core.Gauge;
-import com.yammer.metrics.core.Histogram;
-import com.yammer.metrics.core.Timer;
+import java.io.IOException;
+import java.util.*;
+import java.util.concurrent.*;
 
 public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
     
@@ -217,26 +200,27 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
     private void readCombineCas(byte[] rowKey, T newOp) throws IOException {
         Get get = new Get(rowKey);
         get.addColumn(cf, QUALIFIER);
-        Result result = WithHTable.get(pool, tableName, get);
-        
-        byte[] prevSerializedOp = result.getValue(cf, QUALIFIER);
-        T combinedOp;
-        if(prevSerializedOp == null) {
-            combinedOp = newOp;
-        } else {
-            T previousOp = (T)deserializer.fromBytes(prevSerializedOp);
-            combinedOp = (T)previousOp.add(newOp);
-        }
-        
-        
-        Put put = new Put(rowKey);
-        put.add(cf, QUALIFIER, combinedOp.serialize());
-        
-        for(int i=0; i<numCasTries; i++) {
-            if(WithHTable.checkAndPut(pool, tableName, rowKey, cf, QUALIFIER, prevSerializedOp, put)) {
+
+        for (int i = 0; i < numCasTries; i++) {
+            Result result = WithHTable.get(pool, tableName, get);
+
+            byte[] prevSerializedOp = result.getValue(cf, QUALIFIER);
+            T combinedOp;
+            if (prevSerializedOp == null) {
+                combinedOp = newOp;
+            } else {
+                T previousOp = (T) deserializer.fromBytes(prevSerializedOp);
+                combinedOp = (T) previousOp.add(newOp);
+            }
+
+
+            Put put = new Put(rowKey);
+            put.add(cf, QUALIFIER, combinedOp.serialize());
+
+            if (WithHTable.checkAndPut(pool, tableName, rowKey, cf, QUALIFIER, prevSerializedOp, put)) {
                 return; // successful write
             } else {
-                log.warn("checkAndPut failed on try " + (i+1) + " out of " + numCasTries);
+                log.warn("checkAndPut failed on try " + (i + 1) + " out of " + numCasTries);
             }
         }
         
