@@ -201,21 +201,21 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
         Get get = new Get(rowKey);
         get.addColumn(cf, QUALIFIER);
 
-        Result result = WithHTable.get(pool, tableName, get);
-
-        byte[] prevSerializedOp = result.getValue(cf, QUALIFIER);
-        T combinedOp;
-        if (prevSerializedOp == null) {
-            combinedOp = newOp;
-        } else {
-            T previousOp = (T) deserializer.fromBytes(prevSerializedOp);
-            combinedOp = (T) previousOp.add(newOp);
-        }
-
-        Put put = new Put(rowKey);
-        put.add(cf, QUALIFIER, combinedOp.serialize());
-
         for (int i = 0; i < numCasTries; i++) {
+            Result result = WithHTable.get(pool, tableName, get);
+
+            byte[] prevSerializedOp = result.getValue(cf, QUALIFIER);
+            T combinedOp;
+            if (prevSerializedOp == null) {
+                combinedOp = newOp;
+            } else {
+                T previousOp = (T) deserializer.fromBytes(prevSerializedOp);
+                combinedOp = (T) previousOp.add(newOp);
+            }
+
+            Put put = new Put(rowKey);
+            put.add(cf, QUALIFIER, combinedOp.serialize());
+
             if (WithHTable.checkAndPut(pool, tableName, rowKey, cf, QUALIFIER, prevSerializedOp, put)) {
                 return; // successful write
             } else {
