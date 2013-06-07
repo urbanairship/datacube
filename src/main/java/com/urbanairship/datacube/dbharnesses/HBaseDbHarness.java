@@ -5,12 +5,13 @@ Copyright 2012 Urban Airship and Contributors
 package com.urbanairship.datacube.dbharnesses;
 
 import com.google.common.base.Optional;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.urbanairship.datacube.*;
 import com.yammer.metrics.Metrics;
-import com.yammer.metrics.core.Gauge;
-import com.yammer.metrics.core.Histogram;
-import com.yammer.metrics.core.Timer;
+import com.yammer.metrics.core.GaugeMetric;
+import com.yammer.metrics.core.HistogramMetric;
+import com.yammer.metrics.core.TimerMetric;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.lang.ArrayUtils;
 import org.apache.commons.lang.NotImplementedException;
@@ -42,10 +43,10 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
     private final CommitType commitType; 
     private final int numIoeTries;
     private final int numCasTries;
-    private final Timer flushSuccessTimer;
-    private final Timer flushFailTimer;
-    private final Timer singleWriteTimer;
-    private final Histogram incrementSize;
+    private final TimerMetric flushSuccessTimer;
+    private final TimerMetric flushFailTimer;
+    private final TimerMetric singleWriteTimer;
+    private final HistogramMetric incrementSize;
     
     private final Set<Batch<T>> batchesInFlight = Sets.newHashSet();
     
@@ -84,14 +85,14 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
         this.flushExecutor = new ThreadPoolExecutor(numFlushThreads, numFlushThreads, 1,
                 TimeUnit.MINUTES, workQueue, new NamedThreadFactory("HBase DB flusher "+cubeName));
 
-        Metrics.newGauge(HBaseDbHarness.class, "asyncFlushQueueDepth", metricsScope, new Gauge<Integer>() {
+        Metrics.newGauge(HBaseDbHarness.class, "asyncFlushQueueDepth", metricsScope, new GaugeMetric<Integer>() {
             @Override
             public Integer value() {
                 return flushExecutor.getQueue().size();
             }
         });
         
-        Metrics.newGauge(HBaseDbHarness.class, "asyncFlushersActive", metricsScope, new Gauge<Integer>() {
+        Metrics.newGauge(HBaseDbHarness.class, "asyncFlushersActive", metricsScope, new GaugeMetric<Integer>() {
             @Override
             public Integer value() {
                 return flushExecutor.getActiveCount();
@@ -213,7 +214,6 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
                 combinedOp = (T) previousOp.add(newOp);
             }
 
-
             Put put = new Put(rowKey);
             put.add(cf, QUALIFIER, combinedOp.serialize());
 
@@ -293,7 +293,51 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
     
     @Override
     public List<Optional<T>> multiGet(List<Address> addresses) throws IOException {
-        throw new NotImplementedException();
+        int size = addresses.size();
+        List<Get> gets = Lists.newArrayListWithCapacity(size);
+        List<Optional<T>> resultsOptionals = Lists.newArrayListWithCapacity(size);
+        List<byte[]> rowKeys = Lists.newArrayListWithCapacity(size);
+
+        for (Address address : addresses) {
+            final byte[] rowKey;
+            try {
+                rowKey = ArrayUtils.addAll(uniqueCubeName, address.toKey(idService));
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new RuntimeException(e);
+            }
+            rowKeys.add(rowKey);
+            Get get = new Get(rowKey);
+            get.addFamily(cf);
+            gets.add(get);
+        }
+
+        Result[] results = WithHTable.get(pool, tableName, gets);
+        int idx = 0;
+
+        for (Result result : results) {
+            if(result == null || result.isEmpty()) {
+                if(log.isDebugEnabled()) {
+                    Address address = addresses.get(idx);
+                    byte[] rowKey = rowKeys.get(idx);
+                    log.debug("Returning absent for cube:" + Arrays.toString(uniqueCubeName) +
+                            " for address:" + address + " key " + Base64.encodeBase64String(rowKey));
+                }
+                resultsOptionals.add(Optional.<T>absent());
+            } else {
+                T deserialized = deserializer.fromBytes(result.value());
+                if(log.isDebugEnabled()) {
+                    Address address = addresses.get(idx);
+                    byte[] rowKey = rowKeys.get(idx);
+                    log.debug("Returning value for cube:" + Arrays.toString(uniqueCubeName) + " address:" +
+                             address + ": " + " key " + Base64.encodeBase64String(rowKey) + ": " + deserialized);
+                }
+                resultsOptionals.add(Optional.of(deserialized));
+            }
+
+            idx++;
+        }
+        return resultsOptionals;
     }
 
     @Override
