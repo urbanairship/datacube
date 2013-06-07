@@ -5,12 +5,14 @@ Copyright 2012 Urban Airship and Contributors
 package com.urbanairship.datacube;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
+import com.google.common.collect.Lists;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -285,7 +287,17 @@ public class DataCubeIo<T extends Op> {
     public Optional<T> get(ReadBuilder readBuilder) throws IOException, InterruptedException  {
         return this.get(readBuilder.build());
     }
-    
+
+    public List<Optional<T>> multiGet(List<ReadBuilder> readBuilders) throws IOException, InterruptedException  {
+        List<Address> addresses = Lists.newArrayListWithCapacity(readBuilders.size());
+        for (ReadBuilder readBuilder : readBuilders) {
+            Address address = readBuilder.build();
+            cube.checkValidReadOrThrow(address);
+            addresses.add(address);
+        }
+        return db.multiGet(addresses);
+    }
+
     public void flush() throws InterruptedException {
         Batch<T> batchToFlush;
         synchronized(lock) {

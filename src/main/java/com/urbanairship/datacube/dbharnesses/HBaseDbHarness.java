@@ -5,6 +5,7 @@ Copyright 2012 Urban Airship and Contributors
 package com.urbanairship.datacube.dbharnesses;
 
 import com.google.common.base.Optional;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.urbanairship.datacube.*;
 import com.yammer.metrics.Metrics;
@@ -292,7 +293,51 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
     
     @Override
     public List<Optional<T>> multiGet(List<Address> addresses) throws IOException {
-        throw new NotImplementedException();
+        int size = addresses.size();
+        List<Get> gets = Lists.newArrayListWithCapacity(size);
+        List<Optional<T>> resultsOptionals = Lists.newArrayListWithCapacity(size);
+        List<byte[]> rowKeys = Lists.newArrayListWithCapacity(size);
+
+        for (Address address : addresses) {
+            final byte[] rowKey;
+            try {
+                rowKey = ArrayUtils.addAll(uniqueCubeName, address.toKey(idService));
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new RuntimeException(e);
+            }
+            rowKeys.add(rowKey);
+            Get get = new Get(rowKey);
+            get.addFamily(cf);
+            gets.add(get);
+        }
+
+        Result[] results = WithHTable.get(pool, tableName, gets);
+        int idx = 0;
+
+        for (Result result : results) {
+            if(result == null || result.isEmpty()) {
+                if(log.isDebugEnabled()) {
+                    Address address = addresses.get(idx);
+                    byte[] rowKey = rowKeys.get(idx);
+                    log.debug("Returning absent for cube:" + Arrays.toString(uniqueCubeName) +
+                            " for address:" + address + " key " + Base64.encodeBase64String(rowKey));
+                }
+                resultsOptionals.add(Optional.<T>absent());
+            } else {
+                T deserialized = deserializer.fromBytes(result.value());
+                if(log.isDebugEnabled()) {
+                    Address address = addresses.get(idx);
+                    byte[] rowKey = rowKeys.get(idx);
+                    log.debug("Returning value for cube:" + Arrays.toString(uniqueCubeName) + " address:" +
+                             address + ": " + " key " + Base64.encodeBase64String(rowKey) + ": " + deserialized);
+                }
+                resultsOptionals.add(Optional.of(deserialized));
+            }
+
+            idx++;
+        }
+        return resultsOptionals;
     }
 
     @Override

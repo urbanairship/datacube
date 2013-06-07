@@ -39,7 +39,20 @@ public class HBaseTest extends EmbeddedClusterTestAbstract {
         
         DbHarnessTests.basicTest(hbaseDbHarness);
     }
-    
+
+    @Test
+    public void hbaseForCubeDataTestMulti() throws Exception {
+        IdService idService = new MapIdService();
+
+        HTablePool pool = new HTablePool(getTestUtil().getConfiguration(), Integer.MAX_VALUE);
+        DbHarness<LongOp> hbaseDbHarness = new HBaseDbHarness<LongOp>(pool,
+                "hbaseForCubeDataTest".getBytes(), CUBE_DATA_TABLE, CF, LongOp.DESERIALIZER, idService,
+                CommitType.INCREMENT);
+
+        DbHarnessTests.multiGetTest(hbaseDbHarness);
+    }
+
+
     @Test
     public void basicIdServiceTest() throws Exception {
         IdService idService = new HBaseIdService(getTestUtil().getConfiguration(),
