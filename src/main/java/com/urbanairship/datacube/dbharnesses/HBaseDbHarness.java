@@ -4,8 +4,10 @@ Copyright 2012 Urban Airship and Contributors
 
 package com.urbanairship.datacube.dbharnesses;
 
+import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.urbanairship.datacube.*;
 import com.yammer.metrics.Metrics;
@@ -14,7 +16,6 @@ import com.yammer.metrics.core.Histogram;
 import com.yammer.metrics.core.Timer;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.lang.ArrayUtils;
-import org.apache.commons.lang.NotImplementedException;
 import org.apache.hadoop.hbase.client.Get;
 import org.apache.hadoop.hbase.client.HTablePool;
 import org.apache.hadoop.hbase.client.Put;
@@ -23,6 +24,7 @@ import org.apache.hadoop.hbase.util.Bytes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
 import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.*;
@@ -32,7 +34,15 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
     private static final Logger log = LoggerFactory.getLogger(HBaseDbHarness.class);
 
     public final static byte[] QUALIFIER = ArrayUtils.EMPTY_BYTE_ARRAY;
-        
+
+    private final static Function<Map<byte[], byte[]>, Void> noop = new Function<Map<byte[], byte[]>, Void>() {
+        @Nullable
+        @Override
+        public Void apply(@Nullable Map<byte[], byte[]> map) {
+            return null;
+        }
+    };
+
     private final HTablePool pool;
     private final Deserializer<T> deserializer;
     private final byte[] uniqueCubeName;
@@ -47,20 +57,28 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
     private final Timer flushFailTimer;
     private final Timer singleWriteTimer;
     private final Histogram incrementSize;
-    
+    private final Function<Map<byte[], byte[]>, Void> onFlush;
     private final Set<Batch<T>> batchesInFlight = Sets.newHashSet();
     
     public HBaseDbHarness(HTablePool pool, byte[] uniqueCubeName, byte[] tableName, 
             byte[] cf, Deserializer<T> deserializer, IdService idService, CommitType commitType) 
                     throws IOException {
-        this(pool, uniqueCubeName, tableName, cf, deserializer, idService, commitType,
-                5, 5, 10, null);
+        this(pool, uniqueCubeName, tableName, cf, deserializer, idService, commitType, noop, 5, 5, 10, null);
     }
-    
+
+    public HBaseDbHarness(HTablePool pool, byte[] uniqueCubeName, byte[] tableName,
+                          byte[] cf, Deserializer<T> deserializer, IdService idService, CommitType commitType,
+                          int numFlushThreads, int numIoeTries, int numCasTries, String metricsScope)
+            throws IOException {
+        this(pool, uniqueCubeName, tableName, cf, deserializer, idService, commitType, noop,
+                numFlushThreads, numIoeTries, numCasTries, metricsScope);
+    }
+
     public HBaseDbHarness(HTablePool pool, byte[] uniqueCubeName, byte[] tableName, 
-            byte[] cf, Deserializer<T> deserializer, IdService idService, CommitType commitType, 
-            int numFlushThreads, int numIoeTries, int numCasTries, String metricsScope)
-                    throws IOException {
+            byte[] cf, Deserializer<T> deserializer, IdService idService, CommitType commitType,
+            Function<Map<byte[], byte[]>, Void> onFlush, int numFlushThreads, int numIoeTries, int numCasTries,
+            String metricsScope) throws IOException {
+
         this.pool = pool;
         this.deserializer = deserializer;
         this.uniqueCubeName = uniqueCubeName;
@@ -70,6 +88,7 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
         this.commitType = commitType;
         this.numIoeTries = numIoeTries;
         this.numCasTries = numCasTries;
+        this.onFlush = onFlush;
         
         flushSuccessTimer = Metrics.newTimer(HBaseDbHarness.class, "successfulBatchFlush", 
                 metricsScope, TimeUnit.MILLISECONDS, TimeUnit.SECONDS);
@@ -191,14 +210,14 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
         }
     }
 
-    private void increment(byte[] rowKey, T op) throws IOException {
+    private long increment(byte[] rowKey, T op) throws IOException {
         long amount = Bytes.toLong(op.serialize());
         incrementSize.update(amount);
-        WithHTable.increment(pool, tableName, rowKey, cf, QUALIFIER, amount);
+        return WithHTable.increment(pool, tableName, rowKey, cf, QUALIFIER, amount);
     }
     
     @SuppressWarnings("unchecked")
-    private void readCombineCas(byte[] rowKey, T newOp) throws IOException {
+    private byte[] readCombineCas(byte[] rowKey, T newOp) throws IOException {
         Get get = new Get(rowKey);
         get.addColumn(cf, QUALIFIER);
 
@@ -210,16 +229,17 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
             if (prevSerializedOp == null) {
                 combinedOp = newOp;
             } else {
-                T previousOp = (T) deserializer.fromBytes(prevSerializedOp);
+                T previousOp = deserializer.fromBytes(prevSerializedOp);
                 combinedOp = (T) previousOp.add(newOp);
             }
 
 
             Put put = new Put(rowKey);
-            put.add(cf, QUALIFIER, combinedOp.serialize());
+            byte[] serializedOp = combinedOp.serialize();
+            put.add(cf, QUALIFIER, serializedOp);
 
             if (WithHTable.checkAndPut(pool, tableName, rowKey, cf, QUALIFIER, prevSerializedOp, put)) {
-                return; // successful write
+                return serializedOp; // successful write
             } else {
                 log.warn("checkAndPut failed on try " + (i + 1) + " out of " + numCasTries);
             }
@@ -238,32 +258,36 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
     private void flushBatch(Batch<T> batch) throws IOException, InterruptedException  {
         Map<Address,T> batchMap = batch.getMap();
         
-        List<Address> succesfullyWritten = new ArrayList<Address>(batch.getMap().size());
-        
+        List<Address> successfulAddresses = Lists.newArrayListWithExpectedSize(batchMap.size());
+        Map<byte[], byte[]> successfulRows = Maps.newHashMap();
+
         long nanoTimeBeforeBatch = System.nanoTime();
         
         try {
             for(Map.Entry<Address,T> entry: batchMap.entrySet()) {
                 Address address = entry.getKey();
                 T op = entry.getValue();
+                byte[] dbBytes;
 
                 byte[] rowKey = ArrayUtils.addAll(uniqueCubeName, address.toKey(idService));
-                
                 long nanoTimeBeforeWrite = System.nanoTime();
                 
                 switch(commitType) {
                 case INCREMENT:
-                    increment(rowKey, op);
+                    long postIncr = increment(rowKey, op);
+                    dbBytes = Bytes.toBytes(postIncr);
                     break;
                 case READ_COMBINE_CAS:
-                    readCombineCas(rowKey, op);
+                    dbBytes = readCombineCas(rowKey, op);
                     break;
                 case OVERWRITE:
                     overwrite(rowKey, op);
+                    dbBytes = op.serialize();
                     break;
                 default:
                     throw new RuntimeException("Unsupported commit type " + commitType);
                 }
+
                 long writeDurationNanos = System.nanoTime() - nanoTimeBeforeWrite;
                 singleWriteTimer.update(writeDurationNanos, TimeUnit.NANOSECONDS);
                 
@@ -271,25 +295,32 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
                     log.debug("Succesfully wrote cube:" + Arrays.toString(uniqueCubeName) + 
                             " address:" + address);
                 }
-                succesfullyWritten.add(address);
+                successfulAddresses.add(address);
+                successfulRows.put(rowKey, dbBytes);
             }
-        } catch (IOException e) {
+
+            long batchDurationNanos = System.nanoTime() - nanoTimeBeforeBatch;
+            flushSuccessTimer.update(batchDurationNanos, TimeUnit.NANOSECONDS);
+        } catch (IOException ioe) {
             // There was an IOException while attempting to use the DB. If we were successful with some
             // of the pending writes, they should be removed from the batch so they are not retried later.
             // The operations that didn't get into the DB should be left in the batch to be retried later.
-            log.warn("IOException when flushing batch to HBase", e);
-            for(Address address: succesfullyWritten) {
+            log.warn("IOException when flushing batch to HBase", ioe);
+            for(Address address: successfulAddresses) {
                 batch.getMap().remove(address);
             }
             
             long batchDurationNanos = System.nanoTime() - nanoTimeBeforeBatch;
             flushFailTimer.update(batchDurationNanos, TimeUnit.NANOSECONDS);
 
-            throw e;
-        } 
-        
-        long batchDurationNanos = System.nanoTime() - nanoTimeBeforeBatch;
-        flushSuccessTimer.update(batchDurationNanos, TimeUnit.NANOSECONDS);
+            throw ioe;
+        } finally {
+            try {
+                onFlush.apply(successfulRows);
+            } catch (Exception e) {
+                log.error("Unhandled exception in onFlush callback.", e);
+            }
+        }
     }
     
     @Override
