@@ -20,8 +20,8 @@ import com.google.common.base.Optional;
 import com.urbanairship.datacube.dbharnesses.AfterExecute;
 import com.urbanairship.datacube.dbharnesses.FullQueueException;
 import com.yammer.metrics.Metrics;
-import com.yammer.metrics.core.Gauge;
-import com.yammer.metrics.core.Meter;
+import com.yammer.metrics.core.GaugeMetric;
+import com.yammer.metrics.core.MeterMetric;
 
 /**
  * A DataCube does no IO, it merely returns batches that can be executed. This class wraps
@@ -78,11 +78,11 @@ public class DataCubeIo<T extends Op> {
     // This executor will wait for DB writes to complete then check if they had an error.
     private final ThreadPoolExecutor asyncErrorMonitorExecutor;
     
-    private final Meter writesMeter; 
-    private final Meter asyncQueueBackoffMeter; 
-    private final Meter runBatchMeter; 
-    private final Meter ageFlushes; 
-    private final Meter sizeFlushes; 
+    private final MeterMetric writesMeter; 
+    private final MeterMetric asyncQueueBackoffMeter; 
+    private final MeterMetric runBatchMeter; 
+    private final MeterMetric ageFlushes; 
+    private final MeterMetric sizeFlushes; 
     
     private Batch<T> batchInProgress = new Batch<T>();
     private long batchFlushDeadlineMs;
@@ -122,7 +122,7 @@ public class DataCubeIo<T extends Op> {
                 Integer.MAX_VALUE, 1, TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>(), 
                 new NamedThreadFactory("DataCubeIo async DB watcher"));
         
-        Metrics.newGauge(DataCubeIo.class, "errorMonitorActiveCount", metricsScope, new Gauge<Integer>() {
+        Metrics.newGauge(DataCubeIo.class, "errorMonitorActiveCount", metricsScope, new GaugeMetric<Integer>() {
             @Override
             public Integer value() {
                 return asyncErrorMonitorExecutor.getActiveCount();
@@ -217,8 +217,7 @@ public class DataCubeIo<T extends Op> {
         while(true) {
             try {
                 runBatchMeter.mark();
-                final Future<?> flushFuture = db.runBatchAsync(batch, flushErrorHandler);; 
-                return flushFuture;
+                return db.runBatchAsync(batch, flushErrorHandler);
             } catch (FullQueueException e) {
                 asyncQueueBackoffMeter.mark();
                 
