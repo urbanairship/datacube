@@ -35,7 +35,7 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
 
     public final static byte[] QUALIFIER = ArrayUtils.EMPTY_BYTE_ARRAY;
 
-    private final static Function<Map<byte[], byte[]>, Void> noop = new Function<Map<byte[], byte[]>, Void>() {
+    private final static Function<Map<byte[], byte[]>, Void> NOP = new Function<Map<byte[], byte[]>, Void>() {
         @Nullable
         @Override
         public Void apply(@Nullable Map<byte[], byte[]> map) {
@@ -64,14 +64,14 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
     public HBaseDbHarness(HTablePool pool, byte[] uniqueCubeName, byte[] tableName, 
             byte[] cf, Deserializer<T> deserializer, IdService idService, CommitType commitType) 
                     throws IOException {
-        this(pool, uniqueCubeName, tableName, cf, deserializer, idService, commitType, noop, 5, 5, 10, null);
+        this(pool, uniqueCubeName, tableName, cf, deserializer, idService, commitType, NOP, 5, 5, 10, null);
     }
 
     public HBaseDbHarness(HTablePool pool, byte[] uniqueCubeName, byte[] tableName,
                           byte[] cf, Deserializer<T> deserializer, IdService idService, CommitType commitType,
                           int numFlushThreads, int numIoeTries, int numCasTries, String metricsScope)
             throws IOException {
-        this(pool, uniqueCubeName, tableName, cf, deserializer, idService, commitType, noop,
+        this(pool, uniqueCubeName, tableName, cf, deserializer, idService, commitType, NOP,
                 numFlushThreads, numIoeTries, numCasTries, metricsScope);
     }
 
