@@ -217,8 +217,7 @@ public class DataCubeIo<T extends Op> {
         while(true) {
             try {
                 runBatchMeter.mark();
-                final Future<?> flushFuture = db.runBatchAsync(batch, flushErrorHandler);; 
-                return flushFuture;
+                return db.runBatchAsync(batch, flushErrorHandler);
             } catch (FullQueueException e) {
                 asyncQueueBackoffMeter.mark();
                 
