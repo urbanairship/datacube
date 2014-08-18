@@ -16,7 +16,7 @@ public class LongOp implements Op {
     public static final LongOpDeserializer DESERIALIZER = new LongOpDeserializer(); 
     
     public LongOp(long val) {
-        this.val = val;
+        this.val = -val;
     }
 
     @Override
