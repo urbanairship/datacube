@@ -16,7 +16,7 @@ public class DoubleOp implements Op {
     public static final DoubleOpDeserializer DESERIALIZER = new DoubleOpDeserializer();
 
     public DoubleOp(double val) {
-        this.val = val;
+        this.val = -val;
     }
 
     @Override
