@@ -248,11 +248,20 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
         throw new IOException("Exhausted retries doing checkAndPut after " + numCasTries + 
                 " tries");
     }
+
+    @Override
+    public void set(Address c, T op) throws IOException, InterruptedException {
+        final byte[] rowKey = ArrayUtils.addAll(uniqueCubeName, c.toKey(idService));
+        overwrite(rowKey, op);
+    }
     
     private void overwrite(byte[] rowKey, T op) throws IOException {
         Put put = new Put(rowKey);
         put.add(cf, QUALIFIER, op.serialize());
         WithHTable.put(pool, tableName, put);
+        if(log.isDebugEnabled()) {
+            log.debug("Set of key " + Base64.encodeBase64String(rowKey));
+        }
     }
     
     private void flushBatch(Batch<T> batch) throws IOException, InterruptedException  {

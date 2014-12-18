@@ -41,6 +41,13 @@ public interface DbHarness<T extends Op> {
      * @throws InterruptedException 
      */
     public Optional<T> get(Address c) throws IOException, InterruptedException;
+
+    /**
+     * Overwrite value.
+     * @throws IOException
+     * @throws InterruptedException
+     */
+    public void set(Address c, T op) throws IOException, InterruptedException;
     
     public List<Optional<T>> multiGet(List<Address> addresses) throws IOException;
     

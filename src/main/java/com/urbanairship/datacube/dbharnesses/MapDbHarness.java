@@ -147,7 +147,22 @@ public class MapDbHarness<T extends Op> implements DbHarness<T> {
             return Optional.absent();
         }
     }
-    
+
+    @Override
+    public void set(Address c, T op) throws IOException, InterruptedException {
+        BoxedByteArray mapKey;
+        try {
+            mapKey = new BoxedByteArray(c.toKey(idService));
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+
+        map.put(mapKey, op.serialize());
+        if(log.isDebugEnabled()) {
+            log.debug("Set of key " + Hex.encodeHexString(mapKey.bytes));
+        }
+    }
+
     @Override
     public void flush() throws InterruptedException {
         return; // all ops are synchronously applied, nothing to do

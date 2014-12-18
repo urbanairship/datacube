@@ -6,6 +6,7 @@ package com.urbanairship.datacube;
 
 import java.util.List;
 
+import com.google.common.base.Optional;
 import org.apache.commons.lang.ArrayUtils;
 import org.apache.hadoop.hbase.client.HTablePool;
 import org.apache.hadoop.hbase.util.Bytes;
@@ -63,6 +64,31 @@ public class HBaseOverwriteTest extends EmbeddedClusterTestAbstract {
         // The value at address "100" should be 2 (and not 1+2 or anything else)
         long cellVal = dataCubeIo.get(new ReadBuilder(dataCube).at(dimension, 100L)).get().getLong();
         Assert.assertEquals(2L, cellVal);
+    }
+
+    @Test
+    public void testSetGet() throws Exception {
+        final long value = 100L;
+        final Dimension<Long> dimension = new Dimension<Long>("mydimension", new BigEndianLongBucketer(),
+                false, 8);
+        List<Dimension<?>> dimensions = ImmutableList.<Dimension<?>>of(dimension);
+
+        Rollup rollup = new Rollup(dimension);
+        List<Rollup> rollups = ImmutableList.of(rollup);
+
+        IdService idService = new MapIdService();
+
+        HTablePool pool = new HTablePool(getTestUtil().getConfiguration(), Integer.MAX_VALUE);
+        DbHarness<BytesOp> dbHarness = new HBaseDbHarness<BytesOp>(pool, ArrayUtils.EMPTY_BYTE_ARRAY,
+                tableName, cfName, new BytesOpDeserializer(), idService, CommitType.INCREMENT);
+
+        final DataCube<BytesOp> dataCube = new DataCube<BytesOp>(dimensions, rollups);
+
+        Address address = new Address(dataCube);
+        address.at(dimension, Bytes.toBytes(999L));
+
+        dbHarness.set(address, new BytesOp(value));
+        Assert.assertEquals(new BytesOp(value).getLong(), dbHarness.get(address).get().getLong());
     }
     
     private static class BytesOp implements Op {
