@@ -11,6 +11,7 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.urbanairship.datacube.*;
 import com.yammer.metrics.Metrics;
+import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.Gauge;
 import com.yammer.metrics.core.Histogram;
 import com.yammer.metrics.core.Timer;
@@ -26,7 +27,10 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 import java.io.IOException;
-import java.util.*;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.*;
 
 public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
@@ -57,6 +61,8 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
     private final Timer flushFailTimer;
     private final Timer singleWriteTimer;
     private final Histogram incrementSize;
+    private final Histogram casTries;
+    private final Counter casRetriesExhausted;
     private final Function<Map<byte[], byte[]>, Void> onFlush;
     private final Set<Batch<T>> batchesInFlight = Sets.newHashSet();
     
@@ -98,6 +104,10 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
                 metricsScope, TimeUnit.MILLISECONDS, TimeUnit.SECONDS);
         incrementSize = Metrics.newHistogram(HBaseDbHarness.class, "incrementSize", 
                 metricsScope, true);
+        casTries = Metrics.newHistogram(HBaseDbHarness.class, "casTries",
+                metricsScope, true);
+        casRetriesExhausted = Metrics.newCounter(HBaseDbHarness.class, "casRetriesExhausted",
+                metricsScope);
 
         String cubeName = new String(uniqueCubeName);
         BlockingQueue<Runnable> workQueue = new LinkedBlockingQueue<Runnable>(numFlushThreads);
@@ -239,12 +249,14 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
             put.add(cf, QUALIFIER, serializedOp);
 
             if (WithHTable.checkAndPut(pool, tableName, rowKey, cf, QUALIFIER, prevSerializedOp, put)) {
+                casTries.update(i + 1);
                 return serializedOp; // successful write
             } else {
                 log.warn("checkAndPut failed on try " + (i + 1) + " out of " + numCasTries);
             }
         }
-        
+
+        casRetriesExhausted.inc();
         throw new IOException("Exhausted retries doing checkAndPut after " + numCasTries + 
                 " tries");
     }
