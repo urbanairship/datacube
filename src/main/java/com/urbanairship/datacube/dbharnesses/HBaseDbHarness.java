@@ -57,6 +57,7 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
     private final Timer flushFailTimer;
     private final Timer singleWriteTimer;
     private final Histogram incrementSize;
+    private final Histogram casTries;
     private final Function<Map<byte[], byte[]>, Void> onFlush;
     private final Set<Batch<T>> batchesInFlight = Sets.newHashSet();
     
@@ -97,6 +98,8 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
         singleWriteTimer = Metrics.newTimer(HBaseDbHarness.class, "singleWrites", 
                 metricsScope, TimeUnit.MILLISECONDS, TimeUnit.SECONDS);
         incrementSize = Metrics.newHistogram(HBaseDbHarness.class, "incrementSize", 
+                metricsScope, true);
+        casTries = Metrics.newHistogram(HBaseDbHarness.class, "casTries",
                 metricsScope, true);
 
         String cubeName = new String(uniqueCubeName);
@@ -239,6 +242,7 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
             put.add(cf, QUALIFIER, serializedOp);
 
             if (WithHTable.checkAndPut(pool, tableName, rowKey, cf, QUALIFIER, prevSerializedOp, put)) {
+                casTries.update(i + 1);
                 return serializedOp; // successful write
             } else {
                 log.warn("checkAndPut failed on try " + (i + 1) + " out of " + numCasTries);
