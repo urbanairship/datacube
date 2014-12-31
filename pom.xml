@@ -19,7 +19,7 @@
     <snapshotRepository>
       <id>releases</id>
       <url>http://nexus.prod.urbanairship.com/content/repositories/snapshots</url>
-      </snapshotRepository>
+    </snapshotRepository>
   </distributionManagement>
 
   <build>
