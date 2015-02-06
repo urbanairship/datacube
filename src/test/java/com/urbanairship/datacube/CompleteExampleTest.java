@@ -100,6 +100,27 @@ public class CompleteExampleTest {
             public List<BucketType> getBucketTypes() {
                 return ImmutableList.of(usState, usCity);
             }
+
+            @Override
+            public Object deserialize(byte[] coord, BucketType bucketType) {
+                if (coord == null || coord.length ==0) {
+                    throw new IllegalArgumentException("Null or Zero length byte array can not be" +
+                            " deserialized");
+                } else if (coord.length > 4) {
+                    throw new IllegalArgumentException("LocationBucketer can not have coordinate " +
+                            "byte array size more than number of bytes require by Integer");
+                }
+                int intCoord = EnumSerializable.deserialize(coord);
+                if (bucketType.equals(usCity)) {
+                    return City.values()[intCoord];
+                }
+                else if (bucketType.equals(usState)) {
+                    return UsState.values()[intCoord];
+                }
+                else {
+                    throw new RuntimeException(bucketType.toString()+" bucketType is not present");
+                }
+            }
         };
 
         /**
@@ -145,6 +166,27 @@ public class CompleteExampleTest {
             @Override
             public List<BucketType> getBucketTypes() {
                 return ImmutableList.of(deviceName, osType);
+            }
+
+            @Override
+            public Object deserialize(byte[] coord, BucketType bucketType) {
+                if (coord == null || coord.length == 0) {
+                    throw new IllegalArgumentException("Null or Zero length byte array can not be" +
+                            " deserialized");
+                } else if (coord.length > 4) {
+                    throw new IllegalArgumentException("DeviceBucketer can not have coordinate " +
+                            "byte array size more than number of bytes require by Integer");
+                }
+                int intCoord = EnumSerializable.deserialize(coord);
+                if (bucketType.equals(deviceName)) {
+                    return DeviceType.values()[intCoord];
+                }
+                else if(bucketType.equals(osType)) {
+                    return OsManufacturer.values()[intCoord];
+                }
+                else {
+                    throw new RuntimeException(bucketType.toString()+" bucketType is not present");
+                }
             }
         }
 

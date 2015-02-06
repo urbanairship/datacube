@@ -35,6 +35,11 @@ public interface Bucketer<F> {
      * Return all bucket types that exist in this dimension.
      */
     public List<BucketType> getBucketTypes();
+
+    /**
+     * Return coordinate represented by byte array
+     */
+    public Object deserialize(byte[] coord, BucketType bucketType);
     
     
     /**
@@ -57,6 +62,12 @@ public interface Bucketer<F> {
         @Override
         public List<BucketType> getBucketTypes() {
             return bucketTypes;
+        }
+
+        @Override
+        public Object deserialize(byte[] coord, BucketType bucketType) {
+            throw new RuntimeException(IdentityBucketer.class.getSimpleName()+" can not be" +
+                    " used to get coordinate");
         }
     }
 }

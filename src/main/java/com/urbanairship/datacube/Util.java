@@ -57,6 +57,17 @@ public class Util {
         bb.flip();
         return bb.getLong();
     }
+
+    public static int bytesToIntPad(byte[] bytes){
+        final int padZeros = Math.max(4-bytes.length, 0);
+        ByteBuffer bb = ByteBuffer.allocate(4);
+        for(int i = 0; i < padZeros; i++) {
+            bb.put((byte)0);
+        }
+        bb.put(bytes, 0, 4-padZeros);
+        bb.flip();
+        return bb.getInt();
+    }
     
     public static byte[] intToBytes(int x) {
         ByteBuffer bb = ByteBuffer.allocate(4);

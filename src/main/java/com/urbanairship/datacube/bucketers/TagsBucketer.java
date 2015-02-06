@@ -37,4 +37,12 @@ public class TagsBucketer implements Bucketer<Collection<String>> {
     public List<BucketType> getBucketTypes() {
         return ImmutableList.of(BucketType.IDENTITY);
     }
+
+    @Override
+    public String deserialize(byte[] coord, BucketType bucketType) {
+        if (coord == null || coord.length == 0)
+            throw new IllegalArgumentException("Null or Zero length byte array can not be " +
+                    "deserialized");
+        return StringSerializable.deserialize(coord);
+    }
 }

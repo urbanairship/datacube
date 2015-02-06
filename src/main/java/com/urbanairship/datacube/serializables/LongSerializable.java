@@ -12,7 +12,7 @@ import com.urbanairship.datacube.Util;
  */
 public class LongSerializable implements CSerializable {
     private final long l;
-    
+
     public LongSerializable(long l) {
         this.l = l;
     }
@@ -24,5 +24,9 @@ public class LongSerializable implements CSerializable {
 
     public static byte[] staticSerialize(long l) {
         return Util.longToBytes(l);
+    }
+
+    public static Long deserialize(byte[] coord) {
+        return Util.bytesToLong(coord);
     }
 }
