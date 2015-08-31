@@ -4,6 +4,8 @@ Copyright 2012 Urban Airship and Contributors
 
 package com.urbanairship.datacube;
 
+import com.google.common.base.Optional;
+
 import java.io.IOException;
 
 /**
@@ -29,12 +31,14 @@ import java.io.IOException;
  */
 
 public interface IdService {
-    public byte[] getId(int dimensionNum, byte[] input, int numIdBytes) throws IOException, InterruptedException;
-    
+    byte[] getOrCreateId(int dimensionNum, byte[] input, int numIdBytes) throws IOException, InterruptedException;
+
+    Optional<byte[]> getId(int dimensionNum, byte[] input, int numIdBytes) throws IOException, InterruptedException;
+
     /**
      * Utilities to make implementation of IdService easier.
      */
-    public static class Validate {
+    class Validate {
         /**
          * @throws IllegalArgumentException if dimensionNum is ridiculously large or <0.
          */
