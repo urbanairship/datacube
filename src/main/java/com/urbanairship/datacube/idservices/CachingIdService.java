@@ -4,104 +4,85 @@ Copyright 2012 Urban Airship and Contributors
 
 package com.urbanairship.datacube.idservices;
 
-import java.io.IOException;
-import java.util.concurrent.ExecutionException;
-
-import com.yammer.metrics.Metrics;
-import com.yammer.metrics.core.Gauge;
-import org.apache.commons.codec.binary.Hex;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
+import com.google.common.base.Optional;
+import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
-import com.google.common.cache.CacheLoader;
-import com.google.common.cache.LoadingCache;
-import com.google.common.cache.RemovalListener;
-import com.google.common.cache.RemovalNotification;
 import com.urbanairship.datacube.BoxedByteArray;
 import com.urbanairship.datacube.IdService;
+import com.yammer.metrics.Metrics;
+import com.yammer.metrics.core.Gauge;
+
+import java.io.IOException;
 
 /**
- * An IdService that wraps around another IdService and caches its results. Calls to getId() are
+ * An IdService that wraps around another IdService and caches its results. Calls to getOrCreateId() are
  * served from the cache if present, or passed on to the wrapped IdService if not present.
- * 
+ * <p/>
  * Since input->uniqueID mappings are immutable and consistent between nodes, we don't have to
  * deal with invalidation, so caching is straightforward.
  */
 public class CachingIdService implements IdService {
-    private final static Logger log = LoggerFactory.getLogger(CachingIdService.class);
-    
-    private final LoadingCache<Key,byte[]> readThroughCache;
+    private final Cache<Key, byte[]> cache;
+    private final IdService wrappedIdService;
 
-    private final Gauge cacheSize;
-    private final Gauge cacheEffectiveness;
-    
     public CachingIdService(int numCached, final IdService wrappedIdService, final String cacheName) {
-        readThroughCache = CacheBuilder.newBuilder()
+        this.wrappedIdService = wrappedIdService;
+        this.cache = CacheBuilder.newBuilder()
                 .maximumSize(numCached)
                 .softValues()
                 .recordStats()
-                .removalListener(new RemovalListener<Key, byte[]>() {
-                    @Override
-                    public void onRemoval(RemovalNotification<Key, byte[]> notification) {
-                        if (log.isDebugEnabled()) {
-                            log.debug("Evicting cache key " + notification.getKey() + ", value " +
-                                    Hex.encodeHexString(notification.getValue()));
-                        }
-                    }
-                })
-                .build(new CacheLoader<Key,byte[]>() {
-                    @Override
-                    public byte[] load(final Key key) throws IOException, InterruptedException  {
-                        byte[] uniqueId = wrappedIdService.getId(key.dimensionNum, 
-                                key.bytes.bytes, key.idLength);
-                        if(log.isDebugEnabled()) {
-                            log.debug("Cache loader for key " + key + " returning " +
-                                    Hex.encodeHexString(uniqueId));
-                        }
-                        return uniqueId;
-                    }
-                });
+                .build();
 
-        cacheSize = Metrics.newGauge(CachingIdService.class, cacheName+" ID Cache size", new Gauge<Long>() {
+        Metrics.newGauge(CachingIdService.class, cacheName + " ID Cache size", new Gauge<Long>() {
             @Override
             public Long value() {
-                return readThroughCache.size();
+                return cache.size();
             }
         });
 
-        cacheEffectiveness = Metrics.newGauge(CachingIdService.class, cacheName+"ID Cache effectiveness", new Gauge<Double>() {
+        Metrics.newGauge(CachingIdService.class, cacheName + "ID Cache effectiveness", new Gauge<Double>() {
             @Override
             public Double value() {
-                return readThroughCache.stats().hitRate();
+                return cache.stats().hitRate();
             }
         });
     }
-    
-    
+
+
     @Override
-    public byte[] getId(int dimensionNum, byte[] bytes, int numIdBytes) throws IOException, InterruptedException {
-        try {
-            return readThroughCache.get(new Key(dimensionNum, new BoxedByteArray(bytes), 
-                    numIdBytes));
-        } catch (ExecutionException e) {
-            Throwable cause = e.getCause();
-            if(cause instanceof IOException) {
-                throw (IOException)cause;
-            } else if (cause instanceof InterruptedException) {
-                throw (InterruptedException)cause;
-            } else {
-                throw new RuntimeException(e);
-            }
+    public byte[] getOrCreateId(int dimensionNum, byte[] bytes, int numIdBytes) throws IOException, InterruptedException {
+        final Key key = new Key(dimensionNum, new BoxedByteArray(bytes), numIdBytes);
+        byte[] currentVal = cache.getIfPresent(key);
+        if (currentVal == null) {
+            final byte[] id = wrappedIdService.getOrCreateId(dimensionNum, bytes, numIdBytes);
+            cache.put(key, id);
+            return id;
+        } else {
+            return currentVal;
         }
-                
     }
-    
+
+    @Override
+    public Optional<byte[]> getId(int dimensionNum, byte[] bytes, int numIdBytes) throws IOException, InterruptedException {
+        final Key key = new Key(dimensionNum, new BoxedByteArray(bytes), numIdBytes);
+        final byte[] cachedVal = cache.getIfPresent(key);
+
+        if (cachedVal == null) {
+            final Optional<byte[]> id = wrappedIdService.getId(dimensionNum, bytes, numIdBytes);
+            if (id.isPresent()) {
+                cache.put(key, id.get());
+            }
+            return id;
+        } else {
+            return Optional.of(cachedVal);
+        }
+    }
+
     private class Key {
         private final int dimensionNum;
         private final BoxedByteArray bytes;
         private final int idLength;
-        
+
         public Key(int dimensionNum, BoxedByteArray bytes, int idLength) {
             this.dimensionNum = dimensionNum;
             this.bytes = bytes;

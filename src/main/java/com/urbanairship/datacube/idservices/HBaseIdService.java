@@ -4,221 +4,227 @@ Copyright 2012 Urban Airship and Contributors
 
 package com.urbanairship.datacube.idservices;
 
-import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Map.Entry;
-
-import org.apache.commons.codec.binary.Base64;
+import com.google.common.base.Optional;
+import com.google.common.collect.HashMultimap;
+import com.google.common.collect.Multimap;
+import com.google.common.collect.Sets;
+import com.google.common.math.LongMath;
+import com.urbanairship.datacube.IdService;
+import com.urbanairship.datacube.Util;
+import com.urbanairship.datacube.dbharnesses.WithHTable;
+import com.urbanairship.datacube.dbharnesses.WithHTable.ScanRunnable;
+import com.yammer.metrics.Metrics;
+import com.yammer.metrics.core.Gauge;
+import com.yammer.metrics.core.Meter;
+import com.yammer.metrics.core.Timer;
+import com.yammer.metrics.core.TimerContext;
 import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.lang.ArrayUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HBaseConfiguration;
-import org.apache.hadoop.hbase.client.Delete;
 import org.apache.hadoop.hbase.client.Get;
 import org.apache.hadoop.hbase.client.HTablePool;
 import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.client.ResultScanner;
 import org.apache.hadoop.hbase.client.Scan;
+import org.apache.hadoop.hbase.util.Bytes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.collect.HashMultimap;
-import com.google.common.collect.Multimap;
-import com.google.common.math.LongMath;
-import com.urbanairship.datacube.IdService;
-import com.urbanairship.datacube.Util;
-import com.urbanairship.datacube.dbharnesses.WithHTable;
-import com.urbanairship.datacube.dbharnesses.WithHTable.ScanRunnable;
+import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Map.Entry;
+import java.util.Set;
+import java.util.concurrent.TimeUnit;
 
 public class HBaseIdService implements IdService {
     private static final Logger log = LoggerFactory.getLogger(HBaseIdService.class);
-    
-    public static final byte[] QUALIFIER = ArrayUtils.EMPTY_BYTE_ARRAY;
-    public static final long ALLOC_TIMEOUT_MS = 10000; 
 
-    private static enum Status {ALLOCATING, ALLOCATED}; // don't change ordinals
-    private static final byte[] ALLOCATING_BYTES = new byte[] {(byte)Status.ALLOCATING.ordinal()}; 
-    
+    public static final byte[] QUALIFIER = ArrayUtils.EMPTY_BYTE_ARRAY;
+    public static final int MAX_COMPAT_TRIES = 20;
+    public static final int COMPAT_RETRY_SLEEP = 2000;
+
+    private enum Status {@Deprecated ALLOCATING, ALLOCATED} // don't change ordinals
+
+    private static final byte[] ALLOCATED_BYTES = new byte[]{(byte) Status.ALLOCATED.ordinal()};
+    private static final byte[] EMPTY = new byte[0];
+
     private final HTablePool pool;
     private final byte[] counterTable;
     private final byte[] lookupTable;
     private final byte[] uniqueCubeName;
     private final byte[] cf;
-    
-    public HBaseIdService(Configuration configuration, byte[] lookupTable, 
-            byte[] counterTable, byte[] cf, byte[] uniqueCubeName) {
+    private final Meter allocatingSleeps;
+    private final Meter wastedIdNumbers;
+    private final Timer idCreationTime;
+    private final Timer idGetTime;
+    private final Set<Integer> dimensionsApproachingExhaustion;
+
+    public HBaseIdService(Configuration configuration, byte[] lookupTable,
+                          byte[] counterTable, byte[] cf, byte[] uniqueCubeName) {
         pool = new HTablePool(configuration, Integer.MAX_VALUE);
         this.lookupTable = lookupTable;
         this.counterTable = counterTable;
         this.uniqueCubeName = uniqueCubeName;
         this.cf = cf;
+        this.dimensionsApproachingExhaustion = Sets.newConcurrentHashSet();
+
+        this.allocatingSleeps = Metrics.newMeter(HBaseIdService.class,
+                "ALLOCATING_sleeps", Bytes.toString(uniqueCubeName), "sleeps", TimeUnit.SECONDS);
+
+        this.wastedIdNumbers = Metrics.newMeter(HBaseIdService.class,
+                "wasted_id_numbers", Bytes.toString(uniqueCubeName), "wasted_ids", TimeUnit.SECONDS);
+
+        this.idCreationTime = Metrics.newTimer(HBaseIdService.class,
+                "id_create", Bytes.toString(uniqueCubeName), TimeUnit.MILLISECONDS, TimeUnit.SECONDS);
+
+        this.idGetTime = Metrics.newTimer(HBaseIdService.class,
+                "id_get", Bytes.toString(uniqueCubeName), TimeUnit.MILLISECONDS, TimeUnit.SECONDS);
+
+        Metrics.newGauge(HBaseIdService.class,
+                "ids_approaching_exhaustion", Bytes.toString(uniqueCubeName), new Gauge<String>() {
+                    @Override
+                    public String value() {
+                        return dimensionsApproachingExhaustion.toString();
+                    }
+                });
     }
-    
+
     @Override
-    public byte[] getId(int dimensionNum, byte[] input, int numIdBytes) throws IOException,
+    public byte[] getOrCreateId(int dimensionNum, byte[] input, int numIdBytes) throws IOException,
             InterruptedException {
         Validate.validateDimensionNum(dimensionNum);
         Validate.validateNumIdBytes(numIdBytes);
 
+        // First check if the ID exists already
         final byte[] lookupKey = makeLookupKey(dimensionNum, input);
-
-        /*
-         * PHASE 1
-         * 
-         * Look up the (status,id) for this input. If there is already an id for this
-         * input, return it. Otherwise:
-         * 
-         * Case: If there is a record showing that another thread is currently trying to allocate 
-         * an id for this input, sleep and try again soon.
-         * 
-         * Case: If there is a record showing that another thread tried to allocate an id for
-         * this input a long time ago, assume that it failed and replace it with our own record
-         * showing that we're attempting to allocate an id for this input.
-         * 
-         * Case: If there are no records showing that any other thread has attempt to allocate
-         * an id for this input, insert a record showing that we're trying to allocate an id.
-         */
-        byte[] allocRecord;
-        while(true) {
-            Result result = WithHTable.get(pool, lookupTable, new Get(lookupKey));
-            final byte[] columnVal = result.getValue(cf, QUALIFIER);
-            if(columnVal != null) {
-                int statusOrdinal = columnVal[0];
-                Status status = Status.values()[statusOrdinal];
-                if(log.isDebugEnabled()) {
-                    log.debug("Entry status is " + status);
-                }
-                switch(status) {
-                case ALLOCATED:
-                    byte[] id = Util.trailingBytes(columnVal, numIdBytes);
-                    if(log.isDebugEnabled()) {
-                        log.debug("Already allocated, returning " + Hex.encodeHexString(id));
-                    }
-                    return id; 
-                case ALLOCATING:
-                    long allocTimestamp = result.getColumn(cf, QUALIFIER).get(0).getTimestamp();
-                    long msSinceAlloc = System.currentTimeMillis() - allocTimestamp;
-                    
-                    if(msSinceAlloc < ALLOC_TIMEOUT_MS) {
-                        // Another thread is already allocating an id for this tag. Wait.
-                        if(log.isDebugEnabled()) {
-                            log.debug("Waiting for other thread to finish allocating id");
-                        }
-                        Thread.sleep(500);
-                        continue;
-                    } else {
-                        log.warn("Preempting expired allocator for input " + 
-                                Base64.encodeBase64String(input));
-                    }
-                    break;
-                default:
-                    throw new RuntimeException("Unexpected column value " + 
-                            Arrays.toString(columnVal));
-                }
-            }
-            // Either (1) there is no entry for this tag, or (2) there was an ALLOCATING
-            // placeholder for this tag, but it has expired. checkAndPut the new value
-            // into place.
-
-            final Put put = new Put(lookupKey);
-            byte[] nanoStamp = Util.longToBytes(System.nanoTime());
-            allocRecord = ArrayUtils.addAll(ALLOCATING_BYTES, nanoStamp);
-            put.add(cf, QUALIFIER, allocRecord);
-            
-            boolean swapSuccess = WithHTable.checkAndPut(pool, lookupTable, lookupKey, cf, 
-                    QUALIFIER, columnVal, put);
-            if(swapSuccess) {
-                if(log.isDebugEnabled()) {
-                    log.debug("Allocation record CAS success");
-                }
-                break;
-            }
-            if(log.isDebugEnabled()) {
-                log.debug("Allocation record CAS failed, retrying");
-            }
-
+        final Optional<byte[]> existingId = getId(lookupKey, numIdBytes);
+        if (existingId.isPresent()) {
+            return existingId.get();
         }
 
-        /*
-         * PHASE 2
-         * 
-         * We've successfully inserted a record showing that we're going to allocate an ID for
-         * this input. This should temporarily exclude other threads from trying to do the
-         * same. This exclusion prevents unused IDs from being allocated if multiple threads
-         * allocate an ID concurrently.
-         * 
-         * Now we assign an ID by taking the next key of the counter for this dimension.
-         */
+        final TimerContext timer = idCreationTime.time();
+        // If not, we need to create it. First get a new id # from the counter table...
         byte[] counterKey = makeCounterKey(dimensionNum);
         final long id = WithHTable.increment(pool, counterTable, counterKey, cf, QUALIFIER, 1L);
-        if(log.isDebugEnabled()) {
+
+        if (log.isDebugEnabled()) {
             log.debug("Allocated new id " + id);
         }
-        
+
         final long maxId = LongMath.pow(2L, numIdBytes * 8);
-        if(id > maxId) {
-            // This dimension has no more IDs available. We'll throw an exception, but first we'll
-            // remove the "ALLOCATING" record so future attempts can fail quickly.
-            // If this CAS fails, there's another concurrent thread trying to allocate an ID for
-            // the same input, but there's nothing we can do about it.
-            WithHTable.checkAndDelete(pool, lookupTable, lookupKey, cf, QUALIFIER, 
-                    allocRecord, new Delete(lookupKey));
+        if (id > maxId) {
+            // This dimension has no more IDs available.
             throw new RuntimeException("Exhausted IDs for dimension " + dimensionNum);
-        }
-        if(id < 0) {
+        } else if (id < 0) {
             throw new RuntimeException("Somehow ID was less than zero. Weird!");
+        } else if (maxId / id <= 2) {
+            //If we've used half the keyspace, mark it as approaching exhaustion
+            dimensionsApproachingExhaustion.add(dimensionNum);
         }
-        
-        /*
-         * PHASE 3
-         * 
-         * We have a unique value to be used as an id value. Now we persist the mapping from
-         * input -> id. 
-         * 
-         * This write is done as a checkAndPut to handle the rare possibility that
-         * another thread preempted our allocation record and allocated an ID. This could 
-         * occur if our thread suffered a long GC pause or other slowness. It's critical that
-         * we don't replace an existing valid mapping, since we must have complete consistency
-         * of IDs: once one thread uses an input->id mapping, every other thread must use it
-         * forever.
-         */
+
+        // Then try to CAS it into the lookup table. If this fails someone beat us to it, and a
+        // get should succeed.
         final Put put = new Put(lookupKey);
-        byte[] allocatedRecord = ArrayUtils.addAll(new byte[] {(byte)Status.ALLOCATED.ordinal()}, 
-                Util.longToBytes(id));
+        byte[] allocatedRecord = ArrayUtils.addAll(HBaseIdService.ALLOCATED_BYTES, Util.longToBytes(id));
         put.add(cf, QUALIFIER, allocatedRecord);
-        boolean swapSuccess = WithHTable.checkAndPut(pool, lookupTable, lookupKey, cf, QUALIFIER, 
-                allocRecord, put);
-        if(swapSuccess) {
+
+        boolean swapSuccess = WithHTable.checkAndPut(pool, lookupTable, lookupKey, cf, QUALIFIER, EMPTY, put);
+        if (swapSuccess) {
+            timer.stop();
             return Util.leastSignificantBytes(id, numIdBytes);
         } else {
-            log.warn("Concurrent allocators!?!? ID " + id + " will never be used");
-            // Recurse, try again.
-            return getId(dimensionNum, input, numIdBytes);
+            // Someone beat us to creating the mapping, note that and return whatever they inserted.
+            wastedIdNumbers.mark();
+            final Optional<byte[]> currentValue = getId(lookupKey, numIdBytes);
+            timer.stop();
+            if (currentValue.isPresent()) {
+                return currentValue.get();
+            } else {
+                throw new RuntimeException("Failed to get id for row " + Bytes.toString(lookupKey) + " after CAS failed");
+            }
         }
     }
-    
+
+    @Override
+    public Optional<byte[]> getId(int dimensionNum, byte[] input, int numIdBytes) throws IOException, InterruptedException {
+        Validate.validateDimensionNum(dimensionNum);
+        Validate.validateNumIdBytes(numIdBytes);
+
+        final byte[] lookupkey = makeLookupKey(dimensionNum, input);
+        return getId(lookupkey, numIdBytes);
+    }
+
+    private Optional<byte[]> getId(byte[] lookupkey, int numIdBytes) throws IOException, InterruptedException {
+        final TimerContext timer = idGetTime.time();
+        Result result = WithHTable.get(pool, lookupTable, new Get(lookupkey));
+        final byte[] columnVal = result.getValue(cf, QUALIFIER);
+        int tries = 0;
+
+        while (tries < MAX_COMPAT_TRIES) {
+            if (columnVal != null) {
+                int statusOrdinal = columnVal[0];
+                Status status = Status.values()[statusOrdinal];
+
+                if (log.isDebugEnabled()) {
+                    log.debug("Entry status is " + status);
+                }
+
+                switch (status) {
+                    case ALLOCATED:
+                        byte[] id = Util.trailingBytes(columnVal, numIdBytes);
+
+                        if (log.isDebugEnabled()) {
+                            log.debug("Already allocated, returning " + Hex.encodeHexString(id));
+                        }
+
+                        timer.stop();
+                        return Optional.of(id);
+
+                    case ALLOCATING:
+                        //This is here to allow old style writers to coexist. We let them have priority.
+                        //If all writers are using this or a newer version, this case should never be hit.
+                        allocatingSleeps.mark();
+                        Thread.sleep(COMPAT_RETRY_SLEEP);
+                        tries++;
+                        break;
+
+                    default:
+                        throw new RuntimeException("Unexpected column value " +
+                                Arrays.toString(columnVal));
+                }
+            } else {
+                timer.stop();
+                return Optional.absent();
+            }
+        }
+
+        throw new RuntimeException(String.format("Row %s was still 'ALLOCATING' after %d millis. Something is wrong.",
+                Bytes.toString(lookupkey), MAX_COMPAT_TRIES * COMPAT_RETRY_SLEEP));
+    }
+
     public boolean consistencyCheck() throws IOException {
         Scan scan = new Scan();
         scan.setStartRow(uniqueCubeName);
-        scan.setStopRow(ArrayUtils.addAll(uniqueCubeName, new byte[] {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1}));
+        scan.setStopRow(ArrayUtils.addAll(uniqueCubeName, new byte[]{-1, -1, -1, -1, -1, -1, -1, -1, -1, -1}));
         scan.addFamily(cf);
         return WithHTable.scan(pool, lookupTable, scan, new ScanRunnable<Boolean>() {
             @Override
             public Boolean run(ResultScanner rs) {
                 boolean anyInconsistenciesFound = false;
-                Multimap<Short,Long> sawIds = HashMultimap.create();
-                
-                for(Result result: rs) {
+                Multimap<Short, Long> sawIds = HashMultimap.create();
+
+                for (Result result : rs) {
                     byte[] rowKey = result.getRow();
                     ByteBuffer bb = ByteBuffer.allocate(2);
                     bb.put(rowKey, uniqueCubeName.length, 2);
                     bb.flip();
                     short dimensionNum = bb.getShort();
                     long id = ByteBuffer.wrap(result.getValue(cf, QUALIFIER)).getLong(1);
-                    if(sawIds.containsEntry(dimensionNum, id)) {
+                    if (sawIds.containsEntry(dimensionNum, id)) {
                         log.error("Saw a dupe: dimension=" + dimensionNum + " id=" + id);
                         anyInconsistenciesFound = true;
                     } else {
@@ -226,27 +232,27 @@ public class HBaseIdService implements IdService {
                         sawIds.put(dimensionNum, id);
                     }
                 }
-                
-                for(Entry<Short,Collection<Long>> e: sawIds.asMap().entrySet()) {
+
+                for (Entry<Short, Collection<Long>> e : sawIds.asMap().entrySet()) {
                     short dimensionNum = e.getKey();
                     Collection<Long> idsThisDimension = e.getValue();
-                    
+
                     long maxId = Long.MIN_VALUE;
-                    for(Long id: idsThisDimension) {
+                    for (Long id : idsThisDimension) {
                         maxId = Math.max(id, maxId);
                     }
-                    
-                    if(idsThisDimension.size() != maxId) {
+
+                    if (idsThisDimension.size() != maxId) {
                         log.error("Some ids were missing in dimension " + dimensionNum);
                         anyInconsistenciesFound = true;
                     }
                 }
-                
+
                 return !anyInconsistenciesFound;
             }
         });
     }
-    
+
     /**
      * This class gives users a way to run a consistency check from the command line.
      */
@@ -256,10 +262,10 @@ public class HBaseIdService implements IdService {
             byte[] counterTable = args[1].getBytes();
             byte[] cf = args[2].getBytes();
             byte[] uniqueCubeName = args[3].getBytes();
-            
+
             Configuration conf = HBaseConfiguration.create(); // parse XML configs on classpath
             HBaseIdService idService = new HBaseIdService(conf, lookupTable, counterTable, cf, uniqueCubeName);
-            if(idService.consistencyCheck()) {
+            if (idService.consistencyCheck()) {
                 log.info("Check passed");
                 System.exit(0);
             } else {
@@ -273,16 +279,16 @@ public class HBaseIdService implements IdService {
         final int bufSize = uniqueCubeName.length + 2; // 2 for dimensionNum 
         ByteBuffer bb = ByteBuffer.allocate(bufSize);
         bb.put(uniqueCubeName);
-        bb.putShort((short)dimensionNum);
+        bb.putShort((short) dimensionNum);
         assert bb.remaining() == 0;
         return bb.array();
     }
-    
+
     private byte[] makeLookupKey(int dimensionNum, byte[] input) {
-        final int bufSize = uniqueCubeName.length + 2 /*dimensionNum*/ + input.length; 
+        final int bufSize = uniqueCubeName.length + 2 /*dimensionNum*/ + input.length;
         ByteBuffer bb = ByteBuffer.allocate(bufSize);
         bb.put(uniqueCubeName);
-        bb.putShort((short)dimensionNum);
+        bb.putShort((short) dimensionNum);
         bb.put(input);
         assert bb.remaining() == 0;
         return bb.array();
