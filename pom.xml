@@ -1,11 +1,11 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
 
-  <parent>
+  <!-- parent>
     <groupId>org.sonatype.oss</groupId>
     <artifactId>oss-parent</artifactId>
     <version>7</version>
-  </parent>
+  </parent -->
 
   <groupId>com.urbanairship</groupId>
   <artifactId>datacube</artifactId>
@@ -15,6 +15,17 @@
   <name>datacube</name>
   <description>OLAP cube-like streaming aggregate library</description>
   <url>http://github.com/urbanairship/datacube</url>
+
+  <distributionManagement>
+    <repository>
+      <id>releases</id>
+      <url>http://nexus.prod.urbanairship.com/content/repositories/releases</url>
+    </repository>
+    <snapshotRepository>
+      <id>releases</id>
+      <url>http://nexus.prod.urbanairship.com/content/repositories/snapshots</url>
+    </snapshotRepository>
+  </distributionManagement>
 
   <build>
     <plugins>
