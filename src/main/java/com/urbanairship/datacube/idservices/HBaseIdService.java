@@ -7,11 +7,17 @@ package com.urbanairship.datacube.idservices;
 import com.google.common.base.Optional;
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Multimap;
+import com.google.common.collect.Sets;
 import com.google.common.math.LongMath;
 import com.urbanairship.datacube.IdService;
 import com.urbanairship.datacube.Util;
 import com.urbanairship.datacube.dbharnesses.WithHTable;
 import com.urbanairship.datacube.dbharnesses.WithHTable.ScanRunnable;
+import com.yammer.metrics.Metrics;
+import com.yammer.metrics.core.Gauge;
+import com.yammer.metrics.core.Meter;
+import com.yammer.metrics.core.Timer;
+import com.yammer.metrics.core.TimerContext;
 import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.lang.ArrayUtils;
 import org.apache.hadoop.conf.Configuration;
@@ -31,13 +37,15 @@ import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Map.Entry;
+import java.util.Set;
+import java.util.concurrent.TimeUnit;
 
 public class HBaseIdService implements IdService {
     private static final Logger log = LoggerFactory.getLogger(HBaseIdService.class);
 
     public static final byte[] QUALIFIER = ArrayUtils.EMPTY_BYTE_ARRAY;
     public static final int MAX_COMPAT_TRIES = 20;
-    public static final int COMPAT_RETRY_SLEEP = 500;
+    public static final int COMPAT_RETRY_SLEEP = 2000;
 
     private enum Status {@Deprecated ALLOCATING, ALLOCATED} // don't change ordinals
 
@@ -49,6 +57,11 @@ public class HBaseIdService implements IdService {
     private final byte[] lookupTable;
     private final byte[] uniqueCubeName;
     private final byte[] cf;
+    private final Meter allocatingSleeps;
+    private final Meter wastedIdNumbers;
+    private final Timer idCreationTime;
+    private final Timer idGetTime;
+    private final Set<Integer> dimensionsApproachingExhaustion;
 
     public HBaseIdService(Configuration configuration, byte[] lookupTable,
                           byte[] counterTable, byte[] cf, byte[] uniqueCubeName) {
@@ -57,6 +70,27 @@ public class HBaseIdService implements IdService {
         this.counterTable = counterTable;
         this.uniqueCubeName = uniqueCubeName;
         this.cf = cf;
+        this.dimensionsApproachingExhaustion = Sets.newConcurrentHashSet();
+
+        this.allocatingSleeps = Metrics.newMeter(HBaseIdService.class,
+                "ALLOCATING_sleeps", Bytes.toString(uniqueCubeName), "sleeps", TimeUnit.SECONDS);
+
+        this.wastedIdNumbers = Metrics.newMeter(HBaseIdService.class,
+                "wasted_id_numbers", Bytes.toString(uniqueCubeName), "wasted_ids", TimeUnit.SECONDS);
+
+        this.idCreationTime = Metrics.newTimer(HBaseIdService.class,
+                "id_create", Bytes.toString(uniqueCubeName), TimeUnit.MILLISECONDS, TimeUnit.SECONDS);
+
+        this.idGetTime = Metrics.newTimer(HBaseIdService.class,
+                "id_get", Bytes.toString(uniqueCubeName), TimeUnit.MILLISECONDS, TimeUnit.SECONDS);
+
+        Metrics.newGauge(HBaseIdService.class,
+                "ids_approaching_exhaustion", Bytes.toString(uniqueCubeName), new Gauge<String>() {
+                    @Override
+                    public String value() {
+                        return dimensionsApproachingExhaustion.toString();
+                    }
+                });
     }
 
     @Override
@@ -72,6 +106,7 @@ public class HBaseIdService implements IdService {
             return existingId.get();
         }
 
+        final TimerContext timer = idCreationTime.time();
         // If not, we need to create it. First get a new id # from the counter table...
         byte[] counterKey = makeCounterKey(dimensionNum);
         final long id = WithHTable.increment(pool, counterTable, counterKey, cf, QUALIFIER, 1L);
@@ -86,6 +121,9 @@ public class HBaseIdService implements IdService {
             throw new RuntimeException("Exhausted IDs for dimension " + dimensionNum);
         } else if (id < 0) {
             throw new RuntimeException("Somehow ID was less than zero. Weird!");
+        } else if (maxId / id <= 2) {
+            //If we've used half the keyspace, mark it as approaching exhaustion
+            dimensionsApproachingExhaustion.add(dimensionNum);
         }
 
         // Then try to CAS it into the lookup table. If this fails someone beat us to it, and a
@@ -96,9 +134,13 @@ public class HBaseIdService implements IdService {
 
         boolean swapSuccess = WithHTable.checkAndPut(pool, lookupTable, lookupKey, cf, QUALIFIER, EMPTY, put);
         if (swapSuccess) {
+            timer.stop();
             return Util.leastSignificantBytes(id, numIdBytes);
         } else {
+            // Someone beat us to creating the mapping, note that and return whatever they inserted.
+            wastedIdNumbers.mark();
             final Optional<byte[]> currentValue = getId(lookupKey, numIdBytes);
+            timer.stop();
             if (currentValue.isPresent()) {
                 return currentValue.get();
             } else {
@@ -117,6 +159,7 @@ public class HBaseIdService implements IdService {
     }
 
     private Optional<byte[]> getId(byte[] lookupkey, int numIdBytes) throws IOException, InterruptedException {
+        final TimerContext timer = idGetTime.time();
         Result result = WithHTable.get(pool, lookupTable, new Get(lookupkey));
         final byte[] columnVal = result.getValue(cf, QUALIFIER);
         int tries = 0;
@@ -138,11 +181,13 @@ public class HBaseIdService implements IdService {
                             log.debug("Already allocated, returning " + Hex.encodeHexString(id));
                         }
 
+                        timer.stop();
                         return Optional.of(id);
 
                     case ALLOCATING:
                         //This is here to allow old style writers to coexist. We let them have priority.
                         //If all writers are using this or a newer version, this case should never be hit.
+                        allocatingSleeps.mark();
                         Thread.sleep(COMPAT_RETRY_SLEEP);
                         tries++;
                         break;
@@ -152,6 +197,7 @@ public class HBaseIdService implements IdService {
                                 Arrays.toString(columnVal));
                 }
             } else {
+                timer.stop();
                 return Optional.absent();
             }
         }
