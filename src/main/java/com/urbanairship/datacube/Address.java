@@ -4,15 +4,16 @@ Copyright 2012 Urban Airship and Contributors
 
 package com.urbanairship.datacube;
 
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import org.apache.hadoop.hbase.util.Bytes;
+
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 
 /**
  * This class is mostly intended for internal use by datacube code. By using this class directly you
@@ -62,10 +63,10 @@ public class Address {
      */
     public byte[] toKey(IdService idService) throws IOException, InterruptedException {
         List<Dimension<?>> dimensions = cube.getDimensions();
-        
+
         boolean sawOnlyWildcardsSoFar = true;
         List<byte[]> reversedKeyElems = Lists.newArrayListWithCapacity(dimensions.size());
-        
+
         // We build up the key in reverse order so we can leave off wildcards at the end of the key.
         // The reasoning for this is complicated, please see design docs.
         for(int i=dimensions.size()-1; i >= 0; i--) {
@@ -120,9 +121,17 @@ public class Address {
         for(byte[] keyElement: keyElemsInOrder) {
             totalKeySize += keyElement.length;
         }
-        ByteBuffer bb = ByteBuffer.allocate(totalKeySize);
-        
-        
+
+        ByteBuffer bb;
+
+        // Add a place holder for the hash byte if it's required
+        if (this.cube.useAddressPrefixByteHash()) {
+            bb = ByteBuffer.allocate(totalKeySize+1);
+            bb.put((byte)0x01);
+        } else {
+            bb = ByteBuffer.allocate(totalKeySize);
+        }
+
         for(byte[] keyElement: keyElemsInOrder) {
             bb.put(keyElement);
         }
@@ -131,9 +140,16 @@ public class Address {
             throw new AssertionError("Key length calculation was somehow wrong, " + 
                     bb.remaining() + " bytes remaining");
         }
+
+        // Update the byte prefix placeholder of the hash of the key contents if required.
+        if(this.cube.useAddressPrefixByteHash()) {
+            byte hashByte = Util.hashByteArray(bb.array(), 1, totalKeySize+1);
+            bb.put(0, hashByte);
+        }
+
         return bb.array();
     }
-    
+
     public String toString() {
         StringBuilder sb = new StringBuilder();
         sb.append("(");
