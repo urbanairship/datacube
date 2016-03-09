@@ -77,7 +77,30 @@ public class Util {
         return Arrays.copyOfRange(bs, bs.length-numBytes, bs.length);
     }
 
+    /**
+     * A utility to allow hashing of a portion of an array without having to copy it.
+     * @param array
+     * @param startInclusive
+     * @param endExclusive
+     * @return hash byte
+     */
+    public static byte hashByteArray(byte[] array, int startInclusive, int endExclusive) {
+        if (array == null) {
+            return 0;
+        }
 
+        int range = endExclusive - startInclusive;
+        if (range < 0) {
+            throw new IllegalArgumentException(startInclusive + " > " + endExclusive);
+        }
+
+        int result = 1;
+        for (int i=startInclusive; i<endExclusive; i++){
+            result = 31 * result + array[i];
+        }
+
+        return (byte)result;
+    }
     
     /**
      * Only use this for testing/debugging. Inefficient.

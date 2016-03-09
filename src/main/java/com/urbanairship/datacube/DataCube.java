@@ -4,18 +4,21 @@ Copyright 2012 Urban Airship and Contributors
 
 package com.urbanairship.datacube;
 
+import com.google.common.base.Optional;
+import com.google.common.collect.HashMultimap;
+import com.google.common.collect.Maps;
+import com.google.common.collect.Multimap;
+import com.google.common.collect.SetMultimap;
+import com.google.common.collect.Sets;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
-
-import com.google.common.collect.*;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import com.google.common.base.Optional;
 
 /**
  * A hypercube abstraction for storing number-like data. Good for storing counts of events
@@ -31,15 +34,33 @@ public class DataCube<T extends Op> {
     private final Multimap<Dimension<?>,BucketType> bucketsOfInterest;
     private final Set<Set<DimensionAndBucketType>> validAddressSet;
     private final Map<Rollup,RollupFilter> filters = Maps.newHashMap();
+    private final boolean useAddressPrefixByteHash;
 
     /**
-     * @param dims see {@link Dimension} 
+     *
+     * @param dims see {@link Dimension}
      * @param rollups see {@link Rollup}
      */
     public DataCube(List<Dimension<?>> dims, List<Rollup> rollups) {
+        this(dims, rollups, false);
+    }
+
+    /**
+     *
+     * @param dims see {@link Dimension}
+     * @param rollups see {@link Rollup}
+     * @param useAddressPrefixByteHash Prefix the keys by a hash byte (calculated by hashing each element
+     *                                 in the key).  This is only a storage artifact to benefit systems
+     *                                 like HBase, where monotonically increasing row keys can result in
+     *                                 hot spots.
+     *                                 Warning: Do NOT enable or disable this feature for an existing cube or
+     *                                 the keys will not map properly.
+     */
+    public DataCube(List<Dimension<?>> dims, List<Rollup> rollups, boolean useAddressPrefixByteHash) {
         this.dims = dims;
         this.rollups = rollups;
         this.validAddressSet = Sets.newHashSet();
+        this.useAddressPrefixByteHash = useAddressPrefixByteHash;
 
         bucketsOfInterest = HashMultimap.create();
 
@@ -136,6 +157,10 @@ public class DataCube<T extends Op> {
         }
         
         return new Batch<T>(outputMap);
+    }
+
+    public boolean useAddressPrefixByteHash() {
+        return useAddressPrefixByteHash;
     }
 
     public List<Dimension<?>> getDimensions() {
