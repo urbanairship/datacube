@@ -115,5 +115,7 @@ public class Dimension<F> {
     boolean isBucketed() {
         return isBucketed;
     }
+
+    public int sumDimensionBucketTypeAndBucket() { return (numFieldBytes + bucketPrefixSize); }
     
 }

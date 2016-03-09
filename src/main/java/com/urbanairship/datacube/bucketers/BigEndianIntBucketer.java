@@ -21,4 +21,12 @@ public class BigEndianIntBucketer extends AbstractIdentityBucketer<Integer> {
     public CSerializable makeSerializable(Integer coord) {
         return new IntSerializable(coord);
     }
+
+    @Override
+    public Integer deserialize(byte[] coord, BucketType bucketType) {
+        if (coord.length > 4)
+            throw new IllegalArgumentException("BigEndianIntBucketer can not have coordinate " +
+                    "byte array size more than number of bytes require by Integer");
+        return IntSerializable.deserialize(coord);
+    }
 }

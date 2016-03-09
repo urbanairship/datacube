@@ -35,5 +35,13 @@ public class BooleanBucketer extends AbstractIdentityBucketer<Boolean> {
     public static final BooleanBucketer getInstance() {
         return instance;
     }
+
+    @Override
+    public Boolean deserialize(byte[] coord, BucketType bucketType) {
+        if (coord == null || coord.length == 0)
+            throw new IllegalArgumentException("Null or Zero length byte array can not be " +
+                    "deserialized");
+        return BooleanSerializable.deserialize(coord);
+    }
 }
 

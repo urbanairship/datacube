@@ -31,4 +31,8 @@ public class StringSerializable implements CSerializable {
             throw new RuntimeException(e);
         }
     }
+
+    public static String deserialize(byte[] coord) {
+        return new String(coord);
+    }
 }

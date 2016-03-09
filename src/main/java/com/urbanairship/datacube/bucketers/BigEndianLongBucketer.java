@@ -37,4 +37,16 @@ public class BigEndianLongBucketer implements Bucketer<Long> {
     public List<BucketType> getBucketTypes() {
         return bucketTypes;
     }
+
+    @Override
+    public Long deserialize(byte[] coord, BucketType bucketType) {
+        if (coord == null || coord.length == 0) {
+            throw new IllegalArgumentException(
+                    "Null or Zero length byte array can not be" + " deserialized");
+        } else if (coord.length > 8) {
+            throw new IllegalArgumentException("BigEndianLongBucketer can not have coordinate " +
+                    "byte array size more than number of bytes require by Long");
+        }
+        return LongSerializable.deserialize(coord);
+    }
 }

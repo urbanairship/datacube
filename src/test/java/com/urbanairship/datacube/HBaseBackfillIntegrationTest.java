@@ -46,7 +46,7 @@ public class HBaseBackfillIntegrationTest extends EmbeddedClusterTestAbstract {
     private static final Dimension<DateTime> timeDimension = new Dimension<DateTime>("time", 
             new HourDayMonthBucketer(), false, 8);
     private static final Dimension<Color> colorDimension = new Dimension<Color>("color",
-            new EnumToOrdinalBucketer<Color>(1), false, 1);
+            new EnumToOrdinalBucketer<Color>(1, Color.class), false, 1);
     
     private static IdService idService;
     private static DataCube<LongOp> oldCube, newCube;

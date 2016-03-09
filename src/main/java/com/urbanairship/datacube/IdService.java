@@ -4,6 +4,14 @@ Copyright 2012 Urban Airship and Contributors
 
 package com.urbanairship.datacube;
 
+import com.urbanairship.datacube.idservices.HBaseIdService;
+import com.urbanairship.datacube.idservices.MapIdService;
+import org.apache.commons.lang.ArrayUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.io.ByteArrayInputStream;
+import java.io.DataInputStream;
 import java.io.IOException;
 
 /**
@@ -29,8 +37,11 @@ import java.io.IOException;
  */
 
 public interface IdService {
-    public byte[] getId(int dimensionNum, byte[] input, int numIdBytes) throws IOException, InterruptedException;
-    
+    public static final Logger log = LoggerFactory.getLogger(IdService.class);
+
+    public byte[] getId(int dimensionNum, byte[] input, int numIdBytes)
+            throws IOException, InterruptedException;
+
     /**
      * Utilities to make implementation of IdService easier.
      */
@@ -54,4 +65,39 @@ public interface IdService {
             }
         }
     }
+
+    public static class Deserializer {
+        private static final int lengthIntByte = 4;
+
+        public static IdService deserialize(byte[] bytes) {
+            ByteArrayInputStream input = new ByteArrayInputStream(bytes);
+            DataInputStream inputStream = new DataInputStream(input);
+            try {
+                int lengthClassName = inputStream.readInt();
+                byte[] className = new byte[lengthClassName];
+                inputStream.readFully(className, 0, lengthClassName);
+                Class<?> classType = Class.forName(new String(className));
+                log.debug("ClassType is {}", classType.toString());
+                if (classType.equals(MapIdService.class)) {
+                    byte[] subArray = ArrayUtils.subarray(bytes,
+                            (lengthClassName + lengthIntByte), bytes.length);
+                    return MapIdService.deserialize(subArray);
+                } else if (classType.equals(HBaseIdService.class)) {
+                    byte[] subArray = ArrayUtils.subarray(bytes,
+                            (lengthClassName + lengthIntByte), bytes.length);
+                    return HBaseIdService.deserialize(subArray);
+                } else {
+                    throw new RuntimeException(classType.toString() + " class " +
+                            " does not have implementaion of idserviceDeserialized method ");
+                }
+            } catch (Exception e) {
+                log.error("Exception in IdService deserialization is "+e);
+                throw new RuntimeException(e);
+            }
+        }
+    }
+
+    public byte[] getCoordinate(int dimensionNum, byte[] byteArray);
+
+    public byte[] serialize();
 }

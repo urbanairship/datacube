@@ -42,4 +42,8 @@ public class EnumSerializable implements CSerializable {
     public static byte[] staticSerialize(int ordinal, int numFieldBytes) {
         return Util.intToBytesWithLen(ordinal, numFieldBytes);
     }
+
+    public static int deserialize(byte[] coord){
+        return Util.bytesToIntPad(coord);
+    }
 }

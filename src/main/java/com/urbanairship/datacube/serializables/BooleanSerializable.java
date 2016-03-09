@@ -5,6 +5,7 @@ Copyright 2012 Urban Airship and Contributors
 package com.urbanairship.datacube.serializables;
 
 import com.urbanairship.datacube.CSerializable;
+import org.apache.commons.lang.ArrayUtils;
 import org.apache.hadoop.hbase.util.Bytes;
 
 /**
@@ -29,6 +30,20 @@ public class BooleanSerializable implements CSerializable{
             return TRUE_SERIAL;
         } else {
             return FALSE_SERIAL;
+        }
+    }
+
+    public static boolean deserialize(byte[] coord) {
+        if(ArrayUtils.isEquals(FALSE_SERIAL, coord)) {
+            return false;
+        }
+        else if (ArrayUtils.isEquals(TRUE_SERIAL, coord)) {
+            return true;
+        }
+        else {
+            throw new IllegalArgumentException("Byte array should be of length 1 and holding " +
+                    "(0 or 1 only) and Given byte array coordinate does not satisfy " +
+                    "this condition so can not deserialized");
         }
     }
 }

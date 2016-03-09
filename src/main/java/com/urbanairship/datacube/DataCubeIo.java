@@ -5,7 +5,11 @@ Copyright 2012 Urban Airship and Contributors
 package com.urbanairship.datacube;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -13,6 +17,13 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 import com.google.common.collect.Lists;
+import com.urbanairship.datacube.idservices.HBaseIdService;
+import com.urbanairship.datacube.idservices.MapIdService;
+import com.urbanairship.datacube.dimensionholder.DimensionHolder;
+
+import org.apache.commons.lang.ArrayUtils;
+import org.apache.hadoop.hbase.util.Bytes;
+import org.apache.hadoop.hbase.util.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -74,7 +85,8 @@ public class DataCubeIo<T extends Op> {
     private AsyncException asyncException = null;
     
     private final Object lock = new Object();
-    
+    private static final byte NON_WILDCARD_FIELD = 1;
+
     // This executor will wait for DB writes to complete then check if they had an error.
     private final ThreadPoolExecutor asyncErrorMonitorExecutor;
     
@@ -282,8 +294,225 @@ public class DataCubeIo<T extends Op> {
         cube.checkValidReadOrThrow(addr);
         return db.get(addr);
     }
-    
-    public Optional<T> get(ReadBuilder readBuilder) throws IOException, InterruptedException  {
+
+    /**
+     * This takes rowKey and returns map<Dimension, Value>
+     *
+     * @param rowKey
+     * @param idservice
+     * @param dimensionHolder
+     * @return
+     */
+    public static Map<String, String> getDimensionFromRowKey(byte[] rowKey, IdService idservice,
+            DimensionHolder dimensionHolder) {
+        if (rowKey == null || rowKey.length == 0) {
+            log.error("RowKey is either NULL or EMPTY");
+            throw new IllegalArgumentException("RowKey is either NULL or EMPTY");
+        }
+        Map<String, String> returnDimensionMap = new HashMap<String, String>();
+        ArrayList<Dimension<?>> cubeDimensions = dimensionHolder.getDimensionArrayList();
+        int rowKeyIndex = 0;
+        int dimensionIndex = 0;
+        while (rowKeyIndex < rowKey.length) {
+            byte firstByte = rowKey[rowKeyIndex];
+            if (firstByte == NON_WILDCARD_FIELD) {
+                Dimension<?> dimension = cubeDimensions.get(dimensionIndex);
+                String mapKey = dimension.toString();
+                String mapValue;
+                Bucketer<?> dimensionBucketer = dimension.getBucketer();
+                log.debug("DIMENSION {} is present in rowKey", dimension);
+                int sumBucketTypeAndBucketLength = dimension.sumDimensionBucketTypeAndBucket();
+                int dimensionBucketLength = dimension.getNumFieldBytes();
+                if (rowKeyIndex + sumBucketTypeAndBucketLength >= rowKey.length) {
+                    log.error("The number of bytes for " + dimension + " dimension is not present");
+                    throw new RuntimeException("The number of bytes for " + dimension+
+                            "dimension is not present in rowKey");
+                } else {
+                    if (dimension.isBucketed() == true) {
+                        Pair<String, String> pair = getValueForBucketedDimension(rowKey,
+                                rowKeyIndex, dimension, dimensionIndex, idservice);
+                        mapValue = pair.toString();
+                        rowKeyIndex = rowKeyIndex + 1 + sumBucketTypeAndBucketLength;
+                    } else {
+                        log.debug("Dimension {} is not bucketed and bucketer is {}", dimension,
+                                dimensionBucketer.getClass().toString());
+                        byte[] bucket = Arrays.copyOfRange(rowKey, rowKeyIndex + 1,
+                                rowKeyIndex + 1 + dimensionBucketLength);
+                        mapValue = getCoordinate(bucket, idservice, dimension,
+                                dimensionIndex, BucketType.IDENTITY);
+                        rowKeyIndex = rowKeyIndex + 1 + dimensionBucketLength;
+                    }
+                    returnDimensionMap.put(mapKey, mapValue);
+                    dimensionIndex++;
+                }
+            } else {
+                Dimension<?> dimension = cubeDimensions.get(dimensionIndex);
+                int sumBucketTypeAndBucketLength = dimension.sumDimensionBucketTypeAndBucket();
+                if (rowKeyIndex + sumBucketTypeAndBucketLength >= rowKey.length) {
+                    log.error("The number of bytes for " + dimension + " dimension is not present");
+                    throw new RuntimeException("The number of bytes for " + dimension+
+                            "dimension is not present in rowKey");
+                }
+                rowKeyIndex = rowKeyIndex + 1 + sumBucketTypeAndBucketLength;
+                dimensionIndex++;
+            }
+        }
+        log.debug("return DimensionMap is {}", returnDimensionMap.toString());
+        return returnDimensionMap;
+    }
+
+    /**
+     * For the dimension, which is bucketed this function
+     * calculate value of bucketType and coordinate from
+     * the rowKey.Combine these two and return it as String
+     *
+     * @param rowKey
+     * @param rowKeyIndex
+     * @param dimension
+     * @param dimensionIndex
+     * @param idService
+     * @return
+     */
+    private static Pair<String, String> getValueForBucketedDimension(byte[] rowKey,
+            int rowKeyIndex, Dimension<?> dimension, int dimensionIndex, IdService idService) {
+        Bucketer<?> dimensionBucketer = dimension.getBucketer();
+        int dimensionBucketTypeLength = dimension.getBucketPrefixSize();
+        int dimensionBucketLength = dimension.getNumFieldBytes();
+        log.debug("Dimension {} is bucketed and bucketer is {}", dimension,
+                dimensionBucketer.getClass().toString());
+        byte[] bucketTypeBytes = Arrays.copyOfRange(rowKey, rowKeyIndex + 1,
+                rowKeyIndex + 1 + dimensionBucketTypeLength);
+        BucketType bucketType = getBucketTypeFromByteArray(bucketTypeBytes, dimension);
+        log.debug("BucketType {} in rowKey for dimension {}", bucketType.toString(), dimension);
+        int previousRowKeyIndex = rowKeyIndex;
+        rowKeyIndex = rowKeyIndex + 1 + dimensionBucketTypeLength;
+        if (rowKeyIndex <= sumBucketTypeBucketAndRowKeyIndex(previousRowKeyIndex, dimension)) {
+            byte[] bucket = Arrays.copyOfRange(rowKey, rowKeyIndex,
+                    rowKeyIndex + dimensionBucketLength);
+            String coordinate = getCoordinate(bucket, idService, dimension, dimensionIndex,
+                    bucketType);
+            log.debug("Dimension " + dimension + " has bucket bytes " +
+                    Bytes.toStringBinary(bucket) + " and coordinate " + coordinate);
+            return (new Pair<String, String>(bucketType.toString(), coordinate));
+        } else {
+            log.error("rowKey size is small and bucket can not be extracted");
+            throw new RuntimeException("rowKey size is small and bucket can not be extracted");
+        }
+    }
+
+    /**
+     * This function returns sum of (rowKeyIndex, Dimension's bucket, Dimension's bucketType)
+     *
+     * @param rowKeyIndex
+     * @param dimension
+     * @return
+     */
+    private static int sumBucketTypeBucketAndRowKeyIndex(int rowKeyIndex, Dimension<?> dimension) {
+        return (rowKeyIndex + dimension.sumDimensionBucketTypeAndBucket());
+    }
+
+    /**
+     * This function takes byte array and it returns
+     * BucketType that is represented by this byte array.
+     *
+     * @param bucketTypeBytes
+     * @param dimension
+     * @return
+     */
+    private static BucketType getBucketTypeFromByteArray(byte[] bucketTypeBytes,
+            Dimension dimension) {
+        Bucketer<?> dimensionBucketer = dimension.getBucketer();
+        BucketType bucketType = null;
+        List<BucketType> bucketTypeList = dimensionBucketer.getBucketTypes();
+        for (BucketType eleBucketType : bucketTypeList) {
+            byte[] uniqueId = eleBucketType.getUniqueId();
+            if (ArrayUtils.isEquals(bucketTypeBytes, uniqueId)) {
+                bucketType = eleBucketType;
+                break;
+            }
+        }
+        if (bucketType == null) {
+            log.error("Dimension " + dimension + "does not have " + bucketTypeBytes.toString());
+            throw new RuntimeException("Dimension " + dimension + "does not have " +
+                    bucketTypeBytes.toString());
+        } else {
+            log.debug("Dimension {} has {} bukcetType", dimension, bucketType.toString());
+            return bucketType;
+        }
+    }
+
+    /**
+     * For the dimension, that does id-substitution this function
+     * takes byte array and return coordinate using idService
+     *
+     * @param bucket
+     * @param idService
+     * @param dimension
+     * @param dimensionIndex
+     * @param bucketType
+     * @return
+     */
+    private static String getCoordinateFromIdService(byte[] bucket, IdService idService,
+            Dimension<?> dimension, int dimensionIndex, BucketType bucketType) {
+        Bucketer<?> dimensionBucketer = dimension.getBucketer();
+        long bucketLong = Util.bytesToLongPad(bucket);
+        log.debug("ID substituted long value is {}", bucketLong);
+        byte[] bucketAfterPadding = Util.longToBytes(bucketLong);
+        log.debug("bucket after padding is {}", Bytes.toStringBinary(bucketAfterPadding));
+        if (idService instanceof MapIdService) {
+            log.debug("Id substitution is done using Map");
+            byte[] actualDimensionByteValue = idService.getCoordinate(dimensionIndex,
+                    bucketAfterPadding);
+            Object coordinate = dimensionBucketer.deserialize(actualDimensionByteValue, bucketType);
+            log.debug("Value present for dimension {} is {}", dimension.toString(),
+                    coordinate.toString());
+            return coordinate.toString();
+        } else if (idService instanceof HBaseIdService) {
+            log.debug("Id substitution is done using Hbase Table");
+            byte[] actualDimensionByteValue = idService.getCoordinate(dimensionIndex,
+                    bucketAfterPadding);
+            Object coordinate = dimensionBucketer.deserialize(actualDimensionByteValue, bucketType);
+            log.debug("Value present for dimension {} is {}", dimension.toString(),
+                    coordinate.toString());
+            return coordinate.toString();
+        } else {
+            log.error("Can not get coordinate from " + idService);
+            throw new RuntimeException("Can not get coordinate from " + idService);
+        }
+    }
+
+    /**
+     * This function returns coordinate from the row key
+     * If id-substitution is present then it retrieve coordinate from idService
+     * Otherwise, it directly return coordinate by de-serializing
+     *
+     * @param bucket
+     * @param idService
+     * @param dimension
+     * @param dimensionIndex
+     * @param bucketType
+     * @return
+     */
+    private static String getCoordinate(byte[] bucket, IdService idService, Dimension<?> dimension,
+            int dimensionIndex, BucketType bucketType) {
+        Bucketer<?> dimensionBucketer = dimension.getBucketer();
+        if (dimension.getDoIdSubstitution() == true) {
+            log.debug("Id substitution is done for {} dimension", dimension);
+            String coordinateFromIdService = getCoordinateFromIdService(bucket, idService,
+                    dimension, dimensionIndex, bucketType);
+            log.debug("Value present for dimension {} is {}", dimension.toString(),
+                    coordinateFromIdService.toString());
+            return coordinateFromIdService.toString();
+        } else {
+            log.debug("Id substitution is not done for {}", dimension);
+            Object coordinate = dimensionBucketer.deserialize(bucket, bucketType);
+            log.debug("Value present for dimension {} is {}", dimension.toString(),
+                    coordinate.toString());
+            return coordinate.toString();
+        }
+    }
+
+    public Optional<T> get(ReadBuilder readBuilder) throws IOException, InterruptedException {
         return this.get(readBuilder.build());
     }
 

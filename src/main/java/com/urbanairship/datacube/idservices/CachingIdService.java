@@ -4,6 +4,8 @@ Copyright 2012 Urban Airship and Contributors
 
 package com.urbanairship.datacube.idservices;
 
+import java.io.ByteArrayOutputStream;
+import java.io.DataOutputStream;
 import java.io.IOException;
 import java.util.concurrent.ExecutionException;
 
@@ -96,7 +98,27 @@ public class CachingIdService implements IdService {
         }
                 
     }
-    
+
+    @Override
+    public byte[] serialize() {
+        try {
+            ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+            DataOutputStream outputStream = new DataOutputStream(byteArrayOutputStream);
+            outputStream.writeInt(CachingIdService.class.getName().length());
+            outputStream.write(CachingIdService.class.getName().getBytes());
+            return byteArrayOutputStream.toByteArray();
+        } catch (Exception e) {
+            log.error("Exception in idService serialization of CachingIdService "+e);
+            throw new RuntimeException(e);
+        }
+    }
+
+    @Override
+    public byte[] getCoordinate(int dimensionIndex, byte[] byteArray) {
+        log.error("Can not get coordinate from CachingIdService");
+        throw new RuntimeException("Can not get coordinate from CachingIdService");
+    }
+
     private class Key {
         private final int dimensionNum;
         private final BoxedByteArray bytes;

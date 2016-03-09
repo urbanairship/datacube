@@ -17,4 +17,8 @@ public class BytesSerializable implements CSerializable {
     public byte[] serialize() {
         return bytes;
     }
+
+    public static byte[] deserialize(byte[] coord){
+        return coord;
+    }
 }

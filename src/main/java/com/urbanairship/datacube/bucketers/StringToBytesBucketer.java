@@ -29,4 +29,11 @@ public class StringToBytesBucketer extends AbstractIdentityBucketer<String> {
     public CSerializable makeSerializable(String coord) {
         return new StringSerializable(coord);
     }
+
+    @Override
+    public String deserialize(byte[] coord, BucketType bucketType) {
+        if (coord == null || coord.length == 0)
+            throw new IllegalArgumentException("Zero length byte array can not be deserialized");
+        return StringSerializable.deserialize(coord);
+    }
 }

@@ -86,6 +86,19 @@ public class HourDayMonthBucketer implements Bucketer<DateTime> {
     public List<BucketType> getBucketTypes() {
         return ImmutableList.of(hours, days, months, years, weeks);
     }
+
+    @Override
+    public DateTime deserialize(byte[] coord, BucketType bucketType){
+        if (coord == null || coord.length == 0) {
+            throw new IllegalArgumentException("Null or Zero length byte array can not be " +
+                    "deserialized");
+        } else if (coord.length > 8) {
+            throw new IllegalArgumentException("HourMonthDayBucketer can not have coordinate " +
+                    "byte array size more than number of bytes require by Long");
+        }
+        Long coordLong = LongSerializable.deserialize(coord);
+        return new DateTime(coordLong);
+    }
     
     public static DateTime hourFloor(DateTime dt) {
         return dt.withMillisOfSecond(0).withSecondOfMinute(0).withMinuteOfHour(0);
