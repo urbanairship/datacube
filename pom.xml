@@ -206,7 +206,7 @@
       <activation>
         <property>
           <name>performRelease</name>
-          <value>false</value>
+          <value>true</value>
         </property>
       </activation>
       <build>
