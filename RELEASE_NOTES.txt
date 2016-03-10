@@ -4,6 +4,12 @@ Prevent getId calls from creating a new identifier
 Add a getOrCreateId Method to the idmapper interface
 Optimize id creation.
 
+1.4.0
+=====
+
+Add functionality to optionally add a hash in front of row keys, which permits
+users to ignore dimension order when considering performance.
+
 1.3.0
 =====
 Add on-success callback to the HBaseDbharness
