@@ -8,8 +8,7 @@ Optimize id creation.
 =====
 
 Add functionality to optionally add a hash in front of row keys, which permits
-users to ignore dimension order when considering performance. Note that enabling 
-this option will make scans prohibitively expensive.
+users to ignore dimension order when considering performance.
 
 1.3.0
 =====
