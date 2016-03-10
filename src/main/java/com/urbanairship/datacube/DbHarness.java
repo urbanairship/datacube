@@ -4,13 +4,13 @@ Copyright 2012 Urban Airship and Contributors
 
 package com.urbanairship.datacube;
 
-import java.io.IOException;
-import java.util.List;
-import java.util.concurrent.Future;
-
 import com.google.common.base.Optional;
 import com.urbanairship.datacube.dbharnesses.AfterExecute;
 import com.urbanairship.datacube.dbharnesses.FullQueueException;
+
+import java.io.IOException;
+import java.util.List;
+import java.util.concurrent.Future;
 
 /**
  * Interface for drivers connecting a cube to a backing database.
@@ -34,22 +34,22 @@ public interface DbHarness<T extends Op> {
      * @throws FullQueueException if the queue of pending batches to be flushed is full, and no more
      * batches can be accepted right now. The caller can retry soon. 
      */
-    public Future<?> runBatchAsync(Batch<T> batch, AfterExecute<T> afterExecute) throws FullQueueException;
+    Future<?> runBatchAsync(Batch<T> batch, AfterExecute<T> afterExecute) throws FullQueueException;
 
     /**
      * @return absent if the bucket doesn't exist, or the bucket if it does.
      * @throws InterruptedException 
      */
-    public Optional<T> get(Address c) throws IOException, InterruptedException;
+    Optional<T> get(Address c) throws IOException, InterruptedException;
 
     /**
      * Overwrite value.
      * @throws IOException
      * @throws InterruptedException
      */
-    public void set(Address c, T op) throws IOException, InterruptedException;
+    void set(Address c, T op) throws IOException, InterruptedException;
     
-    public List<Optional<T>> multiGet(List<Address> addresses) throws IOException;
+    List<Optional<T>> multiGet(List<Address> addresses) throws IOException;
     
     /**
      * When it's time to write a batch to the database, there are a couple of ways it can
@@ -69,7 +69,7 @@ public interface DbHarness<T extends Op> {
      *  from the batch in memory. This will wipe out the existing count, so don't use this
      *  unless you're sure you know what you're doing.
      */
-    public enum CommitType {
+    enum CommitType {
         READ_COMBINE_CAS,
         INCREMENT,
         OVERWRITE
