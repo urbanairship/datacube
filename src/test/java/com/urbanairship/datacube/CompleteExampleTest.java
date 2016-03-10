@@ -4,18 +4,11 @@ Copyright 2012 Urban Airship and Contributors
 
 package com.urbanairship.datacube;
 
-import java.io.IOException;
-import java.util.List;
-import java.util.concurrent.ConcurrentMap;
-
-import com.google.common.collect.*;
-import com.urbanairship.datacube.serializables.IntSerializable;
-import org.joda.time.DateTime;
-import org.joda.time.DateTimeZone;
-import org.junit.Assert;
-import org.junit.Test;
-
 import com.google.common.base.Optional;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSetMultimap;
+import com.google.common.collect.Maps;
+import com.google.common.collect.SetMultimap;
 import com.urbanairship.datacube.DbHarness.CommitType;
 import com.urbanairship.datacube.bucketers.HourDayMonthBucketer;
 import com.urbanairship.datacube.dbharnesses.MapDbHarness;
@@ -23,6 +16,14 @@ import com.urbanairship.datacube.idservices.CachingIdService;
 import com.urbanairship.datacube.idservices.MapIdService;
 import com.urbanairship.datacube.ops.LongOp;
 import com.urbanairship.datacube.serializables.EnumSerializable;
+import org.joda.time.DateTime;
+import org.joda.time.DateTimeZone;
+import org.junit.Assert;
+import org.junit.Test;
+
+import java.io.IOException;
+import java.util.List;
+import java.util.concurrent.ConcurrentMap;
 
 
 /**
@@ -264,7 +265,7 @@ public class CompleteExampleTest {
     public void test() throws Exception {
         MobileCountCube mobileCube = new MobileCountCube();
 
-        DateTime now = new DateTime(DateTimeZone.UTC);
+        DateTime now = new DateTime(2015, 8, 15, 0, 0, 0, DateTimeZone.UTC);
         DateTime oneHourAgo = now.minusHours(1);
         DateTime oneDayAgo = now.minusDays(1);
         DateTime oneMonthAgo = now.minusMonths(1);

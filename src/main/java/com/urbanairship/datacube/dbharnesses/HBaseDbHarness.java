@@ -9,7 +9,13 @@ import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
-import com.urbanairship.datacube.*;
+import com.urbanairship.datacube.Address;
+import com.urbanairship.datacube.Batch;
+import com.urbanairship.datacube.DbHarness;
+import com.urbanairship.datacube.Deserializer;
+import com.urbanairship.datacube.IdService;
+import com.urbanairship.datacube.NamedThreadFactory;
+import com.urbanairship.datacube.Op;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Counter;
 import com.yammer.metrics.core.Gauge;
@@ -31,10 +37,16 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.*;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.Callable;
+import java.util.concurrent.Future;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 
 public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
-    
+
     private static final Logger log = LoggerFactory.getLogger(HBaseDbHarness.class);
 
     public final static byte[] QUALIFIER = ArrayUtils.EMPTY_BYTE_ARRAY;
@@ -54,7 +66,7 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
     private final byte[] cf;
     private final IdService idService;
     private final ThreadPoolExecutor flushExecutor;
-    private final CommitType commitType; 
+    private final CommitType commitType;
     private final int numIoeTries;
     private final int numCasTries;
     private final Timer flushSuccessTimer;
@@ -65,10 +77,10 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
     private final Counter casRetriesExhausted;
     private final Function<Map<byte[], byte[]>, Void> onFlush;
     private final Set<Batch<T>> batchesInFlight = Sets.newHashSet();
-    
-    public HBaseDbHarness(HTablePool pool, byte[] uniqueCubeName, byte[] tableName, 
-            byte[] cf, Deserializer<T> deserializer, IdService idService, CommitType commitType) 
-                    throws IOException {
+
+    public HBaseDbHarness(HTablePool pool, byte[] uniqueCubeName, byte[] tableName,
+                          byte[] cf, Deserializer<T> deserializer, IdService idService, CommitType commitType)
+            throws IOException {
         this(pool, uniqueCubeName, tableName, cf, deserializer, idService, commitType, NOP, 5, 5, 10, null);
     }
 
@@ -80,10 +92,10 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
                 numFlushThreads, numIoeTries, numCasTries, metricsScope);
     }
 
-    public HBaseDbHarness(HTablePool pool, byte[] uniqueCubeName, byte[] tableName, 
-            byte[] cf, Deserializer<T> deserializer, IdService idService, CommitType commitType,
-            Function<Map<byte[], byte[]>, Void> onFlush, int numFlushThreads, int numIoeTries, int numCasTries,
-            String metricsScope) throws IOException {
+    public HBaseDbHarness(HTablePool pool, byte[] uniqueCubeName, byte[] tableName,
+                          byte[] cf, Deserializer<T> deserializer, IdService idService, CommitType commitType,
+                          Function<Map<byte[], byte[]>, Void> onFlush, int numFlushThreads, int numIoeTries, int numCasTries,
+                          String metricsScope) throws IOException {
 
         this.pool = pool;
         this.deserializer = deserializer;
@@ -95,14 +107,14 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
         this.numIoeTries = numIoeTries;
         this.numCasTries = numCasTries;
         this.onFlush = onFlush;
-        
-        flushSuccessTimer = Metrics.newTimer(HBaseDbHarness.class, "successfulBatchFlush", 
+
+        flushSuccessTimer = Metrics.newTimer(HBaseDbHarness.class, "successfulBatchFlush",
                 metricsScope, TimeUnit.MILLISECONDS, TimeUnit.SECONDS);
-        flushFailTimer = Metrics.newTimer(HBaseDbHarness.class, "failedBatchFlush", 
+        flushFailTimer = Metrics.newTimer(HBaseDbHarness.class, "failedBatchFlush",
                 metricsScope, TimeUnit.MILLISECONDS, TimeUnit.SECONDS);
-        singleWriteTimer = Metrics.newTimer(HBaseDbHarness.class, "singleWrites", 
+        singleWriteTimer = Metrics.newTimer(HBaseDbHarness.class, "singleWrites",
                 metricsScope, TimeUnit.MILLISECONDS, TimeUnit.SECONDS);
-        incrementSize = Metrics.newHistogram(HBaseDbHarness.class, "incrementSize", 
+        incrementSize = Metrics.newHistogram(HBaseDbHarness.class, "incrementSize",
                 metricsScope, true);
         casTries = Metrics.newHistogram(HBaseDbHarness.class, "casTries",
                 metricsScope, true);
@@ -112,7 +124,7 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
         String cubeName = new String(uniqueCubeName);
         BlockingQueue<Runnable> workQueue = new LinkedBlockingQueue<Runnable>(numFlushThreads);
         this.flushExecutor = new ThreadPoolExecutor(numFlushThreads, numFlushThreads, 1,
-                TimeUnit.MINUTES, workQueue, new NamedThreadFactory("HBase DB flusher "+cubeName));
+                TimeUnit.MINUTES, workQueue, new NamedThreadFactory("HBase DB flusher " + cubeName));
 
         Metrics.newGauge(HBaseDbHarness.class, "asyncFlushQueueDepth", metricsScope, new Gauge<Integer>() {
             @Override
@@ -120,7 +132,7 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
                 return flushExecutor.getQueue().size();
             }
         });
-        
+
         Metrics.newGauge(HBaseDbHarness.class, "asyncFlushersActive", metricsScope, new Gauge<Integer>() {
             @Override
             public Integer value() {
@@ -130,22 +142,29 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
     }
 
     @Override
-    public Optional<T> get(Address c) throws IOException, InterruptedException  {
-        final byte[] rowKey = ArrayUtils.addAll(uniqueCubeName, c.toKey(idService));
-        
+    public Optional<T> get(Address c) throws IOException, InterruptedException {
+        final Optional<byte[]> maybeKey = c.toReadKey(idService);
+        if (!maybeKey.isPresent()) {
+            // If we fail to make the key, some mapped dimension value had never been seen.
+            // In that case, there can't be a value in our backing store.
+            return Optional.absent();
+        }
+
+        final byte[] rowKey = ArrayUtils.addAll(uniqueCubeName, maybeKey.get());
         Get get = new Get(rowKey);
         get.addFamily(cf);
+
         Result result = WithHTable.get(pool, tableName, get);
-        if(result == null || result.isEmpty()) {
-            if(log.isDebugEnabled()) {
-                log.debug("Returning absent for cube:" + Arrays.toString(uniqueCubeName) + 
+        if (result == null || result.isEmpty()) {
+            if (log.isDebugEnabled()) {
+                log.debug("Returning absent for cube:" + Arrays.toString(uniqueCubeName) +
                         " for address:" + c + " key " + Base64.encodeBase64String(rowKey));
             }
             return Optional.absent();
         } else {
             T deserialized = deserializer.fromBytes(result.value());
-            if(log.isDebugEnabled()) {
-                log.debug("Returning value for cube:" + Arrays.toString(uniqueCubeName) + " address:" + 
+            if (log.isDebugEnabled()) {
+                log.debug("Returning value for cube:" + Arrays.toString(uniqueCubeName) + " address:" +
                         c + ": " + " key " + Base64.encodeBase64String(rowKey) + ": " + deserialized);
             }
             return Optional.of(deserialized);
@@ -156,9 +175,9 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
      * Hands off the given batch to the flush executor to be sent to the database soon. Doesn't
      * throw IOException, since batches are just asynchronously submitted for execution, but
      * will throw AsyncException if some previous batch had a RuntimeException.
-     * 
+     *
      * @return a Future that the caller can use to detect when the database IO is done. The returned
-     * future will never have an ExecutionException. 
+     * future will never have an ExecutionException.
      */
     @Override
     public Future<?> runBatchAsync(Batch<T> batch, AfterExecute<T> afterExecute) throws FullQueueException {
@@ -172,7 +191,7 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
          */
         try {
             // Submit this batch
-            synchronized(batchesInFlight) {
+            synchronized (batchesInFlight) {
                 batchesInFlight.add(batch);
             }
             return flushExecutor.submit(new FlushWorkerRunnable(batch, afterExecute));
@@ -180,11 +199,11 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
             throw new FullQueueException();
         }
     }
-    
+
     private class FlushWorkerRunnable implements Callable<Object> {
         private final Batch<T> batch;
         private final AfterExecute<T> afterExecute;
-        
+
         public FlushWorkerRunnable(Batch<T> batch, AfterExecute<T> afterExecute) {
             this.batch = batch;
             this.afterExecute = afterExecute;
@@ -194,14 +213,14 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
         public Object call() throws Exception {
             IOException lastIOException = null;
             try {
-                for(int attempt=0; attempt<numIoeTries; attempt++) {
+                for (int attempt = 0; attempt < numIoeTries; attempt++) {
                     try {
                         flushBatch(batch);
                         afterExecute.afterExecute(null); // null => no exception
                         return null; // The return value of this callable is ignored
                     } catch (IOException e) {
                         lastIOException = e;
-                        log.error("IOException in worker thread flushing to HBase on attempt " + 
+                        log.error("IOException in worker thread flushing to HBase on attempt " +
                                 attempt + "/" + numIoeTries + ", will retry", e);
                         Thread.sleep(500);
                     }
@@ -210,11 +229,11 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
                 afterExecute.afterExecute(e);
                 throw e;
             } finally {
-                synchronized(batchesInFlight) {
+                synchronized (batchesInFlight) {
                     batchesInFlight.remove(batch);
                 }
             }
-            
+
             afterExecute.afterExecute(lastIOException);
             throw lastIOException;
         }
@@ -225,7 +244,7 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
         incrementSize.update(amount);
         return WithHTable.increment(pool, tableName, rowKey, cf, QUALIFIER, amount);
     }
-    
+
     @SuppressWarnings("unchecked")
     private byte[] readCombineCas(byte[] rowKey, T newOp) throws IOException {
         Get get = new Get(rowKey);
@@ -257,63 +276,62 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
         }
 
         casRetriesExhausted.inc();
-        throw new IOException("Exhausted retries doing checkAndPut after " + numCasTries + 
+        throw new IOException("Exhausted retries doing checkAndPut after " + numCasTries +
                 " tries");
     }
 
     @Override
     public void set(Address c, T op) throws IOException, InterruptedException {
-        final byte[] rowKey = ArrayUtils.addAll(uniqueCubeName, c.toKey(idService));
+        final byte[] rowKey = ArrayUtils.addAll(uniqueCubeName, c.toWriteKey(idService));
         overwrite(rowKey, op);
     }
-    
+
     private void overwrite(byte[] rowKey, T op) throws IOException {
         Put put = new Put(rowKey);
         put.add(cf, QUALIFIER, op.serialize());
         WithHTable.put(pool, tableName, put);
-        if(log.isDebugEnabled()) {
+        if (log.isDebugEnabled()) {
             log.debug("Set of key " + Base64.encodeBase64String(rowKey));
         }
     }
-    
-    private void flushBatch(Batch<T> batch) throws IOException, InterruptedException  {
-        Map<Address,T> batchMap = batch.getMap();
-        
+
+    private void flushBatch(Batch<T> batch) throws IOException, InterruptedException {
+        Map<Address, T> batchMap = batch.getMap();
+
         List<Address> successfulAddresses = Lists.newArrayListWithExpectedSize(batchMap.size());
         Map<byte[], byte[]> successfulRows = Maps.newHashMap();
 
         long nanoTimeBeforeBatch = System.nanoTime();
-        
-        try {
-            for(Map.Entry<Address,T> entry: batchMap.entrySet()) {
-                Address address = entry.getKey();
-                T op = entry.getValue();
-                byte[] dbBytes;
 
-                byte[] rowKey = ArrayUtils.addAll(uniqueCubeName, address.toKey(idService));
-                long nanoTimeBeforeWrite = System.nanoTime();
-                
-                switch(commitType) {
-                case INCREMENT:
-                    long postIncr = increment(rowKey, op);
-                    dbBytes = Bytes.toBytes(postIncr);
-                    break;
-                case READ_COMBINE_CAS:
-                    dbBytes = readCombineCas(rowKey, op);
-                    break;
-                case OVERWRITE:
-                    overwrite(rowKey, op);
-                    dbBytes = op.serialize();
-                    break;
-                default:
-                    throw new RuntimeException("Unsupported commit type " + commitType);
+        try {
+            for (Map.Entry<Address, T> entry : batchMap.entrySet()) {
+                final Address address = entry.getKey();
+                final T op = entry.getValue();
+                final byte[] rowKey = ArrayUtils.addAll(uniqueCubeName, address.toWriteKey(idService));
+                final long nanoTimeBeforeWrite = System.nanoTime();
+
+                byte[] dbBytes;
+                switch (commitType) {
+                    case INCREMENT:
+                        long postIncr = increment(rowKey, op);
+                        dbBytes = Bytes.toBytes(postIncr);
+                        break;
+                    case READ_COMBINE_CAS:
+                        dbBytes = readCombineCas(rowKey, op);
+                        break;
+                    case OVERWRITE:
+                        overwrite(rowKey, op);
+                        dbBytes = op.serialize();
+                        break;
+                    default:
+                        throw new RuntimeException("Unsupported commit type " + commitType);
                 }
 
                 long writeDurationNanos = System.nanoTime() - nanoTimeBeforeWrite;
                 singleWriteTimer.update(writeDurationNanos, TimeUnit.NANOSECONDS);
-                
-                if(log.isDebugEnabled()) {
-                    log.debug("Succesfully wrote cube:" + Arrays.toString(uniqueCubeName) + 
+
+                if (log.isDebugEnabled()) {
+                    log.debug("Succesfully wrote cube:" + Arrays.toString(uniqueCubeName) +
                             " address:" + address);
                 }
                 successfulAddresses.add(address);
@@ -327,10 +345,10 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
             // of the pending writes, they should be removed from the batch so they are not retried later.
             // The operations that didn't get into the DB should be left in the batch to be retried later.
             log.warn("IOException when flushing batch to HBase", ioe);
-            for(Address address: successfulAddresses) {
+            for (Address address : successfulAddresses) {
                 batch.getMap().remove(address);
             }
-            
+
             long batchDurationNanos = System.nanoTime() - nanoTimeBeforeBatch;
             flushFailTimer.update(batchDurationNanos, TimeUnit.NANOSECONDS);
 
@@ -343,53 +361,57 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
             }
         }
     }
-    
+
     @Override
     public List<Optional<T>> multiGet(List<Address> addresses) throws IOException {
-        int size = addresses.size();
-        List<Get> gets = Lists.newArrayListWithCapacity(size);
-        List<Optional<T>> resultsOptionals = Lists.newArrayListWithCapacity(size);
-        List<byte[]> rowKeys = Lists.newArrayListWithCapacity(size);
+        final int size = addresses.size();
+        final List<Get> gets = Lists.newArrayListWithCapacity(size);
+        final List<Optional<T>> resultsOptionals = Lists.newArrayListWithCapacity(size);
+        final List<byte[]> rowKeys = Lists.newArrayListWithCapacity(size);
+        final Set<Integer> unknownKeyPositions = Sets.newHashSet();
 
-        for (Address address : addresses) {
-            final byte[] rowKey;
+        for (int i = 0; i < addresses.size(); i++) {
+            Address address = addresses.get(i);
+
             try {
-                rowKey = ArrayUtils.addAll(uniqueCubeName, address.toKey(idService));
+                final Optional<byte[]> maybeKey = address.toReadKey(idService);
+                if (maybeKey.isPresent()) {
+                    final byte[] rowKey = ArrayUtils.addAll(uniqueCubeName, maybeKey.get());
+                    rowKeys.add(rowKey);
+                    Get get = new Get(rowKey);
+                    get.addFamily(cf);
+                    gets.add(get);
+                } else {
+                    unknownKeyPositions.add(i);
+                }
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 throw new RuntimeException(e);
             }
-            rowKeys.add(rowKey);
-            Get get = new Get(rowKey);
-            get.addFamily(cf);
-            gets.add(get);
         }
 
-        Result[] results = WithHTable.get(pool, tableName, gets);
-        int idx = 0;
+        final Result[] results = WithHTable.get(pool, tableName, gets);
+        int resultPosition = 0;
+        int outputPosition = 0;
 
-        for (Result result : results) {
-            if(result == null || result.isEmpty()) {
-                if(log.isDebugEnabled()) {
-                    Address address = addresses.get(idx);
-                    byte[] rowKey = rowKeys.get(idx);
-                    log.debug("Returning absent for cube:" + Arrays.toString(uniqueCubeName) +
-                            " for address:" + address + " key " + Base64.encodeBase64String(rowKey));
-                }
+        while (resultsOptionals.size() < size) {
+            if (unknownKeyPositions.contains(outputPosition)) {
                 resultsOptionals.add(Optional.<T>absent());
             } else {
-                T deserialized = deserializer.fromBytes(result.value());
-                if(log.isDebugEnabled()) {
-                    Address address = addresses.get(idx);
-                    byte[] rowKey = rowKeys.get(idx);
-                    log.debug("Returning value for cube:" + Arrays.toString(uniqueCubeName) + " address:" +
-                             address + ": " + " key " + Base64.encodeBase64String(rowKey) + ": " + deserialized);
-                }
-                resultsOptionals.add(Optional.of(deserialized));
-            }
+                final Result result = results[resultPosition];
 
-            idx++;
+                if (result == null || result.isEmpty()) {
+                    resultsOptionals.add(Optional.<T>absent());
+                } else {
+                    T deserialized = deserializer.fromBytes(result.value());
+                    resultsOptionals.add(Optional.of(deserialized));
+                }
+                resultPosition++;
+
+            }
+            outputPosition++;
         }
+
         return resultsOptionals;
     }
 
@@ -398,29 +420,29 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
         // Algorithm: get the set of batches that are in flight at the moment we start flushing.
         // As soon as all those batches are done, the "flush" is complete. Disregard all batches
         // that arrive after the flush starts.
-        
+
         Set<Batch<T>> batchesToWaitFor;
-        synchronized(batchesInFlight) {
+        synchronized (batchesInFlight) {
             batchesToWaitFor = Sets.newHashSet(batchesInFlight);
         }
-        while(true) {
+        while (true) {
             Set<Batch<T>> justFinished = Sets.newHashSet();
-            synchronized(batchesInFlight) {
-                for(Batch<T> batch: batchesToWaitFor) {
-                    if(!batchesInFlight.contains(batch)) {
+            synchronized (batchesInFlight) {
+                for (Batch<T> batch : batchesToWaitFor) {
+                    if (!batchesInFlight.contains(batch)) {
                         justFinished.add(batch);
                     }
                 }
             }
-            
-            for(Batch<T> finishedBatch: justFinished) {
+
+            for (Batch<T> finishedBatch : justFinished) {
                 batchesToWaitFor.remove(finishedBatch);
             }
-            
-            if(batchesToWaitFor.isEmpty()) {
+
+            if (batchesToWaitFor.isEmpty()) {
                 return;
             }
-            
+
             Thread.sleep(100);
         }
     }

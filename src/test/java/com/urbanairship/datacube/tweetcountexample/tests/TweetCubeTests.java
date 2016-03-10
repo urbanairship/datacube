@@ -11,7 +11,6 @@ import com.urbanairship.datacube.DbHarness.CommitType;
 import com.urbanairship.datacube.EmbeddedClusterTestAbstract;
 import com.urbanairship.datacube.IdService;
 import com.urbanairship.datacube.SyncLevel;
-import com.urbanairship.datacube.bucketers.HourDayMonthBucketer;
 import com.urbanairship.datacube.dbharnesses.HBaseDbHarness;
 import com.urbanairship.datacube.idservices.HBaseIdService;
 import com.urbanairship.datacube.ops.LongOp;
