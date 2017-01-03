@@ -70,7 +70,7 @@ public class IdServiceTests {
             }
         }
     }
-    
+
     @Test
     public void testCacheMissingOff() throws IOException, InterruptedException {
         final CountingIdService wrappedIdService = new CountingIdService();
@@ -79,7 +79,9 @@ public class IdServiceTests {
         lol.getId(-1, CountingIdService.unknown, 0);
         lol.getId(-1, CountingIdService.known, 0);
         lol.getId(-1, CountingIdService.known, 0);
+        // should not have been cached, so accessed backing store twice
         Assert.assertEquals(2, wrappedIdService.unKnownCount.get());
+        // should have been cached, so accessed backing store once
         Assert.assertEquals(1, wrappedIdService.knownCount.get());
     }
 
@@ -91,7 +93,9 @@ public class IdServiceTests {
         lol.getId(-1, CountingIdService.unknown, 0);
         lol.getId(-1, CountingIdService.known, 0);
         lol.getId(-1, CountingIdService.known, 0);
+        // should have been cached, so accessed backing store once
         Assert.assertEquals(1, wrappedIdService.unKnownCount.get());
+        // should have been cached, so accessed backing store once
         Assert.assertEquals(1, wrappedIdService.knownCount.get());
     }
 
