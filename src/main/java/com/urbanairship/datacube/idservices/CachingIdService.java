@@ -11,8 +11,12 @@ import com.urbanairship.datacube.BoxedByteArray;
 import com.urbanairship.datacube.IdService;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.Gauge;
+import com.yammer.metrics.core.Meter;
+import com.yammer.metrics.core.Timer;
+import com.yammer.metrics.core.TimerContext;
 
 import java.io.IOException;
+import java.util.concurrent.TimeUnit;
 
 /**
  * An IdService that wraps around another IdService and caches its results. Calls to getOrCreateId() are
@@ -25,7 +29,16 @@ public class CachingIdService implements IdService {
     private final Cache<Key, byte[]> cache;
     private final IdService wrappedIdService;
 
+    private final Timer idGetTime;
+    private final boolean cacheMisses;
+    private static final byte[] EMPTY_BYTE_ARRAY = new byte[0];
+    private final Meter cachedNullResult;
+
     public CachingIdService(int numCached, final IdService wrappedIdService, final String cacheName) {
+        this(numCached, wrappedIdService, cacheName, false);
+    }
+
+    public CachingIdService(int numCached, final IdService wrappedIdService, final String cacheName, boolean cacheMisses) {
         this.wrappedIdService = wrappedIdService;
         this.cache = CacheBuilder.newBuilder()
                 .maximumSize(numCached)
@@ -46,6 +59,11 @@ public class CachingIdService implements IdService {
                 return cache.stats().hitRate();
             }
         });
+
+        this.idGetTime = Metrics.newTimer(CachingIdService.class,
+                "id_get", cacheName, TimeUnit.MILLISECONDS, TimeUnit.SECONDS);
+        cachedNullResult = Metrics.newMeter(CachingIdService.class, cacheName, "cache null", TimeUnit.SECONDS);
+        this.cacheMisses = cacheMisses;
     }
 
 
@@ -64,17 +82,27 @@ public class CachingIdService implements IdService {
 
     @Override
     public Optional<byte[]> getId(int dimensionNum, byte[] bytes, int numIdBytes) throws IOException, InterruptedException {
-        final Key key = new Key(dimensionNum, new BoxedByteArray(bytes), numIdBytes);
-        final byte[] cachedVal = cache.getIfPresent(key);
+        final TimerContext time = idGetTime.time();
+        try {
+            final Key key = new Key(dimensionNum, new BoxedByteArray(bytes), numIdBytes);
+            final byte[] cachedVal = cache.getIfPresent(key);
 
-        if (cachedVal == null) {
-            final Optional<byte[]> id = wrappedIdService.getId(dimensionNum, bytes, numIdBytes);
-            if (id.isPresent()) {
-                cache.put(key, id.get());
+            if (cachedVal == null) {
+                final Optional<byte[]> id = wrappedIdService.getId(dimensionNum, bytes, numIdBytes);
+                if (id.isPresent()) {
+                    cache.put(key, id.get());
+                } else if (cacheMisses) {
+                    cachedNullResult.mark();
+                    cache.put(key, EMPTY_BYTE_ARRAY);
+                }
+                return id;
+            } else if (cachedVal == EMPTY_BYTE_ARRAY) {
+                return Optional.absent();
+            } else {
+                return Optional.of(cachedVal);
             }
-            return id;
-        } else {
-            return Optional.of(cachedVal);
+        } finally {
+            time.stop();
         }
     }
 
