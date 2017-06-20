@@ -54,7 +54,9 @@ public class DataCube<T extends Op> {
      *                                 like HBase, where monotonically increasing row keys can result in
      *                                 hot spots.
      *                                 Warning: Do NOT enable or disable this feature for an existing cube or
-     *                                 the keys will not map properly.
+     *                                 the keys will not map properly.  Also, data from versions of
+     *                                 datacube before 2.0.0, with this feature enabled, is not compatible with
+     *                                 2.0.0+.
      */
     public DataCube(List<Dimension<?>> dims, List<Rollup> rollups, boolean useAddressPrefixByteHash) {
         this.dims = dims;

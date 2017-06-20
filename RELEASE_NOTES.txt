@@ -1,3 +1,9 @@
+2.0.0
+=====
+Non compatible row-key update.  In particular, any DataCube objects defined
+in previous versions with the useAddressPrefixByteHash parameter set to
+true will not be able to access existing buckets with this update.
+
 1.5.0
 =====
 Prevent getId calls from creating a new identifier
@@ -6,7 +12,6 @@ Optimize id creation.
 
 1.4.0
 =====
-
 Add functionality to optionally add a hash in front of row keys, which permits
 users to ignore dimension order when considering performance.
 
