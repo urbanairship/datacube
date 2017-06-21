@@ -1,8 +1,10 @@
 2.0.0
 =====
-Non compatible row-key update.  In particular, any DataCube objects defined
-in previous versions with the useAddressPrefixByteHash parameter set to
-true will not be able to access existing buckets with this update.
+Non compatible update with existing data cubes.  The DataCube constructor in
+previous versions with the useAddressPrefixByteHash parameter set to true is
+compatible with PREFIX_MODE.NO_ADDRESS_PREFIX, but is not compatible with the
+new mode PREFIX_MODE.MOD_ADDRESS_PREFIX because there was a bug since 1.4.0
+that didn't implement this feature correctly.
 
 1.5.0
 =====
