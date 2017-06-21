@@ -29,6 +29,8 @@ import java.util.Set;
 public class DataCube<T extends Op> {
     private static final Logger log = LoggerFactory.getLogger(DataCube.class);
 
+    public enum PREFIX_MODE { NO_ADDRESS_PREFIX, MOD_ADDRESS_PREFIX}
+
     private final List<Dimension<?>> dims;
     private final List<Rollup> rollups;
     private final Multimap<Dimension<?>,BucketType> bucketsOfInterest;
@@ -42,27 +44,30 @@ public class DataCube<T extends Op> {
      * @param rollups see {@link Rollup}
      */
     public DataCube(List<Dimension<?>> dims, List<Rollup> rollups) {
-        this(dims, rollups, false);
+        this(dims, rollups, PREFIX_MODE.NO_ADDRESS_PREFIX);
     }
 
     /**
      *
      * @param dims see {@link Dimension}
      * @param rollups see {@link Rollup}
-     * @param useAddressPrefixByteHash Prefix the keys by a hash byte (calculated by hashing each element
+     * @param prefixMode use MOD_ADDRESS_PREFIX to prefix the keys by a hash byte (calculated by hashing each element
      *                                 in the key).  This is only a storage artifact to benefit systems
      *                                 like HBase, where monotonically increasing row keys can result in
      *                                 hot spots.
-     *                                 Warning: Do NOT enable or disable this feature for an existing cube or
-     *                                 the keys will not map properly.  Also, data from versions of
-     *                                 datacube before 2.0.0, with this feature enabled, is not compatible with
-     *                                 2.0.0+.
+     *                                 Warning: Do NOT switch modes for an existing cube or the keys will
+     *                                 not map properly.  Also, data from versions of datacube before 2.0.0,
+     *                                 with this feature enabled, is not compatible with 2.0.0+.
      */
-    public DataCube(List<Dimension<?>> dims, List<Rollup> rollups, boolean useAddressPrefixByteHash) {
+    public DataCube(List<Dimension<?>> dims, List<Rollup> rollups, PREFIX_MODE prefixMode) {
         this.dims = dims;
         this.rollups = rollups;
         this.validAddressSet = Sets.newHashSet();
-        this.useAddressPrefixByteHash = useAddressPrefixByteHash;
+        if (PREFIX_MODE.MOD_ADDRESS_PREFIX == prefixMode) {
+            this.useAddressPrefixByteHash = true;
+        } else {
+            this.useAddressPrefixByteHash = false;
+        }
 
         bucketsOfInterest = HashMultimap.create();
 
