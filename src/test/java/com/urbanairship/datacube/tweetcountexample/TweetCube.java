@@ -84,7 +84,7 @@ public class TweetCube {
 		 * The DataCube defines the core logic that maps input points to database
 		 * increments.
 		 */
-		dataCube = new DataCube<LongOp>(dimensions, rollups, true);
+		dataCube = new DataCube<LongOp>(dimensions, rollups, DataCube.PREFIX_MODE.MOD_ADDRESS_PREFIX);
 		
 		/*
 		 * The DataCubeIo object connects the DataCube logic layer and the 
