@@ -146,11 +146,23 @@ public class Address {
         for (byte[] keyElement : keyElemsInOrder) {
             totalKeySize += keyElement.length;
         }
-        ByteBuffer bb = ByteBuffer.allocate(totalKeySize);
-
+        ByteBuffer bb;
+        // Add a place holder for the hash byte if it's required
+        if (this.cube.useAddressPrefixByteHash()) {
+            bb = ByteBuffer.allocate(totalKeySize + 1);
+            bb.put((byte) 0x01);
+        } else {
+            bb = ByteBuffer.allocate(totalKeySize);
+        }
 
         for (byte[] keyElement : keyElemsInOrder) {
             bb.put(keyElement);
+        }
+
+        // Update the byte prefix placeholder of the hash of the key contents if required.
+        if (this.cube.useAddressPrefixByteHash()) {
+            byte hashByte = Util.hashByteArray(bb.array(), 1, totalKeySize + 1);
+            bb.put(0, hashByte);
         }
 
         if (bb.remaining() != 0) {
