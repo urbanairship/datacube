@@ -4,6 +4,9 @@ Copyright 2012 Urban Airship and Contributors
 
 package com.urbanairship.datacube.idservices;
 
+import com.codahale.metrics.Gauge;
+import com.codahale.metrics.Meter;
+import com.codahale.metrics.Timer;
 import com.google.common.base.Optional;
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Multimap;
@@ -13,11 +16,7 @@ import com.urbanairship.datacube.IdService;
 import com.urbanairship.datacube.Util;
 import com.urbanairship.datacube.dbharnesses.WithHTable;
 import com.urbanairship.datacube.dbharnesses.WithHTable.ScanRunnable;
-import com.yammer.metrics.Metrics;
-import com.yammer.metrics.core.Gauge;
-import com.yammer.metrics.core.Meter;
-import com.yammer.metrics.core.Timer;
-import com.yammer.metrics.core.TimerContext;
+import com.urbanairship.datacube.metrics.Metrics;
 import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.lang.ArrayUtils;
 import org.apache.hadoop.conf.Configuration;
@@ -38,7 +37,6 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Map.Entry;
 import java.util.Set;
-import java.util.concurrent.TimeUnit;
 
 public class HBaseIdService implements IdService {
     private static final Logger log = LoggerFactory.getLogger(HBaseIdService.class);
@@ -72,25 +70,20 @@ public class HBaseIdService implements IdService {
         this.cf = cf;
         this.dimensionsApproachingExhaustion = Sets.newConcurrentHashSet();
 
-        this.allocatingSleeps = Metrics.newMeter(HBaseIdService.class,
-                "ALLOCATING_sleeps", Bytes.toString(uniqueCubeName), "sleeps", TimeUnit.SECONDS);
+        this.allocatingSleeps = Metrics.meter(HBaseIdService.class, "ALLOCATING_sleeps", Bytes.toString(uniqueCubeName));
 
-        this.wastedIdNumbers = Metrics.newMeter(HBaseIdService.class,
-                "wasted_id_numbers", Bytes.toString(uniqueCubeName), "wasted_ids", TimeUnit.SECONDS);
+        this.wastedIdNumbers = Metrics.meter(HBaseIdService.class, "wasted_id_numbers", Bytes.toString(uniqueCubeName));
 
-        this.idCreationTime = Metrics.newTimer(HBaseIdService.class,
-                "id_create", Bytes.toString(uniqueCubeName), TimeUnit.MILLISECONDS, TimeUnit.SECONDS);
+        this.idCreationTime = Metrics.timer(HBaseIdService.class, "id_create", Bytes.toString(uniqueCubeName));
 
-        this.idGetTime = Metrics.newTimer(HBaseIdService.class,
-                "id_get", Bytes.toString(uniqueCubeName), TimeUnit.MILLISECONDS, TimeUnit.SECONDS);
+        this.idGetTime = Metrics.timer(HBaseIdService.class, "id_get", Bytes.toString(uniqueCubeName));
 
-        Metrics.newGauge(HBaseIdService.class,
-                "ids_approaching_exhaustion", Bytes.toString(uniqueCubeName), new Gauge<String>() {
-                    @Override
-                    public String value() {
-                        return dimensionsApproachingExhaustion.toString();
-                    }
-                });
+        Metrics.gauge(HBaseIdService.class, "ids_approaching_exhaustion", Bytes.toString(uniqueCubeName), new Gauge<String>() {
+            @Override
+            public String getValue() {
+                return dimensionsApproachingExhaustion.toString();
+            }
+        });
     }
 
     @Override
@@ -106,7 +99,7 @@ public class HBaseIdService implements IdService {
             return existingId.get();
         }
 
-        final TimerContext timer = idCreationTime.time();
+        final Timer.Context timer = idCreationTime.time();
         // If not, we need to create it. First get a new id # from the counter table...
         byte[] counterKey = makeCounterKey(dimensionNum);
         final long id = WithHTable.increment(pool, counterTable, counterKey, cf, QUALIFIER, 1L);
@@ -159,7 +152,7 @@ public class HBaseIdService implements IdService {
     }
 
     private Optional<byte[]> getId(byte[] lookupkey, int numIdBytes) throws IOException, InterruptedException {
-        final TimerContext timer = idGetTime.time();
+        final Timer.Context timer = idGetTime.time();
         Result result = WithHTable.get(pool, lookupTable, new Get(lookupkey));
         final byte[] columnVal = result.getValue(cf, QUALIFIER);
         int tries = 0;

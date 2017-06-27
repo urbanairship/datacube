@@ -4,19 +4,17 @@ Copyright 2012 Urban Airship and Contributors
 
 package com.urbanairship.datacube.idservices;
 
+import com.codahale.metrics.Gauge;
+import com.codahale.metrics.Meter;
+import com.codahale.metrics.Timer;
 import com.google.common.base.Optional;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.urbanairship.datacube.BoxedByteArray;
 import com.urbanairship.datacube.IdService;
-import com.yammer.metrics.Metrics;
-import com.yammer.metrics.core.Gauge;
-import com.yammer.metrics.core.Meter;
-import com.yammer.metrics.core.Timer;
-import com.yammer.metrics.core.TimerContext;
+import com.urbanairship.datacube.metrics.Metrics;
 
 import java.io.IOException;
-import java.util.concurrent.TimeUnit;
 
 /**
  * An IdService that wraps around another IdService and caches its results. Calls to getOrCreateId() are
@@ -46,23 +44,22 @@ public class CachingIdService implements IdService {
                 .recordStats()
                 .build();
 
-        Metrics.newGauge(CachingIdService.class, cacheName + " ID Cache size", new Gauge<Long>() {
+        Metrics.gauge(CachingIdService.class, cacheName + " ID Cache size", new Gauge<Long>() {
             @Override
-            public Long value() {
+            public Long getValue() {
                 return cache.size();
             }
         });
 
-        Metrics.newGauge(CachingIdService.class, cacheName + "ID Cache effectiveness", new Gauge<Double>() {
+        Metrics.gauge(CachingIdService.class, cacheName + "ID Cache effectiveness", new Gauge<Double>() {
             @Override
-            public Double value() {
+            public Double getValue() {
                 return cache.stats().hitRate();
             }
         });
 
-        this.idGetTime = Metrics.newTimer(CachingIdService.class,
-                "id_get", cacheName, TimeUnit.MILLISECONDS, TimeUnit.SECONDS);
-        cachedNullResult = Metrics.newMeter(CachingIdService.class, cacheName, "cache null", TimeUnit.SECONDS);
+        this.idGetTime = Metrics.timer(CachingIdService.class, "id_get", cacheName);
+        cachedNullResult = Metrics.meter(CachingIdService.class, cacheName, "cache null");
         this.cacheMisses = cacheMisses;
     }
 
@@ -82,7 +79,7 @@ public class CachingIdService implements IdService {
 
     @Override
     public Optional<byte[]> getId(int dimensionNum, byte[] bytes, int numIdBytes) throws IOException, InterruptedException {
-        final TimerContext time = idGetTime.time();
+        final Timer.Context time = idGetTime.time();
         try {
             final Key key = new Key(dimensionNum, new BoxedByteArray(bytes), numIdBytes);
             final byte[] cachedVal = cache.getIfPresent(key);
