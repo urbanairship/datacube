@@ -1,3 +1,10 @@
+3.0.0
+=====
+Updates metrics library to io.dropwizard.metrics instead of com.yammer.metrics. This will
+cause slight changes in the naming of metrics. Fixes bug where a checkAndPut
+operation checking for absence of a cell value is done with an empty array instead of
+a null value.
+
 2.0.0
 =====
 Non compatible update with existing data cubes.  The DataCube constructor in

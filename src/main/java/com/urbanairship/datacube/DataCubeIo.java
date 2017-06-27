@@ -4,6 +4,16 @@ Copyright 2012 Urban Airship and Contributors
 
 package com.urbanairship.datacube;
 
+import com.codahale.metrics.Gauge;
+import com.codahale.metrics.Meter;
+import com.google.common.base.Optional;
+import com.google.common.collect.Lists;
+import com.urbanairship.datacube.dbharnesses.AfterExecute;
+import com.urbanairship.datacube.dbharnesses.FullQueueException;
+import com.urbanairship.datacube.metrics.Metrics;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
@@ -11,17 +21,6 @@ import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
-
-import com.google.common.collect.Lists;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import com.google.common.base.Optional;
-import com.urbanairship.datacube.dbharnesses.AfterExecute;
-import com.urbanairship.datacube.dbharnesses.FullQueueException;
-import com.yammer.metrics.Metrics;
-import com.yammer.metrics.core.Gauge;
-import com.yammer.metrics.core.Meter;
 
 /**
  * A DataCube does no IO, it merely returns batches that can be executed. This class wraps
@@ -78,7 +77,7 @@ public class DataCubeIo<T extends Op> {
     // This executor will wait for DB writes to complete then check if they had an error.
     private final ThreadPoolExecutor asyncErrorMonitorExecutor;
     
-    private final Meter writesMeter; 
+    private final Meter writesMeter;
     private final Meter asyncQueueBackoffMeter; 
     private final Meter runBatchMeter; 
     private final Meter ageFlushes; 
@@ -107,24 +106,19 @@ public class DataCubeIo<T extends Op> {
         this.maxBatchAgeMs = maxBatchAgeMs;
         this.syncLevel = syncLevel;
         
-        writesMeter = Metrics.newMeter(DataCubeIo.class, "writes", metricsScope, "writes", 
-                TimeUnit.SECONDS);
-        asyncQueueBackoffMeter = Metrics.newMeter(DataCubeIo.class, "backoffMeter", metricsScope,
-                "fullQueueExceptions", TimeUnit.SECONDS);
-        runBatchMeter = Metrics.newMeter(DataCubeIo.class, "runBatchMeter", metricsScope,
-                "batches", TimeUnit.SECONDS);
-        ageFlushes = Metrics.newMeter(DataCubeIo.class, "flushesDueToAge", metricsScope,
-                "flushes", TimeUnit.SECONDS);
-        sizeFlushes = Metrics.newMeter(DataCubeIo.class, "flushesDueToSize", metricsScope,
-                "flushes", TimeUnit.SECONDS);
+        writesMeter = Metrics.meter(DataCubeIo.class, "writes", metricsScope);
+        asyncQueueBackoffMeter = Metrics.meter(DataCubeIo.class, "backoffMeter", metricsScope);
+        runBatchMeter = Metrics.meter(DataCubeIo.class, "runBatchMeter", metricsScope);
+        ageFlushes = Metrics.meter(DataCubeIo.class, "flushesDueToAge", metricsScope);
+        sizeFlushes = Metrics.meter(DataCubeIo.class, "flushesDueToSize", metricsScope);
         
         this.asyncErrorMonitorExecutor = new ThreadPoolExecutor(Integer.MAX_VALUE, 
                 Integer.MAX_VALUE, 1, TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>(), 
                 new NamedThreadFactory("DataCubeIo async DB watcher"));
         
-        Metrics.newGauge(DataCubeIo.class, "errorMonitorActiveCount", metricsScope, new Gauge<Integer>() {
+        Metrics.gauge(DataCubeIo.class, "errorMonitorActiveCount", metricsScope, new Gauge<Integer>() {
             @Override
-            public Integer value() {
+            public Integer getValue() {
                 return asyncErrorMonitorExecutor.getActiveCount();
             }
         });

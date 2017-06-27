@@ -185,17 +185,14 @@
       <version>1.9</version>
     </dependency>
     <dependency>
-      <groupId>com.yammer.metrics</groupId>
+      <groupId>io.dropwizard.metrics</groupId>
       <artifactId>metrics-core</artifactId>
-      <version>2.1.2</version>
-      <!-- HBase uses an older version of slf4j than yammer metrics,
-           we want to use HBase's version -->
-      <exclusions>
-        <exclusion>
-          <groupId>org.slf4j</groupId>
-          <artifactId>slf4j-api</artifactId>
-        </exclusion>
-      </exclusions>
+      <version>3.1.0</version>
+    </dependency>
+    <dependency>
+      <groupId>io.dropwizard.metrics</groupId>
+      <artifactId>metrics-jvm</artifactId>
+      <version>3.1.0</version>
     </dependency>
     <dependency>
       <groupId>com.google.guava</groupId>
