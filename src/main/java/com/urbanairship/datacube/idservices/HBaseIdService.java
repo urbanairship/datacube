@@ -50,7 +50,7 @@ public class HBaseIdService implements IdService {
     private enum Status {@Deprecated ALLOCATING, ALLOCATED} // don't change ordinals
 
     private static final byte[] ALLOCATED_BYTES = new byte[]{(byte) Status.ALLOCATED.ordinal()};
-    private static final byte[] EMPTY = new byte[0];
+    private static final byte[] NULL_BYTE_ARRAY = null;
 
     private final HTablePool pool;
     private final byte[] counterTable;
@@ -132,7 +132,7 @@ public class HBaseIdService implements IdService {
         byte[] allocatedRecord = ArrayUtils.addAll(HBaseIdService.ALLOCATED_BYTES, Util.longToBytes(id));
         put.add(cf, QUALIFIER, allocatedRecord);
 
-        boolean swapSuccess = WithHTable.checkAndPut(pool, lookupTable, lookupKey, cf, QUALIFIER, EMPTY, put);
+        boolean swapSuccess = WithHTable.checkAndPut(pool, lookupTable, lookupKey, cf, QUALIFIER, NULL_BYTE_ARRAY, put);
         if (swapSuccess) {
             timer.stop();
             return Util.leastSignificantBytes(id, numIdBytes);
