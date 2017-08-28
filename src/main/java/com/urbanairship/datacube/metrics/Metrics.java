@@ -42,6 +42,7 @@ public final class Metrics {
     private static final JmxReporter reporter = JmxReporter.forRegistry(registry)
             .convertDurationsTo(TimeUnit.MILLISECONDS)
             .convertRatesTo(TimeUnit.SECONDS)
+            .createsObjectNamesWith(new ObjectNameFactoryImpl())
             .build();
 
     static {
