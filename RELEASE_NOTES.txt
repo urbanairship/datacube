@@ -1,3 +1,7 @@
+4.0.0
+=====
+Modifies how JmxReporter does object naming.
+
 3.0.0
 =====
 Updates metrics library to io.dropwizard.metrics instead of com.yammer.metrics. This will
