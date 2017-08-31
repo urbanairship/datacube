@@ -9,11 +9,7 @@ import com.codahale.metrics.Metric;
 import com.codahale.metrics.MetricFilter;
 import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.Timer;
-import com.codahale.metrics.jvm.BufferPoolMetricSet;
-import com.codahale.metrics.jvm.GarbageCollectorMetricSet;
-import com.codahale.metrics.jvm.MemoryUsageGaugeSet;
 
-import java.lang.management.ManagementFactory;
 import java.util.SortedMap;
 import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
@@ -46,10 +42,6 @@ public final class Metrics {
             .build();
 
     static {
-        // expose JVM stats to metrics registry
-        registry.register("bufferpool", new BufferPoolMetricSet(ManagementFactory.getPlatformMBeanServer()));
-        registry.register("garbagecollector", new GarbageCollectorMetricSet());
-        registry.register("memorypool", new MemoryUsageGaugeSet());
         reporter.start();
     }
 

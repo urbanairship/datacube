@@ -1,3 +1,8 @@
+4.0.1
+=====
+Removes `bufferpool`, `garbagecollector`, and `memorypool` metrics from static `Metrics` registry.
+If clients would like these metrics to be reported on they can be added manually.
+
 4.0.0
 =====
 Modifies how JmxReporter does object naming.
