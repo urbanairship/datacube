@@ -116,7 +116,7 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
         incrementSize = Metrics.histogram(HBaseDbHarness.class, "incrementSize", metricsScope);
         casTries = Metrics.histogram(HBaseDbHarness.class, "casTries", metricsScope);
         casRetriesExhausted = Metrics.counter(HBaseDbHarness.class, "casRetriesExhausted", metricsScope);
-        iOExceptionsRetrySleepDuration = Metrics.timer(HBaseDbHarness.class, "retry_sleep_duration", metricsScope);
+        iOExceptionsRetrySleepDuration = Metrics.timer(HBaseDbHarness.class, "retrySleepDuration", metricsScope);
 
         String cubeName = new String(uniqueCubeName);
         BlockingQueue<Runnable> workQueue = new LinkedBlockingQueue<Runnable>(numFlushThreads);
