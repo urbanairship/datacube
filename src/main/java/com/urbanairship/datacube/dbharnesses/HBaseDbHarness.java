@@ -23,6 +23,7 @@ import com.urbanairship.datacube.Op;
 import com.urbanairship.datacube.metrics.Metrics;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.lang.ArrayUtils;
+import org.apache.commons.lang.math.RandomUtils;
 import org.apache.hadoop.hbase.client.Get;
 import org.apache.hadoop.hbase.client.HTablePool;
 import org.apache.hadoop.hbase.client.Put;
@@ -75,6 +76,7 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
     private final Histogram incrementSize;
     private final Histogram casTries;
     private final Counter casRetriesExhausted;
+    private final Timer iOExceptionsRetrySleepDuration;
     private final Function<Map<byte[], byte[]>, Void> onFlush;
     private final Set<Batch<T>> batchesInFlight = Sets.newHashSet();
 
@@ -114,6 +116,7 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
         incrementSize = Metrics.histogram(HBaseDbHarness.class, "incrementSize", metricsScope);
         casTries = Metrics.histogram(HBaseDbHarness.class, "casTries", metricsScope);
         casRetriesExhausted = Metrics.counter(HBaseDbHarness.class, "casRetriesExhausted", metricsScope);
+        iOExceptionsRetrySleepDuration = Metrics.timer(HBaseDbHarness.class, "retrySleepDuration", metricsScope);
 
         String cubeName = new String(uniqueCubeName);
         BlockingQueue<Runnable> workQueue = new LinkedBlockingQueue<Runnable>(numFlushThreads);
@@ -195,6 +198,10 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
     }
 
     private class FlushWorkerRunnable implements Callable<Object> {
+
+        private static final long SLEEP_INTERVAL_MILLIS = 500;
+        private static final long MAX_SLEEP_MILLIS = 1000 * 60 * 5;
+
         private final Batch<T> batch;
         private final AfterExecute<T> afterExecute;
 
@@ -216,7 +223,10 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
                         lastIOException = e;
                         log.error("IOException in worker thread flushing to HBase on attempt " +
                                 attempt + "/" + numIoeTries + ", will retry", e);
-                        Thread.sleep(500);
+
+                        long retrySleepMillis = jitteredRetryMillis(attempt);
+                        iOExceptionsRetrySleepDuration.update(retrySleepMillis, TimeUnit.MILLISECONDS);
+                        Thread.sleep(retrySleepMillis);
                     }
                 }
             } catch (Exception e) {
@@ -230,6 +240,12 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
 
             afterExecute.afterExecute(lastIOException);
             throw lastIOException;
+        }
+
+        private long jitteredRetryMillis(int attempt) {
+            double jitter = 0.9 + (1.1 - 0.9) * RandomUtils.nextDouble();
+            long retryMillis = SLEEP_INTERVAL_MILLIS * (attempt + 1);
+            return Math.min(Math.round(retryMillis * jitter), MAX_SLEEP_MILLIS);
         }
     }
 
