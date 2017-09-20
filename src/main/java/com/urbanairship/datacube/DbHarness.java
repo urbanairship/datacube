@@ -49,7 +49,7 @@ public interface DbHarness<T extends Op> {
      */
     void set(Address c, T op) throws IOException, InterruptedException;
     
-    List<Optional<T>> multiGet(List<Address> addresses) throws IOException;
+    List<Optional<T>> multiGet(List<Address> addresses) throws IOException, InterruptedException;
     
     /**
      * When it's time to write a batch to the database, there are a couple of ways it can
