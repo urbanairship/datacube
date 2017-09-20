@@ -18,6 +18,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -192,8 +193,12 @@ public class MapDbHarness<T extends Op> implements DbHarness<T> {
     }
 
     @Override
-    public List<Optional<T>> multiGet(List<Address> addresses) throws IOException {
-        throw new NotImplementedException();
+    public List<Optional<T>> multiGet(List<Address> addresses) throws IOException, InterruptedException {
+        List<Optional<T>> toReturn = new ArrayList<Optional<T>>();
+        for (Address address : addresses) {
+            toReturn.add(get(address));
+        }
+        return toReturn;
     }
     
     private static class NullFuture implements Future<Object> {

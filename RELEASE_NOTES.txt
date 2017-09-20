@@ -1,3 +1,7 @@
+4.0.3
+=====
+Naive implementation of multiget for the map db harness.
+
 4.0.2
 =====
 Add metrics around retrying after IOExceptions when flushing to hbase
