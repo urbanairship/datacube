@@ -20,6 +20,8 @@ import redis.clients.jedis.Jedis;
 
 public class RedisDbHarness<T extends Op> implements DbHarness<T>
 {
+	private static final Future<?> nullFuture = new MapDbHarness.NullFuture();
+
 	private final Jedis jedis;
 	private final Deserializer<T> deserializer;
 	private final CommitType commitType;
@@ -74,7 +76,9 @@ public class RedisDbHarness<T extends Op> implements DbHarness<T>
 			}
 		}
 
-		return null;
+		batch.reset();
+		afterExecute.afterExecute(null); // null throwable => success
+		return nullFuture;
 	}
 
 	@Override

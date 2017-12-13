@@ -4,19 +4,6 @@ Copyright 2012 Urban Airship and Contributors
 
 package com.urbanairship.datacube.dbharnesses;
 
-import com.google.common.base.Optional;
-import com.urbanairship.datacube.Address;
-import com.urbanairship.datacube.Batch;
-import com.urbanairship.datacube.BoxedByteArray;
-import com.urbanairship.datacube.DbHarness;
-import com.urbanairship.datacube.Deserializer;
-import com.urbanairship.datacube.IdService;
-import com.urbanairship.datacube.Op;
-import org.apache.commons.codec.binary.Hex;
-import org.apache.commons.lang.NotImplementedException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
@@ -26,6 +13,20 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+
+import org.apache.commons.codec.binary.Hex;
+import org.apache.commons.lang.NotImplementedException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.google.common.base.Optional;
+import com.urbanairship.datacube.Address;
+import com.urbanairship.datacube.Batch;
+import com.urbanairship.datacube.BoxedByteArray;
+import com.urbanairship.datacube.DbHarness;
+import com.urbanairship.datacube.Deserializer;
+import com.urbanairship.datacube.IdService;
+import com.urbanairship.datacube.Op;
 
 /**
  * For testing, this is is a backing store for a cube that lives in memory. It saves us from 
@@ -196,7 +197,7 @@ public class MapDbHarness<T extends Op> implements DbHarness<T> {
         throw new NotImplementedException();
     }
     
-    private static class NullFuture implements Future<Object> {
+    public static class NullFuture implements Future<Object> {
         @Override
         public boolean cancel(boolean mayInterruptIfRunning) {
             return false;
