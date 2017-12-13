@@ -6,13 +6,9 @@ package com.urbanairship.datacube;
 
 import java.util.Map;
 
-import com.google.common.base.Function;
 import com.google.common.collect.HashMultimap;
-import com.google.common.collect.ImmutableSetMultimap;
-import com.google.common.collect.ListMultimap;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Multimap;
-import com.google.common.collect.Multimaps;
 import com.google.common.collect.SetMultimap;
 
 public class WriteBuilder {
