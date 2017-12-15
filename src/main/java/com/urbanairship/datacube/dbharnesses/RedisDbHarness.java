@@ -23,17 +23,25 @@ public class RedisDbHarness<T extends Op> implements DbHarness<T>
 	private static final Future<?> nullFuture = new MapDbHarness.NullFuture();
 
 	private final Jedis jedis;
+	private final int ttlSeconds;
 	private final Deserializer<T> deserializer;
 	private final CommitType commitType;
 	private final IdService idService;
 
-	public RedisDbHarness(Jedis jedis, Deserializer<T> deserializer,
+	public RedisDbHarness(Jedis jedis, int ttlSeconds, Deserializer<T> deserializer,
 	                      CommitType commitType, IdService idService)
 	{
 		this.jedis = jedis;
+		this.ttlSeconds = ttlSeconds;
 		this.deserializer = deserializer;
 		this.commitType = commitType;
 		this.idService = idService;
+	}
+
+	public RedisDbHarness(Jedis jedis, Deserializer<T> deserializer,
+	                      CommitType commitType, IdService idService)
+	{
+		this(jedis, -1, deserializer, commitType, idService);
 	}
 
 	@Override
@@ -66,10 +74,10 @@ public class RedisDbHarness<T extends Op> implements DbHarness<T>
 					newOp = opFromBatch;
 				}
 
-				jedis.set(redisKey, newOp.serialize());
+				set(redisKey, newOp);
 			}
 			else if(commitType == CommitType.OVERWRITE) {
-				jedis.set(redisKey, opFromBatch.serialize());
+				set(redisKey, opFromBatch);
 			}
 			else {
 				throw new AssertionError("Unsupported commit type: " + commitType);
@@ -102,7 +110,19 @@ public class RedisDbHarness<T extends Op> implements DbHarness<T>
 			throw new RuntimeException(e);
 		}
 
-		jedis.set(redisKey, op.serialize());
+		set(redisKey, op);
+	}
+
+	private void set(byte[] redisKey, T op)
+	{
+		if (ttlSeconds > 0)
+		{
+			jedis.setex(redisKey, ttlSeconds, op.serialize());
+		}
+		else
+		{
+			jedis.set(redisKey, op.serialize());
+		}
 	}
 
 	@Override
