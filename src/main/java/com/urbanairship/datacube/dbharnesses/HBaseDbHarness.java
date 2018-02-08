@@ -413,10 +413,11 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
         long startTime = System.currentTimeMillis();
         final Result[] results = WithHTable.get(pool, tableName, gets);
         long cubeReadLatency = System.currentTimeMillis() - startTime;
+        long idServicesLatencyRatio = (long) (idServicesLatency / ((double) cubeReadLatency + idServicesLatency) * 100);
 
         multiGetIdServicesLatency.update(idServicesLatency, TimeUnit.MILLISECONDS);
         multiGetCubeLatency.update(cubeReadLatency, TimeUnit.MILLISECONDS);
-        multiGetIdServicesLatencyRatio.update(idServicesLatency / (cubeReadLatency + idServicesLatency));
+        multiGetIdServicesLatencyRatio.update(idServicesLatencyRatio);
 
         int resultPosition = 0;
         int outputPosition = 0;
