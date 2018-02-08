@@ -75,6 +75,7 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
     private final Timer singleWriteTimer;
     private final Histogram incrementSize;
     private final Histogram casTries;
+    private final Timer multiGetTotalLatency;
     private final Timer multiGetIdServicesLatency;
     private final Timer multiGetCubeLatency;
     private final Histogram multiGetIdServicesLatencyRatio;
@@ -121,6 +122,7 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
         casTries = Metrics.histogram(HBaseDbHarness.class, "casTries", metricsScope);
         casRetriesExhausted = Metrics.counter(HBaseDbHarness.class, "casRetriesExhausted", metricsScope);
         iOExceptionsRetrySleepDuration = Metrics.timer(HBaseDbHarness.class, "retrySleepDuration", metricsScope);
+        multiGetTotalLatency = Metrics.timer(HBaseDbHarness.class, "multiGetTotalLatency", metricsScope);
         multiGetIdServicesLatency = Metrics.timer(HBaseDbHarness.class, "multiGetIdServicesLatency", metricsScope);
         multiGetCubeLatency = Metrics.timer(HBaseDbHarness.class, "multiGetCubeLatency", metricsScope);
         multiGetIdServicesLatencyRatio = Metrics.histogram(HBaseDbHarness.class, "multiGetIdServicesLatencyRatio", metricsScope);
@@ -381,6 +383,8 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
 
     @Override
     public List<Optional<T>> multiGet(List<Address> addresses) throws IOException {
+        Timer.Context totalLatency = multiGetTotalLatency.time();
+
         final int size = addresses.size();
         final List<Get> gets = Lists.newArrayListWithCapacity(size);
         final List<Optional<T>> resultsOptionals = Lists.newArrayListWithCapacity(size);
@@ -439,6 +443,8 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
             }
             outputPosition++;
         }
+
+        totalLatency.stop();
 
         return resultsOptionals;
     }
