@@ -1,3 +1,7 @@
+4.0.4
+=====
+Metrics for id services in multi-get
+
 4.0.3
 =====
 Naive implementation of multiget for the map db harness.

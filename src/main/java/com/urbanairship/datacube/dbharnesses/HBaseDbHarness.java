@@ -75,6 +75,10 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
     private final Timer singleWriteTimer;
     private final Histogram incrementSize;
     private final Histogram casTries;
+    private final Timer multiGetIdServicesLatency;
+    private final Timer multiGetCubeLatency;
+    private final Histogram multiGetIdServicesLatencyRatio;
+
     private final Counter casRetriesExhausted;
     private final Timer iOExceptionsRetrySleepDuration;
     private final Function<Map<byte[], byte[]>, Void> onFlush;
@@ -117,6 +121,9 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
         casTries = Metrics.histogram(HBaseDbHarness.class, "casTries", metricsScope);
         casRetriesExhausted = Metrics.counter(HBaseDbHarness.class, "casRetriesExhausted", metricsScope);
         iOExceptionsRetrySleepDuration = Metrics.timer(HBaseDbHarness.class, "retrySleepDuration", metricsScope);
+        multiGetIdServicesLatency = Metrics.timer(HBaseDbHarness.class, "multiGetIdServicesLatency", metricsScope);
+        multiGetCubeLatency = Metrics.timer(HBaseDbHarness.class, "multiGetCubeLatency", metricsScope);
+        multiGetIdServicesLatencyRatio = Metrics.histogram(HBaseDbHarness.class, "multiGetIdServicesLatencyRatio", metricsScope);
 
         String cubeName = new String(uniqueCubeName);
         BlockingQueue<Runnable> workQueue = new LinkedBlockingQueue<Runnable>(numFlushThreads);
@@ -379,13 +386,16 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
         final List<Optional<T>> resultsOptionals = Lists.newArrayListWithCapacity(size);
         final List<byte[]> rowKeys = Lists.newArrayListWithCapacity(size);
         final Set<Integer> unknownKeyPositions = Sets.newHashSet();
+        long idServicesLatency = 0L;
 
         for (int i = 0; i < addresses.size(); i++) {
             Address address = addresses.get(i);
 
             try {
+                long start = System.currentTimeMillis();
                 final Optional<byte[]> maybeKey = address.toReadKey(idService);
                 if (maybeKey.isPresent()) {
+                    idServicesLatency += System.currentTimeMillis() - start;
                     final byte[] rowKey = ArrayUtils.addAll(uniqueCubeName, maybeKey.get());
                     rowKeys.add(rowKey);
                     Get get = new Get(rowKey);
@@ -400,7 +410,14 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
             }
         }
 
+        long startTime = System.currentTimeMillis();
         final Result[] results = WithHTable.get(pool, tableName, gets);
+        long cubeReadLatency = System.currentTimeMillis() - startTime;
+
+        multiGetIdServicesLatency.update(idServicesLatency, TimeUnit.MILLISECONDS);
+        multiGetCubeLatency.update(cubeReadLatency, TimeUnit.MILLISECONDS);
+        multiGetIdServicesLatencyRatio.update(idServicesLatency / (cubeReadLatency + idServicesLatency));
+
         int resultPosition = 0;
         int outputPosition = 0;
 
