@@ -1,3 +1,7 @@
+4.0.5
+=====
+Timer around entire multi-get reads
+
 4.0.4
 =====
 Metrics for id services in multi-get
