@@ -3,7 +3,7 @@
 
   <groupId>com.urbanairship</groupId>
   <artifactId>datacube</artifactId>
-  <version>4.0.3-SNAPSHOT</version>
+  <version>4.1.0</version>
   <packaging>jar</packaging>
 
   <name>datacube</name>
