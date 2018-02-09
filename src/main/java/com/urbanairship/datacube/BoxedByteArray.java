@@ -4,13 +4,15 @@ Copyright 2012 Urban Airship and Contributors
 
 package com.urbanairship.datacube;
 
+import java.io.Serializable;
 import java.util.Arrays;
 
 import org.apache.commons.codec.binary.Hex;
 
-public class BoxedByteArray {
-//    private static final Logger log = LogManager.getLogger(BoxedByteArray.class);
+public class BoxedByteArray implements Serializable {
     
+    private static final long serialVersionUID = 1L;
+
     public final byte[] bytes;
     
     public BoxedByteArray(byte[] bytes) {
