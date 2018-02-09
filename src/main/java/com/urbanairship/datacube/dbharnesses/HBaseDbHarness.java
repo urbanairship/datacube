@@ -14,6 +14,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.urbanairship.datacube.Address;
+import com.urbanairship.datacube.ThreadedIdServiceLookup;
 import com.urbanairship.datacube.Batch;
 import com.urbanairship.datacube.DbHarness;
 import com.urbanairship.datacube.Deserializer;
@@ -35,11 +36,13 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nullable;
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Callable;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.RejectedExecutionException;
@@ -59,6 +62,7 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
             return null;
         }
     };
+    private final static int MAX_CONCURRENT_ID_SERVICE_LOOKUPS = 100;
 
     private final HTablePool pool;
     private final Deserializer<T> deserializer;
@@ -76,14 +80,13 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
     private final Histogram incrementSize;
     private final Histogram casTries;
     private final Timer multiGetTotalLatency;
-    private final Timer multiGetIdServicesLatency;
     private final Timer multiGetCubeLatency;
-    private final Histogram multiGetIdServicesLatencyRatio;
 
     private final Counter casRetriesExhausted;
     private final Timer iOExceptionsRetrySleepDuration;
     private final Function<Map<byte[], byte[]>, Void> onFlush;
     private final Set<Batch<T>> batchesInFlight = Sets.newHashSet();
+    private final String metricsScope;
 
     public HBaseDbHarness(HTablePool pool, byte[] uniqueCubeName, byte[] tableName,
                           byte[] cf, Deserializer<T> deserializer, IdService idService, CommitType commitType)
@@ -114,6 +117,7 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
         this.numIoeTries = numIoeTries;
         this.numCasTries = numCasTries;
         this.onFlush = onFlush;
+        this.metricsScope = metricsScope;
 
         flushSuccessTimer = Metrics.timer(HBaseDbHarness.class, "successfulBatchFlush", metricsScope);
         flushFailTimer = Metrics.timer(HBaseDbHarness.class, "failedBatchFlush", metricsScope);
@@ -123,9 +127,7 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
         casRetriesExhausted = Metrics.counter(HBaseDbHarness.class, "casRetriesExhausted", metricsScope);
         iOExceptionsRetrySleepDuration = Metrics.timer(HBaseDbHarness.class, "retrySleepDuration", metricsScope);
         multiGetTotalLatency = Metrics.timer(HBaseDbHarness.class, "multiGetTotalLatency", metricsScope);
-        multiGetIdServicesLatency = Metrics.timer(HBaseDbHarness.class, "multiGetIdServicesLatency", metricsScope);
         multiGetCubeLatency = Metrics.timer(HBaseDbHarness.class, "multiGetCubeLatency", metricsScope);
-        multiGetIdServicesLatencyRatio = Metrics.histogram(HBaseDbHarness.class, "multiGetIdServicesLatencyRatio", metricsScope);
 
         String cubeName = new String(uniqueCubeName);
         BlockingQueue<Runnable> workQueue = new LinkedBlockingQueue<Runnable>(numFlushThreads);
@@ -389,39 +391,35 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
         final List<Get> gets = Lists.newArrayListWithCapacity(size);
         final List<Optional<T>> resultsOptionals = Lists.newArrayListWithCapacity(size);
         final List<byte[]> rowKeys = Lists.newArrayListWithCapacity(size);
-        final Set<Integer> unknownKeyPositions = Sets.newHashSet();
-        long idServicesLatency = 0L;
+        final Set<Integer> unknownKeyPositions = Collections.newSetFromMap(new ConcurrentHashMap<Integer, Boolean>());
+        int idServiceLookupConcurrency = Math.max(size, MAX_CONCURRENT_ID_SERVICE_LOOKUPS);
 
-        for (int i = 0; i < addresses.size(); i++) {
-            Address address = addresses.get(i);
+        ThreadedIdServiceLookup idServiceLookup = new ThreadedIdServiceLookup(
+                idService,
+                unknownKeyPositions,
+                idServiceLookupConcurrency,
+                metricsScope
+        );
 
-            try {
-                long start = System.currentTimeMillis();
-                final Optional<byte[]> maybeKey = address.toReadKey(idService);
+        try {
+            List<Optional<byte[]>> addressKeys = idServiceLookup.execute(addresses);
+            for (Optional<byte[]> maybeKey : addressKeys) {
                 if (maybeKey.isPresent()) {
-                    idServicesLatency += System.currentTimeMillis() - start;
                     final byte[] rowKey = ArrayUtils.addAll(uniqueCubeName, maybeKey.get());
                     rowKeys.add(rowKey);
                     Get get = new Get(rowKey);
                     get.addFamily(cf);
                     gets.add(get);
-                } else {
-                    unknownKeyPositions.add(i);
                 }
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                throw new RuntimeException(e);
             }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new RuntimeException(e);
         }
 
-        long startTime = System.currentTimeMillis();
+        Timer.Context multiGetLatency = multiGetCubeLatency.time();
         final Result[] results = WithHTable.get(pool, tableName, gets);
-        long cubeReadLatency = System.currentTimeMillis() - startTime;
-        long idServicesLatencyRatio = (long) (idServicesLatency / ((double) cubeReadLatency + idServicesLatency) * 100);
-
-        multiGetIdServicesLatency.update(idServicesLatency, TimeUnit.MILLISECONDS);
-        multiGetCubeLatency.update(cubeReadLatency, TimeUnit.MILLISECONDS);
-        multiGetIdServicesLatencyRatio.update(idServicesLatencyRatio);
+        multiGetLatency.stop();
 
         int resultPosition = 0;
         int outputPosition = 0;
@@ -445,7 +443,6 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
         }
 
         totalLatency.stop();
-
         return resultsOptionals;
     }
 
