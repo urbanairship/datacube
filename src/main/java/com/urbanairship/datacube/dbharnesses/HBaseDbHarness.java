@@ -392,9 +392,14 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
         final List<Optional<T>> resultsOptionals = Lists.newArrayListWithCapacity(size);
         final List<byte[]> rowKeys = Lists.newArrayListWithCapacity(size);
         final Set<Integer> unknownKeyPositions = Collections.newSetFromMap(new ConcurrentHashMap<Integer, Boolean>());
-        int addressLookupConcurrency = Math.max(size, MAX_CONCURRENT_ID_SERVICE_LOOKUPS);
+        int idServiceLookupConcurrency = Math.max(size, MAX_CONCURRENT_ID_SERVICE_LOOKUPS);
 
-        ThreadedIdServiceLookup idServiceLookup = new ThreadedIdServiceLookup(idService, unknownKeyPositions, addressLookupConcurrency, metricsScope);
+        ThreadedIdServiceLookup idServiceLookup = new ThreadedIdServiceLookup(
+                idService,
+                unknownKeyPositions,
+                idServiceLookupConcurrency,
+                metricsScope
+        );
 
         try {
             List<Optional<byte[]>> addressKeys = idServiceLookup.execute(addresses);
