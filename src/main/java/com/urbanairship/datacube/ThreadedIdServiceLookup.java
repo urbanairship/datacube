@@ -69,7 +69,7 @@ public class ThreadedIdServiceLookup {
                 throw (InterruptedException) e.getCause();
             }
 
-            throw new RuntimeException(e);
+            throw new RuntimeException(e.getCause());
         }
 
         executorService.shutdown();
