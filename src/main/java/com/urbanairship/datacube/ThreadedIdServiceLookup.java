@@ -19,14 +19,15 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.ThreadFactory;
 
 public class ThreadedIdServiceLookup implements Closeable {
     private static final Logger log = LogManager.getLogger(ThreadedIdServiceLookup.class);
 
-    private final ExecutorService executorService;
     private Timer LATENCY_TIMER;
     private Histogram BATCH_SIZE_HISTO;
 
+    private final ExecutorService executorService;
     private final IdService idService;
 
     /**
@@ -35,21 +36,25 @@ public class ThreadedIdServiceLookup implements Closeable {
      *
      * @param idService id service that lookups will be executed against
      * @param threads concurrency level
+     * @param metricsScope name used for metrics and threads
      */
     public ThreadedIdServiceLookup(IdService idService, int threads, String metricsScope) {
+        ThreadFactory threadFactory = new ThreadFactoryBuilder()
+                .setDaemon(false)
+                .setNameFormat(metricsScope + " threaded id service lookup %d")
+                .setUncaughtExceptionHandler(new Thread.UncaughtExceptionHandler() {
+                    @Override
+                    public void uncaughtException(Thread t, Throwable e) {
+                        log.error("Uncaught error from id service lookup thread", e);
+                    }
+                })
+                .build();
+
+        this.executorService = Executors.newFixedThreadPool(threads, threadFactory);
         this.idService = idService;
 
         LATENCY_TIMER = Metrics.timer(ThreadedIdServiceLookup.class, "latency", metricsScope);
         BATCH_SIZE_HISTO = Metrics.histogram(ThreadedIdServiceLookup.class, "batch_size", metricsScope);
-        this.executorService = Executors.newFixedThreadPool(threads, new ThreadFactoryBuilder().setNameFormat(metricsScope + " threaded id service %d")
-                .setDaemon(true)
-                .setUncaughtExceptionHandler(new Thread.UncaughtExceptionHandler() {
-                    @Override
-                    public void uncaughtException(Thread t, Throwable e) {
-                        log.error("cuaght exception on thread " + t.getName(), e)
-                    }
-                })
-                .build());
     }
 
     public List<Optional<byte[]>> execute(List<Address> addresses, Set<Integer> unknownKeyPositions) throws IOException, InterruptedException {

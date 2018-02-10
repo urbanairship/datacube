@@ -62,7 +62,7 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
             return null;
         }
     };
-    private final static int MAX_CONCURRENT_ID_SERVICE_LOOKUPS = 100;
+    private final static int ID_SERVICE_LOOKUP_THREADS = 100;
 
     private final HTablePool pool;
     private final Deserializer<T> deserializer;
@@ -134,6 +134,7 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
         BlockingQueue<Runnable> workQueue = new LinkedBlockingQueue<Runnable>(numFlushThreads);
         this.flushExecutor = new ThreadPoolExecutor(numFlushThreads, numFlushThreads, 1,
                 TimeUnit.MINUTES, workQueue, new NamedThreadFactory("HBase DB flusher " + cubeName));
+        this.idServiceLookup = new ThreadedIdServiceLookup(idService, ID_SERVICE_LOOKUP_THREADS, metricsScope);
 
         Metrics.gauge(HBaseDbHarness.class, "asyncFlushQueueDepth", metricsScope, new Gauge<Integer>() {
             @Override
@@ -148,13 +149,6 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
                 return flushExecutor.getActiveCount();
             }
         });
-
-        idServiceLookup = new ThreadedIdServiceLookup(
-                idService,
-                100,
-                metricsScope
-        );
-
     }
 
     @Override
