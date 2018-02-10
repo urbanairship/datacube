@@ -16,7 +16,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutionException;
 
 import static org.junit.Assert.*;
 import static org.mockito.Mockito.when;
@@ -32,7 +31,7 @@ public class ThreadedIdServiceLookupTest {
     }
 
      @Test
-     public void testUnknownKeyPositions() throws ExecutionException, InterruptedException, IOException {
+     public void testUnknownKeyPositions() throws InterruptedException, IOException {
          Set<Integer> unknownKeyPositions = Collections.newSetFromMap(new ConcurrentHashMap<Integer, Boolean>());
          ThreadedIdServiceLookup lookup = new ThreadedIdServiceLookup(
                  idService,
