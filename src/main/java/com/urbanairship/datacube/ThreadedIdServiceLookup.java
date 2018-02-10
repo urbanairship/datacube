@@ -4,8 +4,12 @@ package com.urbanairship.datacube;
 import com.codahale.metrics.Histogram;
 import com.codahale.metrics.Timer;
 import com.google.common.base.Optional;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.urbanairship.datacube.metrics.Metrics;
+import org.apache.log4j.LogManager;
+import org.apache.log4j.Logger;
 
+import java.io.Closeable;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -16,43 +20,48 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
-public class ThreadedIdServiceLookup {
+public class ThreadedIdServiceLookup implements Closeable {
+    private static final Logger log = LogManager.getLogger(ThreadedIdServiceLookup.class);
 
+    private final ExecutorService executorService;
     private Timer LATENCY_TIMER;
     private Histogram BATCH_SIZE_HISTO;
 
     private final IdService idService;
-    private final Set<Integer> unknownKeyPositions;
-    private final int threads;
 
     /**
      * This utility class provides threaded Address => Row Key lookups for a list of addresses
      * against an IdService implementation
      *
      * @param idService id service that lookups will be executed against
-     * @param unknownKeyPositions this should be a threadsafe implementation of a Set and will be populated with failed lookups
      * @param threads concurrency level
      */
-    public ThreadedIdServiceLookup(IdService idService, Set<Integer> unknownKeyPositions, int threads, String metricsScope) {
+    public ThreadedIdServiceLookup(IdService idService, int threads, String metricsScope) {
         this.idService = idService;
-        this.threads = threads;
-        this.unknownKeyPositions = unknownKeyPositions;
 
         LATENCY_TIMER = Metrics.timer(ThreadedIdServiceLookup.class, "latency", metricsScope);
         BATCH_SIZE_HISTO = Metrics.histogram(ThreadedIdServiceLookup.class, "batch_size", metricsScope);
+        this.executorService = Executors.newFixedThreadPool(threads, new ThreadFactoryBuilder().setNameFormat(metricsScope + " threaded id service %d")
+                .setDaemon(true)
+                .setUncaughtExceptionHandler(new Thread.UncaughtExceptionHandler() {
+                    @Override
+                    public void uncaughtException(Thread t, Throwable e) {
+                        log.error("cuaght exception on thread " + t.getName(), e)
+                    }
+                })
+                .build());
     }
 
-    public List<Optional<byte[]>> execute(List<Address> addresses) throws IOException, InterruptedException {
+    public List<Optional<byte[]>> execute(List<Address> addresses, Set<Integer> unknownKeyPositions) throws IOException, InterruptedException {
         Timer.Context timer = LATENCY_TIMER.time();
         BATCH_SIZE_HISTO.update(addresses.size());
 
-        ExecutorService executorService = Executors.newFixedThreadPool(threads);
         List<Callable<Optional<byte[]>>> callableList = new ArrayList<Callable<Optional<byte[]>>>(addresses.size());
         List<Optional<byte[]>> keys = new ArrayList<Optional<byte[]>>(addresses.size());
 
         for (int i = 0; i < addresses.size(); i++) {
             Address address = addresses.get(i);
-            callableList.add(new ReadKeyCallable(idService, address, i));
+            callableList.add(new ReadKeyCallable(idService, address, i, unknownKeyPositions));
         }
 
         try {
@@ -72,10 +81,13 @@ public class ThreadedIdServiceLookup {
             throw new RuntimeException(e.getCause());
         }
 
-        executorService.shutdown();
-
         timer.stop();
         return keys;
+    }
+
+    @Override
+    public void close() throws IOException {
+        executorService.shutdown();
     }
 
     private class ReadKeyCallable implements Callable<Optional<byte[]>> {
@@ -83,11 +95,13 @@ public class ThreadedIdServiceLookup {
         private final IdService idService;
         private final Address address;
         private final int index;
+        private final Set<Integer> unknownKeyPositions;
 
-        private ReadKeyCallable(IdService idService, Address address, int index) {
+        private ReadKeyCallable(IdService idService, Address address, int index, Set<Integer> unknownKeyPositions) {
             this.idService = idService;
             this.address = address;
             this.index = index;
+            this.unknownKeyPositions = unknownKeyPositions;
         }
 
         @Override

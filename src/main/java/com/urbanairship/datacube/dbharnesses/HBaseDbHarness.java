@@ -87,6 +87,7 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
     private final Function<Map<byte[], byte[]>, Void> onFlush;
     private final Set<Batch<T>> batchesInFlight = Sets.newHashSet();
     private final String metricsScope;
+    private ThreadedIdServiceLookup idServiceLookup;
 
     public HBaseDbHarness(HTablePool pool, byte[] uniqueCubeName, byte[] tableName,
                           byte[] cf, Deserializer<T> deserializer, IdService idService, CommitType commitType)
@@ -147,6 +148,13 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
                 return flushExecutor.getActiveCount();
             }
         });
+
+        idServiceLookup = new ThreadedIdServiceLookup(
+                idService,
+                100,
+                metricsScope
+        );
+
     }
 
     @Override
@@ -392,17 +400,9 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
         final List<Optional<T>> resultsOptionals = Lists.newArrayListWithCapacity(size);
         final List<byte[]> rowKeys = Lists.newArrayListWithCapacity(size);
         final Set<Integer> unknownKeyPositions = Collections.newSetFromMap(new ConcurrentHashMap<Integer, Boolean>());
-        int idServiceLookupConcurrency = Math.max(size, MAX_CONCURRENT_ID_SERVICE_LOOKUPS);
-
-        ThreadedIdServiceLookup idServiceLookup = new ThreadedIdServiceLookup(
-                idService,
-                unknownKeyPositions,
-                idServiceLookupConcurrency,
-                metricsScope
-        );
 
         try {
-            List<Optional<byte[]>> addressKeys = idServiceLookup.execute(addresses);
+            List<Optional<byte[]>> addressKeys = idServiceLookup.execute(addresses, unknownKeyPositions);
             for (Optional<byte[]> maybeKey : addressKeys) {
                 if (maybeKey.isPresent()) {
                     final byte[] rowKey = ArrayUtils.addAll(uniqueCubeName, maybeKey.get());
