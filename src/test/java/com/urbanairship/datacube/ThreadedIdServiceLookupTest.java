@@ -12,12 +12,10 @@ import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
 import java.io.IOException;
-import java.io.InterruptedIOException;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutionException;
 
 import static org.junit.Assert.*;
 import static org.mockito.Mockito.when;
@@ -32,114 +30,196 @@ public class ThreadedIdServiceLookupTest {
         MockitoAnnotations.initMocks(this);
     }
 
-    @Test
-    public void testUnknownKeyPositions() throws ExecutionException, InterruptedException, IOException {
-        Set<Integer> unknownKeyPositions = Collections.newSetFromMap(new ConcurrentHashMap<Integer, Boolean>());
-        ThreadedIdServiceLookup lookup = new ThreadedIdServiceLookup(
-                idService,
-                unknownKeyPositions,
-                2,
-                "metrics"
-        );
-        Address address1 = Mockito.mock(Address.class);
-        Address address2 = Mockito.mock(Address.class);
-        Address address3 = Mockito.mock(Address.class);
+     @Test
+     public void testUnknownKeyPositions() throws InterruptedException, IOException {
+         Set<Integer> unknownKeyPositions = Collections.newSetFromMap(new ConcurrentHashMap<Integer, Boolean>());
+         ThreadedIdServiceLookup lookup = new ThreadedIdServiceLookup(
+                 idService,
+                 2,
+                 "metrics"
+         );
 
-        when(address1.toReadKey(idService)).thenReturn(Optional.<byte[]>absent());
-        when(address2.toReadKey(idService)).thenReturn(Optional.of(new byte[]{1}));
-        when(address3.toReadKey(idService)).thenReturn(Optional.<byte[]>absent());
+         Address address1 = Mockito.mock(Address.class);
+         Address address2 = Mockito.mock(Address.class);
+         Address address3 = Mockito.mock(Address.class);
 
-        List<Optional<byte[]>> keys = lookup.execute(ImmutableList.of(address1, address2, address3));
+         when(address1.toReadKey(idService)).thenReturn(Optional.<byte[]>absent());
+         when(address2.toReadKey(idService)).thenReturn(Optional.of(new byte[]{1}));
+         when(address3.toReadKey(idService)).thenReturn(Optional.<byte[]>absent());
 
-        assertEquals(3, keys.size());
-        assertFalse(keys.get(0).isPresent());
-        assertTrue(keys.get(1).isPresent());
-        assertFalse(keys.get(2).isPresent());
+         List<Optional<byte[]>> keys = lookup.execute(
+                 ImmutableList.of(address1, address2, address3),
+                 unknownKeyPositions
+         );
 
-        assertArrayEquals(new byte[]{1}, keys.get(1).get());
+         assertEquals(3, keys.size());
+         assertFalse(keys.get(0).isPresent());
+         assertTrue(keys.get(1).isPresent());
+         assertFalse(keys.get(2).isPresent());
 
-        assertEquals(2, unknownKeyPositions.size());
-        assertTrue(unknownKeyPositions.contains(0));
-        assertTrue(unknownKeyPositions.contains(2));
-    }
+         assertArrayEquals(new byte[]{1}, keys.get(1).get());
 
-    @Test
-    public void testOrderingOfResults() throws InterruptedException, IOException {
-        Set<Integer> unknownKeyPositions = Collections.newSetFromMap(new ConcurrentHashMap<Integer, Boolean>());
-        ThreadedIdServiceLookup lookup = new ThreadedIdServiceLookup(
-                idService,
-                unknownKeyPositions,
-                3,
-                "metrics"
-        );
+         assertEquals(2, unknownKeyPositions.size());
+         assertTrue(unknownKeyPositions.contains(0));
+         assertTrue(unknownKeyPositions.contains(2));
+     }
 
-        Address address1 = Mockito.mock(Address.class);
-        Address address2 = Mockito.mock(Address.class);
-        Address address3 = Mockito.mock(Address.class);
+     @Test
+     public void testOrderingOfResults() throws InterruptedException, IOException {
+         Set<Integer> unknownKeyPositions = Collections.newSetFromMap(new ConcurrentHashMap<Integer, Boolean>());
+         ThreadedIdServiceLookup lookup = new ThreadedIdServiceLookup(
+                 idService,
+                 3,
+                 "metrics"
+         );
 
-        when(address1.toReadKey(idService)).thenAnswer(new Answer<Optional<byte[]>>() {
-            @Override
-            public Optional<byte[]> answer(InvocationOnMock invocation) throws Throwable {
-                Thread.sleep(100);
-                return Optional.of(new byte[]{0});
-            }
-        });
+         Address address1 = Mockito.mock(Address.class);
+         Address address2 = Mockito.mock(Address.class);
+         Address address3 = Mockito.mock(Address.class);
 
-        when(address2.toReadKey(idService)).thenAnswer(new Answer<Optional<byte[]>>() {
-            @Override
-            public Optional<byte[]> answer(InvocationOnMock invocation) throws Throwable {
-                Thread.sleep(50);
-                return Optional.of(new byte[]{1});
-            }
-        });
+         when(address1.toReadKey(idService)).thenAnswer(new Answer<Optional<byte[]>>() {
+             @Override
+             public Optional<byte[]> answer(InvocationOnMock invocation) throws Throwable {
+                 Thread.sleep(100);
+                 return Optional.of(new byte[]{0});
+             }
+         });
 
-        when(address3.toReadKey(idService)).thenReturn(Optional.of(new byte[]{2}));
+         when(address2.toReadKey(idService)).thenAnswer(new Answer<Optional<byte[]>>() {
+             @Override
+             public Optional<byte[]> answer(InvocationOnMock invocation) throws Throwable {
+                 Thread.sleep(50);
+                 return Optional.of(new byte[]{1});
+             }
+         });
 
-        List<Optional<byte[]>> keys = lookup.execute(ImmutableList.of(address1, address2, address3));
+         when(address3.toReadKey(idService)).thenReturn(Optional.of(new byte[]{2}));
 
-        assertEquals(3, keys.size());
-        assertTrue(keys.get(0).isPresent());
-        assertTrue(keys.get(1).isPresent());
-        assertTrue(keys.get(2).isPresent());
-        assertArrayEquals(new byte[]{0}, keys.get(0).get());
-        assertArrayEquals(new byte[]{1}, keys.get(1).get());
-        assertArrayEquals(new byte[]{2}, keys.get(2).get());
-        assertEquals(0, unknownKeyPositions.size());
-    }
+         List<Optional<byte[]>> keys = lookup.execute(
+                 ImmutableList.of(address1, address2, address3),
+                 unknownKeyPositions
+         );
 
-    @Test(expected = IOException.class)
-    public void testReadKeyIOException() throws IOException, InterruptedException {
-        Set<Integer> unknownKeyPositions = Collections.newSetFromMap(new ConcurrentHashMap<Integer, Boolean>());
-        ThreadedIdServiceLookup lookup = new ThreadedIdServiceLookup(
-                idService,
-                unknownKeyPositions,
-                2,
-                "metrics"
-        );
-        Address address1 = Mockito.mock(Address.class);
-        Address address2 = Mockito.mock(Address.class);
+         assertEquals(3, keys.size());
+         assertTrue(keys.get(0).isPresent());
+         assertTrue(keys.get(1).isPresent());
+         assertTrue(keys.get(2).isPresent());
+         assertArrayEquals(new byte[]{0}, keys.get(0).get());
+         assertArrayEquals(new byte[]{1}, keys.get(1).get());
+         assertArrayEquals(new byte[]{2}, keys.get(2).get());
+         assertEquals(0, unknownKeyPositions.size());
+     }
 
-        when(address1.toReadKey(idService)).thenThrow(new IOException("IO BOOM!"));
-        when(address2.toReadKey(idService)).thenReturn(Optional.of(new byte[]{1}));
+     @Test
+     public void testFlow() throws IOException, InterruptedException {
+         ThreadedIdServiceLookup lookup = new ThreadedIdServiceLookup(
+                 idService,
+                 2,
+                 "metrics"
+         );
 
-        lookup.execute(ImmutableList.of(address1, address2));
-    }
+         Address address1 = Mockito.mock(Address.class);
+         Address address2 = Mockito.mock(Address.class);
+         Address address3 = Mockito.mock(Address.class);
+         Address address4 = Mockito.mock(Address.class);
+         Address address5 = Mockito.mock(Address.class);
+         Address address6 = Mockito.mock(Address.class);
 
-    @Test(expected = InterruptedIOException.class)
-    public void testReadKeyInterruptedException() throws IOException, InterruptedException {
-        Set<Integer> unknownKeyPositions = Collections.newSetFromMap(new ConcurrentHashMap<Integer, Boolean>());
-        ThreadedIdServiceLookup lookup = new ThreadedIdServiceLookup(
-                idService,
-                unknownKeyPositions,
-                2,
-                "metrics"
-        );
-        Address address1 = Mockito.mock(Address.class);
-        Address address2 = Mockito.mock(Address.class);
+         Set<Integer> unknownKeyPositions1 = Collections.newSetFromMap(new ConcurrentHashMap<Integer, Boolean>());
+         Set<Integer> unknownKeyPositions2 = Collections.newSetFromMap(new ConcurrentHashMap<Integer, Boolean>());
+         Set<Integer> unknownKeyPositions3 = Collections.newSetFromMap(new ConcurrentHashMap<Integer, Boolean>());
 
-        when(address1.toReadKey(idService)).thenReturn(Optional.of(new byte[]{1}));
-        when(address2.toReadKey(idService)).thenThrow(new InterruptedIOException("INTERRUPTED BOOM!"));
+         when(address1.toReadKey(idService)).thenThrow(new IOException("IO BOOM!"));
+         when(address2.toReadKey(idService)).thenAnswer(new Answer<Optional<byte[]>>() {
+             @Override
+             public Optional<byte[]> answer(InvocationOnMock invocation) throws Throwable {
+                 Thread.sleep(100);
+                 return Optional.of(new byte[]{1});
+             }
+         });
+         when(address3.toReadKey(idService)).thenAnswer(new Answer<Optional<byte[]>>() {
+             @Override
+             public Optional<byte[]> answer(InvocationOnMock invocation) throws Throwable {
+                 Thread.sleep(200);
+                 return Optional.absent();
+             }
+         });
+         when(address4.toReadKey(idService)).thenReturn(Optional.of(new byte[]{3}));
+         when(address5.toReadKey(idService)).thenReturn(Optional.of(new byte[]{4}));
+         when(address6.toReadKey(idService)).thenReturn(Optional.of(new byte[]{5}));
 
-        lookup.execute(ImmutableList.of(address1, address2));
-    }
+         List<Optional<byte[]>> keys1 = null;
+
+         try {
+             keys1 = lookup.execute(
+                     ImmutableList.of(address1, address2),
+                     unknownKeyPositions1
+             );
+
+             fail();
+         } catch (IOException e) {
+             // this is expected
+         }
+
+         List<Optional<byte[]>> keys2 = lookup.execute(
+                 ImmutableList.of(address3, address4),
+                 unknownKeyPositions2
+         );
+
+         List<Optional<byte[]>> keys3 = lookup.execute(
+                 ImmutableList.of(address5, address6),
+                 unknownKeyPositions3
+         );
+
+         assertNull(keys1);
+         assertEquals(2, keys2.size());
+         assertEquals(2, keys3.size());
+
+         assertEquals(0, unknownKeyPositions1.size());
+         assertEquals(1, unknownKeyPositions2.size());
+         assertEquals(0, unknownKeyPositions3.size());
+
+         assertFalse(keys2.get(0).isPresent());
+         assertTrue(keys2.get(1).isPresent());
+         assertTrue(keys3.get(0).isPresent());
+         assertTrue(keys3.get(1).isPresent());
+
+         assertArrayEquals(new byte[]{3}, keys2.get(1).get());
+         assertArrayEquals(new byte[]{4}, keys3.get(0).get());
+         assertArrayEquals(new byte[]{5}, keys3.get(1).get());
+     }
+
+     @Test(expected = IOException.class)
+     public void testReadKeyIOException() throws IOException, InterruptedException {
+         Set<Integer> unknownKeyPositions = Collections.newSetFromMap(new ConcurrentHashMap<Integer, Boolean>());
+         ThreadedIdServiceLookup lookup = new ThreadedIdServiceLookup(
+                 idService,
+                 2,
+                 "metrics"
+         );
+         Address address1 = Mockito.mock(Address.class);
+         Address address2 = Mockito.mock(Address.class);
+
+         when(address1.toReadKey(idService)).thenThrow(new IOException("IO BOOM!"));
+         when(address2.toReadKey(idService)).thenReturn(Optional.of(new byte[]{1}));
+
+         lookup.execute(ImmutableList.of(address1, address2), unknownKeyPositions);
+     }
+
+     @Test(expected = InterruptedException.class)
+     public void testReadKeyInterruptedException() throws IOException, InterruptedException {
+         Set<Integer> unknownKeyPositions = Collections.newSetFromMap(new ConcurrentHashMap<Integer, Boolean>());
+         ThreadedIdServiceLookup lookup = new ThreadedIdServiceLookup(
+                 idService,
+                 2,
+                 "metrics"
+         );
+         Address address1 = Mockito.mock(Address.class);
+         Address address2 = Mockito.mock(Address.class);
+
+         when(address1.toReadKey(idService)).thenReturn(Optional.of(new byte[]{1}));
+         when(address2.toReadKey(idService)).thenThrow(new InterruptedException("INTERRUPTED BOOM!"));
+
+         lookup.execute(ImmutableList.of(address1, address2), unknownKeyPositions);
+     }
 }
