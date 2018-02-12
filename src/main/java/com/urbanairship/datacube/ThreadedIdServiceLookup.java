@@ -40,7 +40,7 @@ public class ThreadedIdServiceLookup implements Closeable {
      */
     public ThreadedIdServiceLookup(IdService idService, int threads, String metricsScope) {
         ThreadFactory threadFactory = new ThreadFactoryBuilder()
-                .setDaemon(false)
+                .setDaemon(true)
                 .setNameFormat(metricsScope + " threaded id service lookup %d")
                 .setUncaughtExceptionHandler(new Thread.UncaughtExceptionHandler() {
                     @Override
