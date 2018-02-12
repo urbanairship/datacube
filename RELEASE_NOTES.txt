@@ -1,3 +1,7 @@
+4.1.1
+=====
+Make BoxedByteArray serializable
+
 4.1.0
 =====
 Execute id service lookups for multi-gets in a thread pool
