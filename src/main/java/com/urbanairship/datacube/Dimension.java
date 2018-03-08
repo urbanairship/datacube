@@ -12,8 +12,7 @@ import java.util.List;
  *
  * @param <F> the type of the coordinates for this dimension. For example, a time dimension might use the type
  *            DateTime or Long for its coordinates. As another example, a location dimension might use a custom LatLong
- *            type
- *            as its input coordinate. This is the type that will be passed as input to the bucketer for this
+ *            type as its input coordinate. This is the type that will be passed as input to the bucketer for this
  *            dimension.
  */
 public class Dimension<F> {
@@ -33,8 +32,7 @@ public class Dimension<F> {
      * @param fieldBytes       the number of bytes that will be reserved in database keys for coordinates in this
      *                         dimension. For example, if values in this dimension have 1000 distinct values, then
      *                         you'd need ceil(log2(1000)/8)=2 bytes (1000 values can be enumerated in 10 bits, which
-     *                         requires
-     *                         2 full bytes).
+     *                         requires 2 full bytes).
      */
     public Dimension(String name, Bucketer<F> bucketer, boolean doIdSubstitution, int fieldBytes) {
         this(name, bucketer, doIdSubstitution, fieldBytes, false);
