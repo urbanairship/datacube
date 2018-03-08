@@ -32,12 +32,10 @@ import java.util.Iterator;
 public class HBaseBackfillMergeMapper extends Mapper<Scan, NullWritable, NullWritable, NullWritable> {
     private static final Logger log = LoggerFactory.getLogger(HBaseBackfillMergeMapper.class);
 
-    public static enum Ctrs {
+    public enum Ctrs {
         ACTION_DELETED, ACTION_OVERWRITTEN, ACTION_UNCHANGED,
         ROWS_CHANGED_SINCE_SNAPSHOT, ROWS_NEW_SINCE_SNAPSHOT
     }
-
-    ;
 
     @Override
     protected void map(Scan scan, NullWritable ignored, Context context)
