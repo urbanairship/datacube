@@ -7,7 +7,6 @@ package com.urbanairship.datacube.idservices;
 import com.codahale.metrics.Gauge;
 import com.codahale.metrics.Meter;
 import com.codahale.metrics.Timer;
-import com.google.common.base.Optional;
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.Sets;
@@ -36,6 +35,7 @@ import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Map.Entry;
+import java.util.Optional;
 import java.util.Set;
 
 public class HBaseIdService implements IdService {
@@ -191,7 +191,7 @@ public class HBaseIdService implements IdService {
                 }
             } else {
                 timer.stop();
-                return Optional.absent();
+                return Optional.empty();
             }
         }
 

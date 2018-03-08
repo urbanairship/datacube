@@ -4,7 +4,6 @@ Copyright 2012 Urban Airship and Contributors
 
 package com.urbanairship.datacube;
 
-import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
@@ -14,16 +13,15 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Optional;
 
 /**
  * This class is mostly intended for internal use by datacube code. By using this class directly you
  * can skip the bucketers and manipulate individual cube values without higher-level magic.
- * <p/>
+ *
  * If you're just trying to use the datacube normally, check out {@link DataCubeIo}, {@link ReadBuilder}
  */
 public class Address {
-//    private static final Logger log = LogManager.getLogger(Address.class);
-
     private final Map<Dimension<?>, BucketTypeAndBucket> buckets = Maps.newHashMap();
     private final DataCube<?> cube;
 
@@ -112,7 +110,7 @@ public class Address {
                         if (maybeId.isPresent()) {
                             elem = maybeId.get();
                         } else {
-                            return Optional.absent();
+                            return Optional.empty();
                         }
 
                     } else {

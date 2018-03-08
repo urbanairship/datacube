@@ -13,15 +13,15 @@ import java.util.concurrent.ThreadFactory;
 public class NamedThreadFactory implements ThreadFactory {
     private final ThreadFactory wrappedThreadFactory = Executors.defaultThreadFactory();
     private final String name;
-    
+
     /**
      * @param threadName the name to be given to all threads created by this factory.
      */
     public NamedThreadFactory(String threadName) {
         this.name = threadName;
     }
-    
-    
+
+
     @Override
     public Thread newThread(Runnable r) {
         Thread thread = wrappedThreadFactory.newThread(r);

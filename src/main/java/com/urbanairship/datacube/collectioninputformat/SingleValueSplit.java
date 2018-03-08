@@ -4,12 +4,12 @@ Copyright 2012 Urban Airship and Contributors
 
 package com.urbanairship.datacube.collectioninputformat;
 
+import org.apache.hadoop.io.Writable;
+import org.apache.hadoop.mapreduce.InputSplit;
+
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
-
-import org.apache.hadoop.io.Writable;
-import org.apache.hadoop.mapreduce.InputSplit;
 
 /**
  * For internal use by CollectionInputFormat.
@@ -17,14 +17,16 @@ import org.apache.hadoop.mapreduce.InputSplit;
 public class SingleValueSplit extends InputSplit implements Writable {
     private Writable key;
     private Class<? extends Writable> keyClass;
-    
-    public SingleValueSplit() { } // No-op constructor needed for deserialization
-    
+
+    // No-op constructor needed for deserialization
+    public SingleValueSplit() {
+    }
+
     public SingleValueSplit(Class<? extends Writable> keyClass, Writable key) {
         this.keyClass = keyClass;
         this.key = key;
     }
-    
+
     @Override
     public long getLength() throws IOException, InterruptedException {
         return 0;
@@ -32,7 +34,7 @@ public class SingleValueSplit extends InputSplit implements Writable {
 
     @Override
     public String[] getLocations() throws IOException, InterruptedException {
-        return new String[] {};
+        return new String[]{};
     }
 
     @SuppressWarnings("unchecked")
@@ -40,7 +42,7 @@ public class SingleValueSplit extends InputSplit implements Writable {
     public void readFields(DataInput in) throws IOException {
         String keyClassName = in.readUTF();
         try {
-            keyClass = (Class<? extends Writable>)Class.forName(keyClassName);
+            keyClass = (Class<? extends Writable>) Class.forName(keyClassName);
             key = keyClass.newInstance();
         } catch (Exception e) {
             throw new IOException(e);
@@ -53,7 +55,7 @@ public class SingleValueSplit extends InputSplit implements Writable {
         out.writeUTF(keyClass.getName());
         key.write(out);
     }
-    
+
     public Writable getKey() {
         return key;
     }

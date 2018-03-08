@@ -13,23 +13,23 @@ import com.urbanairship.datacube.Util;
  */
 public class IntOp implements Op {
     private final int val;
-    public static final IntOpDeserializer DESERIALIZER = new IntOpDeserializer(); 
-    
+    public static final IntOpDeserializer DESERIALIZER = new IntOpDeserializer();
+
     public IntOp(int val) {
         this.val = val;
     }
 
     @Override
     public Op add(Op otherOp) {
-        if(!(otherOp instanceof IntOp)) {
+        if (!(otherOp instanceof IntOp)) {
             throw new RuntimeException();
         }
-        return new IntOp(val + ((IntOp)otherOp).val);
+        return new IntOp(val + ((IntOp) otherOp).val);
     }
-    
+
     @Override
     public Op subtract(Op otherOp) {
-        return new IntOp(this.val - ((IntOp)otherOp).val);
+        return new IntOp(this.val - ((IntOp) otherOp).val);
     }
 
     /**
@@ -71,11 +71,11 @@ public class IntOp implements Op {
             return new IntOp(Util.bytesToInt(bytes));
         }
     }
-    
+
     public String toString() {
         return Integer.toString(val);
     }
-    
+
     public int getInt() {
         return val;
     }

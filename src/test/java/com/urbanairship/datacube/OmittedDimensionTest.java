@@ -1,8 +1,5 @@
 package com.urbanairship.datacube;
 
-import java.util.List;
-import java.util.concurrent.ConcurrentMap;
-
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
 import com.urbanairship.datacube.DbHarness.CommitType;
@@ -12,6 +9,9 @@ import com.urbanairship.datacube.idservices.CachingIdService;
 import com.urbanairship.datacube.idservices.MapIdService;
 import com.urbanairship.datacube.ops.LongOp;
 import org.junit.Test;
+
+import java.util.List;
+import java.util.concurrent.ConcurrentMap;
 
 import static org.junit.Assert.assertEquals;
 
@@ -34,10 +34,10 @@ public class OmittedDimensionTest {
 
         DataCubeIo<LongOp> cubeIo = new DataCubeIo<LongOp>(cube, dbHarness, 1, Long.MAX_VALUE, SyncLevel.FULL_SYNC);
 
-        cubeIo.writeSync(new LongOp(1), new WriteBuilder(cube).at(X, 1L).at(Y, 1L));
+        cubeIo.writeSync(new LongOp(1), new WriteBuilder().at(X, 1L).at(Y, 1L));
         assertEquals(1L, cubeIo.get(new ReadBuilder(cube).at(X, 1L).at(Y, 1L)).get().getLong());
 
-        cubeIo.writeSync(new LongOp(1), new WriteBuilder(cube).at(Y, 1L).at(Z, 1L));
+        cubeIo.writeSync(new LongOp(1), new WriteBuilder().at(Y, 1L).at(Z, 1L));
         assertEquals(1L, cubeIo.get(new ReadBuilder(cube).at(Y, 1L).at(Z, 1L)).get().getLong());
     }
 }
