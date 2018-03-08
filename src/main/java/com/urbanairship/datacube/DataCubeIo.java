@@ -25,38 +25,38 @@ import java.util.concurrent.TimeUnit;
 /**
  * A DataCube does no IO, it merely returns batches that can be executed. This class wraps
  * around a DataCube and does IO against a storage backend.
- * <p>
+ *
  * Thread safe. Writes can block for a long time if another thread is flushing to the database.
- * <p>
+ *
  * <h3>HOW INTERNAL ASYNC BATCH FLUSHING WORKS (for datacube developers, not clients):</h3>
- * <p>
+ *
  * Batches accumulate here, in DataSyncIo objects. When they pass their size or age threshold, they
  * are sent to the underlying DbHarness to be saved to the database. This is where it gets weird,
  * since the DbHarness layer is completely asynchronous and non-blocking.
- * <p>
+ *
  * When a Batch is sent to the DbHarness to be saved, either we get back a Future, or we get a
  * FullQueueException which means that the DbHarness cannot currently accept more batches for saving.
- * <p>
+ *
  * If we get back a Future, then one of two things will happen:
- * <p>
+ *
  * <ul>
  * <li>If the client requested a blocking write using writeSync(), we block and wait for the Future
  * to complete.</li>
  * <li>If the client requested a non-blocking write using writeAsync(), we will return new Future
  * that will wait for the DbHarness flush Future to complete.
  * </ul>
- * <p>
+ *
  * <h3>Error handling</h3>
- * <p>
+ *
  * If batch flushing encounters an exception during a writeSync(), the exception will be thrown to
  * the caller. If batch flushing encounters an exception during a writeAsync(), we can't throw the
  * exception back to the caller since the writeAsync() call has already returned. We make sure the
  * caller handles the error by doing two things.
- * <p>
+ *
  * First, we rethrow the exception from the Future returned by writeAsync(), which the caller will see
  * as an ExecutionException thrown by Future.get(). This alone is not sufficient though, because the
  * caller may never call Future.get().
- * <p>
+ *
  * Second, when an asynchronous batch flush has an exception, the exception is saved in
  * {@link #asyncException}. When {@link #asyncException} is non-null, all future calls to writeAsync()
  * will throw AsyncException and refuse to write. This prevents clients blithely throwing away data
@@ -220,11 +220,11 @@ public class DataCubeIo<T extends Op> {
      * If the {@link SyncLevel} is {@link SyncLevel#FULL_SYNC} or {@link SyncLevel#BATCH_SYNC}, then
      * no asynchronous IO is happening. You can use this function to write instead of
      * {@link #writeAsync(Op, WriteBuilder)} without catching AsyncException or InterruptedException.
-     * <p>
+     *
      * IMPORTANT: the name of this function does not imply that the write is immediately flushed to
      * the database. This is only true if {@link SyncLevel#FULL_SYNC} is set. Otherwise your write
      * is probably just staged in a batch for writing later.
-     * <p>
+     *
      * You can only use this function if this DataCubeIo was constructed with
      * {@link SyncLevel#FULL_SYNC} or {@link SyncLevel#BATCH_SYNC}.
      */
