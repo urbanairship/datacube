@@ -11,7 +11,7 @@ import com.urbanairship.datacube.Util;
 /**
  * Cube oplog mutation type for storing a long counter.
  */
-public class LongOp implements Op {
+public class LongOp implements Op<Long> {
     private final long val;
     public static final LongOpDeserializer DESERIALIZER = new LongOpDeserializer();
 
@@ -63,6 +63,11 @@ public class LongOp implements Op {
     @Override
     public byte[] serialize() {
         return Util.longToBytes(val);
+    }
+
+    @Override
+    public Long get() {
+        return val;
     }
 
     public static class LongOpDeserializer implements Deserializer<LongOp> {

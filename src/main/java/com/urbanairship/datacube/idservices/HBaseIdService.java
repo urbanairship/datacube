@@ -53,6 +53,7 @@ public class HBaseIdService implements IdService {
     private final HTablePool pool;
     private final byte[] counterTable;
     private final byte[] lookupTable;
+    private final byte[] reverseLookupTable;
     private final byte[] uniqueCubeName;
     private final byte[] cf;
     private final Meter allocatingSleeps;
@@ -61,11 +62,17 @@ public class HBaseIdService implements IdService {
     private final Timer idGetTime;
     private final Set<Integer> dimensionsApproachingExhaustion;
 
+    public HBaseIdService(Configuration configuration, byte[] lookupTable, byte[] counterTable, byte[] cf, byte[] uniqueCubeName) {
+        this(configuration, lookupTable, counterTable, null, cf, uniqueCubeName);
+    }
+
     public HBaseIdService(Configuration configuration, byte[] lookupTable,
-                          byte[] counterTable, byte[] cf, byte[] uniqueCubeName) {
+                          byte[] counterTable, byte[] reverseLookupTable,
+                          byte[] cf, byte[] uniqueCubeName) {
         pool = new HTablePool(configuration, Integer.MAX_VALUE);
         this.lookupTable = lookupTable;
         this.counterTable = counterTable;
+        this.reverseLookupTable = reverseLookupTable;
         this.uniqueCubeName = uniqueCubeName;
         this.cf = cf;
         this.dimensionsApproachingExhaustion = Sets.newConcurrentHashSet();
@@ -128,9 +135,15 @@ public class HBaseIdService implements IdService {
         boolean swapSuccess = WithHTable.checkAndPut(pool, lookupTable, lookupKey, cf, QUALIFIER, NULL_BYTE_ARRAY, put);
         if (swapSuccess) {
             timer.stop();
+            if (reverseLookupTable != null) {
+                final Put reversePut = new Put(makeLookupKey(dimensionNum, Util.longToBytes(id))).add(cf, QUALIFIER, input);
+                WithHTable.put(pool, reverseLookupTable, reversePut);
+            }
+            // at this stage, we have successfully associated the id and the value, so we can also put it into the reverse table.
             return Util.leastSignificantBytes(id, numIdBytes);
         } else {
             // Someone beat us to creating the mapping, note that and return whatever they inserted.
+            // they should also have succeeded in establishing the reverse lookup
             wastedIdNumbers.mark();
             final Optional<byte[]> currentValue = getId(lookupKey, numIdBytes);
             timer.stop();
@@ -142,6 +155,7 @@ public class HBaseIdService implements IdService {
         }
     }
 
+
     @Override
     public Optional<byte[]> getId(int dimensionNum, byte[] input, int numIdBytes) throws IOException, InterruptedException {
         Validate.validateDimensionNum(dimensionNum);
@@ -149,6 +163,18 @@ public class HBaseIdService implements IdService {
 
         final byte[] lookupkey = makeLookupKey(dimensionNum, input);
         return getId(lookupkey, numIdBytes);
+    }
+
+    @Override
+    public Optional<byte[]> getValueForId(int dimensionNum, byte[] id) throws IOException, InterruptedException {
+        if (reverseLookupTable == null) {
+
+            return Optional.empty();
+        }
+        final Get get = new Get(makeLookupKey(dimensionNum, id));
+        Result result = WithHTable.get(pool, reverseLookupTable, get);
+        byte[] value = result.getValue(cf, QUALIFIER);
+        return Optional.ofNullable(value);
     }
 
     private Optional<byte[]> getId(byte[] lookupkey, int numIdBytes) throws IOException, InterruptedException {

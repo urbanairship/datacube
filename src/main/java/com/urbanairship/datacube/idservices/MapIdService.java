@@ -4,6 +4,8 @@ Copyright 2012 Urban Airship and Contributors
 
 package com.urbanairship.datacube.idservices;
 
+import com.google.common.collect.BiMap;
+import com.google.common.collect.HashBiMap;
 import com.google.common.collect.Maps;
 import com.urbanairship.datacube.BoxedByteArray;
 import com.urbanairship.datacube.IdService;
@@ -14,6 +16,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
@@ -24,22 +27,22 @@ import java.util.Optional;
 public class MapIdService implements IdService {
     private static final Logger log = LoggerFactory.getLogger(MapIdService.class);
 
-    private final Map<Integer, Map<BoxedByteArray, Long>> idMap = Maps.newHashMap();
-    private final Map<Integer, Long> nextIds = Maps.newHashMap();
+    private final Map<Integer, BiMap<BoxedByteArray, Long>> idMap = Maps.newHashMap();
+    private final BiMap<Integer, Long> nextIds = HashBiMap.create();
 
     @Override
     public byte[] getOrCreateId(int dimensionNum, byte[] bytes, int numBytes) {
         Validate.validateDimensionNum(dimensionNum);
         Validate.validateNumIdBytes(numBytes);
 
-        Map<BoxedByteArray, Long> idMapForDimension = idMap.get(dimensionNum);
+        BiMap<BoxedByteArray, Long> idMapForDimension = idMap.get(dimensionNum);
 
         if (idMapForDimension == null) {
             // This is the first request for this dimension. Create a new map for the dimension.
             if (log.isDebugEnabled()) {
                 log.debug("Creating new id map for dimension " + dimensionNum);
             }
-            idMapForDimension = Maps.newHashMap();
+            idMapForDimension = HashBiMap.create();
             idMap.put(dimensionNum, idMapForDimension);
         }
 
@@ -94,5 +97,13 @@ public class MapIdService implements IdService {
             byte[] idBytesTruncated = Arrays.copyOfRange(idBytesNotTruncated, 8 - numIdBytes, 8);
             return Optional.of(idBytesTruncated);
         }
+    }
+
+    @Override
+    public Optional<byte[]> getValueForId(int dimensionNum, byte[] id) throws IOException, InterruptedException {
+        return Optional.ofNullable(idMap.computeIfAbsent(dimensionNum, HashBiMap::create)
+                .inverse()
+                .get(Util.bytesToLong(id)))
+                .map(BoxedByteArray::getBytes);
     }
 }

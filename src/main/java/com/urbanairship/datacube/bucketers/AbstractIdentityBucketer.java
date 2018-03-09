@@ -12,6 +12,9 @@ import com.urbanairship.datacube.CSerializable;
 /**
  * An implementation of the {@link Bucketer} to make it easy to create a bucketer that
  * always uses the identity bucket type ({@link BucketType#IDENTITY}).
+ *
+ * Each input is written to a single bucket, as opposed to some other bucket types, e.g. the {@link HourDayMonthBucketer}
+ * which fans each write out to a number of buckets.
  */
 public abstract class AbstractIdentityBucketer<T> implements Bucketer<T> {
     private final List<BucketType> bucketTypes = ImmutableList.of(BucketType.IDENTITY);
@@ -28,8 +31,8 @@ public abstract class AbstractIdentityBucketer<T> implements Bucketer<T> {
     
     @SuppressWarnings("unchecked")
     @Override
-    public CSerializable bucketForRead(Object coordinate, BucketType bucketType) {
-        return makeSerializable((T)coordinate);
+    public CSerializable bucketForRead(T coordinate, BucketType bucketType) {
+        return makeSerializable(coordinate);
     }
 
     public abstract CSerializable makeSerializable(T coord);

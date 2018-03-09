@@ -46,20 +46,25 @@ public class HourDayMonthBucketer implements Bucketer<DateTime> {
     }
 
     @Override
-    public SetMultimap<BucketType, CSerializable> bucketForWrite(
-            DateTime coordinate) {
-        ImmutableSetMultimap.Builder<BucketType, CSerializable> builder =
-                ImmutableSetMultimap.builder();
+    public SetMultimap<BucketType, CSerializable> bucketForWrite(DateTime coordinate) {
+        ImmutableSetMultimap.Builder<BucketType, CSerializable> builder = ImmutableSetMultimap.builder();
+
         for (BucketType bucketType : bucketTypes) {
             builder.put(bucketType, bucket(coordinate, bucketType));
         }
+
         return builder.build();
     }
 
     @Override
-    public CSerializable bucketForRead(Object coordinateField, BucketType bucketType) {
-        DateTime inputTime = (DateTime) coordinateField;
-        return bucket(inputTime, bucketType);
+    public CSerializable bucketForRead(DateTime coordinateField, BucketType bucketType) {
+        return bucket(coordinateField, bucketType);
+    }
+
+    @Override
+    public DateTime deserialize(byte[] coord, BucketType bucketType) {
+        long millis = LongSerializable.deserialize(coord);
+        return new DateTime(millis);
     }
 
     private CSerializable bucket(DateTime inputTime, BucketType bucketType) {

@@ -4,25 +4,33 @@ Copyright 2012 Urban Airship and Contributors
 
 package com.urbanairship.datacube;
 
-import com.google.common.base.Optional;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.ImmutableSetMultimap;
 import com.google.common.collect.Maps;
 import com.google.common.collect.SetMultimap;
+import com.google.common.primitives.Ints;
 import com.urbanairship.datacube.DbHarness.CommitType;
 import com.urbanairship.datacube.bucketers.HourDayMonthBucketer;
+import com.urbanairship.datacube.bucketers.MultiEnumBucketer;
 import com.urbanairship.datacube.dbharnesses.MapDbHarness;
 import com.urbanairship.datacube.idservices.CachingIdService;
 import com.urbanairship.datacube.idservices.MapIdService;
 import com.urbanairship.datacube.ops.LongOp;
 import com.urbanairship.datacube.serializables.EnumSerializable;
+import org.apache.ftpserver.command.impl.APPE;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.junit.Assert;
 import org.junit.Test;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.util.Collection;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.ConcurrentMap;
 
 
@@ -31,12 +39,96 @@ import java.util.concurrent.ConcurrentMap;
  */
 public class CompleteExampleTest {
     enum DeviceType {IPHONE, IPAD, HTC_MYTOUCH, SAMSUNG_GALAXY}
+    enum OsManufacturer {APPLE, ANDROID}
 
-    enum City {PORTLAND, SALEM, SANFRANCISCO, SACRAMENTO, OLYMPIA, SEATTLE}
+    static Collection<Enum<?>> toCollection(DeviceType deviceType) {
+        ImmutableSet.Builder<Enum<?>> builder = ImmutableSet.builder();
 
-    enum OsManufacturer {ANDROID, APPLE}
 
-    enum UsState {OREGON, CALIFORNIA, WASHINGTON}
+        switch (deviceType) {
+            case HTC_MYTOUCH:
+            case SAMSUNG_GALAXY:
+                builder.add(OsManufacturer.ANDROID);
+                break;
+            case IPAD:
+            case IPHONE:
+                builder.add(OsManufacturer.APPLE);
+                break;
+        }
+
+        builder.add(deviceType);
+        return builder.build();
+    }
+
+    static BucketType usStateBucketType = new BucketType("us_state", new byte[]{1});
+    static BucketType usCityBucketType = new BucketType("city", new byte[]{2});
+
+    public enum Location implements CSerializable {
+        WASHINGTON(0, usStateBucketType),
+        OREGON(1, usStateBucketType),
+        CALIFORNIA(2, usStateBucketType),
+
+        PORTLAND(3, usCityBucketType, OREGON),
+        SALEM(4, usCityBucketType, OREGON),
+        SANFRANCISCO(5, usCityBucketType, CALIFORNIA),
+        SACRAMENTO(6, usCityBucketType, CALIFORNIA),
+        OLYMPIA(7, usCityBucketType, WASHINGTON),
+        SEATTLE(8, usCityBucketType, WASHINGTON);
+
+        public static Collection<Location> states = ImmutableSet.of(WASHINGTON, OREGON, CALIFORNIA);
+        public static Collection<Location> cities = ImmutableSet.of(PORTLAND, SALEM, SANFRANCISCO, SACRAMENTO, OLYMPIA, SEATTLE);
+
+        public static final int SERIALIZED_SIZE = Ints.BYTES;
+        private int id;
+        private BucketType bucketType;
+        private Set<Location> parent;
+
+        Location(int id, BucketType bucketType, Location... parent) {
+            this.id = id;
+            this.bucketType = bucketType;
+            this.parent = ImmutableSet.<Location>builder().add(parent).build();
+        }
+
+        public boolean isState() {
+            return states.contains(this);
+        }
+
+        public boolean isCity() {
+            return cities.contains(this);
+        }
+
+        public BucketType getBucketType() {
+            return bucketType;
+        }
+
+        public Set<Location> getParents() {
+            return parent;
+        }
+
+        public static Location getById(int id) {
+            for (Location location : Location.values()) {
+                if (location.id == id) {
+                    return location;
+                }
+            }
+            throw new RuntimeException("unknown id " + id);
+        }
+
+        @Override
+        public byte[] serialize() {
+            ByteBuffer buffer = ByteBuffer.allocate(SERIALIZED_SIZE);
+            buffer.putInt(id);
+            byte[] bytes = new byte[SERIALIZED_SIZE];
+            return bytes;
+        }
+
+        public static Location deserialize(byte[] serialized) {
+            ByteBuffer wrap = ByteBuffer.wrap(serialized);
+            int id = wrap.getInt();
+            return getById(id);
+        }
+    }
+
 
     /**
      * This is a wrapper around a DataCube that we're going to use to count mobile devices by
@@ -50,132 +142,61 @@ public class CompleteExampleTest {
          * Bucketize cities into two buckets: (1) the state they belong to and (2) their
          * literal city name
          */
-        static class LocationBucketer implements Bucketer<City> {
-            static BucketType usState = new BucketType("us_state", new byte[]{1});
-            static BucketType usCity = new BucketType("city", new byte[]{2});
+        static class LocationBucketer implements Bucketer<Location> {
 
-
-            @Override
-            public SetMultimap<BucketType, CSerializable> bucketForWrite(City city) {
+            public SetMultimap<BucketType, CSerializable> bucketForWrite(Location location) {
                 ImmutableSetMultimap.Builder<BucketType, CSerializable> mapBuilder =
                         ImmutableSetMultimap.builder();
 
-                // One bucket type is the state where the user is currently located.
-                switch (city) {
-                    case PORTLAND:
-                    case SALEM:
-                        // These cities are in Oregon
-                        mapBuilder.put(usState, new EnumSerializable(UsState.OREGON, 1));
-                        break;
-                    case SANFRANCISCO:
-                    case SACRAMENTO:
-                        // These cities are in California
-                        mapBuilder.put(usState, new EnumSerializable(UsState.CALIFORNIA, 1));
-                        break;
-                    case OLYMPIA:
-                    case SEATTLE:
-                        // These cities are in Washington
-                        mapBuilder.put(usState, new EnumSerializable(UsState.WASHINGTON, 1));
-                        break;
-                    default:
-                        throw new RuntimeException("Unknown city " + city);
+                mapBuilder.put(location.bucketType, location);
+                for (Location parent : location.getParents()) {
+                    mapBuilder.put(parent.bucketType, parent);
                 }
-
-                // The other bucket type is the city where the user is currently located.
-                mapBuilder.put(usCity, new EnumSerializable(city, 1));
 
                 return mapBuilder.build();
             }
 
             @Override
-            public CSerializable bucketForRead(Object coordinateField, BucketType bucketType) {
-                if (coordinateField instanceof City) {
-                    return new EnumSerializable((City) coordinateField, 1);
-                } else if (coordinateField instanceof UsState) {
-                    return new EnumSerializable((UsState) coordinateField, 1);
-                } else {
-                    throw new RuntimeException("Unrecognized object of type " +
-                            coordinateField.getClass().getName());
-                }
+            public Location deserialize(byte[] coord, BucketType bucketType) {
+                return Location.deserialize(coord);
             }
 
-            @Override
+            public CSerializable bucketForRead(Location coordinateField, BucketType bucketType) {
+                return coordinateField;
+            }
+
             public List<BucketType> getBucketTypes() {
-                return ImmutableList.of(usState, usCity);
+                return ImmutableList.of(usStateBucketType, usCityBucketType);
             }
         }
 
-        ;
+        static BucketType deviceName = new BucketType("device_name", new byte[]{1});
+        static BucketType osType = new BucketType("os", new byte[]{2});
 
         /**
          * Bucketize mobile devices into two bucket types: (1) the literal device type (e.g.
          * ipad, mytouch) and (2) the OS manufacturer (apple, android)
          */
-        public static class DeviceBucketer implements Bucketer<DeviceType> {
-            static BucketType deviceName = new BucketType("device_name", new byte[]{1});
-            static BucketType osType = new BucketType("os", new byte[]{2});
-
-            @Override
-            public SetMultimap<BucketType, CSerializable> bucketForWrite(DeviceType deviceType) {
-                ImmutableSetMultimap.Builder<BucketType, CSerializable> mapBuilder =
-                        ImmutableSetMultimap.builder();
-
-                switch (deviceType) {
-                    case HTC_MYTOUCH:
-                    case SAMSUNG_GALAXY:
-                        mapBuilder.put(osType, new EnumSerializable(OsManufacturer.ANDROID, 1));
-                        break;
-                    case IPAD:
-                    case IPHONE:
-                        mapBuilder.put(osType, new EnumSerializable(OsManufacturer.APPLE, 1));
-                        break;
-                }
-
-                mapBuilder.put(deviceName, new EnumSerializable(deviceType, 1));
-                return mapBuilder.build();
-            }
-
-            @Override
-            public CSerializable bucketForRead(Object coordinateField, BucketType bucketType) {
-                if (coordinateField instanceof DeviceType) {
-                    return new EnumSerializable((DeviceType) coordinateField, 1);
-                } else if (coordinateField instanceof OsManufacturer) {
-                    return new EnumSerializable((OsManufacturer) coordinateField, 1);
-                } else {
-                    throw new RuntimeException("Unexpected coordinate class " +
-                            coordinateField.getClass());
-                }
-            }
-
-            @Override
-            public List<BucketType> getBucketTypes() {
-                return ImmutableList.of(deviceName, osType);
-            }
-        }
 
         /*
          * Define the DataCube. This requires defining all the dimensions and defining the ways
          * that we want to roll up the counts (e.g. keep an aggregate count for each hour).
          */
+
+        MultiEnumBucketer deviceTypeBucketer = new MultiEnumBucketer(ImmutableMap.of(deviceName, DeviceType.class, osType, OsManufacturer.class), 1);
         Dimension<DateTime> time = new Dimension<DateTime>("time", new HourDayMonthBucketer(), false, 8);
-        Dimension<DeviceType> device = new Dimension<DeviceType>("device", new DeviceBucketer(), true, 4);
-        Dimension<City> location = new Dimension<City>("location", new LocationBucketer(), true, 4);
+        Dimension<Collection<Enum<?>>> device = new Dimension<>("device", deviceTypeBucketer, true, 1);
+        Dimension<Location> location = new Dimension<>("location", new LocationBucketer(), true, 4);
         List<Dimension<?>> dimensions = ImmutableList.<Dimension<?>>of(time, device, location);
 
-        Rollup cityAndOsRollup = new Rollup(location, LocationBucketer.usCity,
-                device, DeviceBucketer.osType);
-        Rollup stateRollup = new Rollup(location, LocationBucketer.usState);
-        Rollup stateAndDeviceNameRollup = new Rollup(location, LocationBucketer.usState,
-                device, DeviceBucketer.deviceName);
-        Rollup monthAndStateRollup = new Rollup(time, HourDayMonthBucketer.months,
-                location, LocationBucketer.usState);
+        Rollup cityAndOsRollup = new Rollup(location, usCityBucketType, device, osType);
+        Rollup stateRollup = new Rollup(location, usStateBucketType);
+        Rollup stateAndDeviceNameRollup = new Rollup(location, usStateBucketType, device, deviceName);
+        Rollup monthAndStateRollup = new Rollup(time, HourDayMonthBucketer.months, location, usStateBucketType);
         Rollup hourRollup = new Rollup(time, HourDayMonthBucketer.hours);
-        Rollup deviceTypeDayRollup = new Rollup(device, DeviceBucketer.deviceName,
-                time, HourDayMonthBucketer.days);
+        Rollup deviceTypeDayRollup = new Rollup(device, deviceName, time, HourDayMonthBucketer.days);
         Rollup allRollup = new Rollup();
-        Rollup stateMonthOsRollup = new Rollup(time, HourDayMonthBucketer.months,
-                location, LocationBucketer.usState,
-                device, DeviceBucketer.osType);
+        Rollup stateMonthOsRollup = new Rollup(time, HourDayMonthBucketer.months, location, usStateBucketType, device, osType);
 
         List<Rollup> rollups = ImmutableList.of(cityAndOsRollup, stateRollup,
                 stateAndDeviceNameRollup, monthAndStateRollup, hourRollup,
@@ -189,30 +210,30 @@ public class CompleteExampleTest {
         DataCubeIo<LongOp> dataCubeIo = new DataCubeIo<LongOp>(dataCube, dbHarness, 1,
                 Long.MAX_VALUE, SyncLevel.FULL_SYNC);
 
-        public void addEvent(DeviceType deviceType, City city, DateTime when) throws IOException, InterruptedException {
+        public void addEvent(DeviceType deviceType, Location city, DateTime when) throws IOException, InterruptedException {
             dataCubeIo.writeSync(new LongOp(1), new WriteBuilder()
                     .at(time, when)
-                    .at(device, deviceType)
+                    .at(device, toCollection(deviceType))
                     .at(location, city));
         }
 
-        public long getStateCount(UsState usState) throws IOException, InterruptedException {
+        public long getStateCount(Location inputLoc) throws IOException, InterruptedException {
             java.util.Optional<LongOp> opt = dataCubeIo.get(new ReadBuilder(dataCube)
-                    .at(location, LocationBucketer.usState, usState));
+                    .at(location, inputLoc.bucketType, inputLoc));
             return opt.map(LongOp::getLong).orElse(0L);
         }
 
-        public long getCityManufacturerCount(City city, OsManufacturer manufacturer) throws IOException, InterruptedException {
+        public long getCityManufacturerCount(Location city, OsManufacturer manufacturer) throws IOException, InterruptedException {
             java.util.Optional<LongOp> opt = dataCubeIo.get(new ReadBuilder(dataCube)
-                    .at(device, DeviceBucketer.osType, OsManufacturer.APPLE)
-                    .at(location, LocationBucketer.usCity, City.PORTLAND));
+                    .at(device, osType, manufacturer)
+                    .at(location, city.bucketType, city));
 
             return opt.map(LongOp::getLong).orElse(0L);
         }
 
         public long getDeviceDayCount(DeviceType deviceType, DateTime day) throws IOException, InterruptedException {
             java.util.Optional<LongOp> opt = dataCubeIo.get(new ReadBuilder(dataCube)
-                    .at(device, DeviceBucketer.deviceName, deviceType)
+                    .at(device, deviceName, deviceType)
                     .at(time, HourDayMonthBucketer.days, day));
 
             return opt.map(LongOp::getLong).orElse(0L);
@@ -230,15 +251,17 @@ public class CompleteExampleTest {
             return opt.map(LongOp::getLong).orElse(0L);
         }
 
-        public long getStateMonthOsCount(UsState state, DateTime month, OsManufacturer os)
+        public long getStateMonthOsCount(Location state, DateTime month, OsManufacturer os)
                 throws IOException, InterruptedException {
             java.util.Optional<LongOp> opt = dataCubeIo.get(new ReadBuilder(dataCube)
                     .at(time, HourDayMonthBucketer.months, month)
-                    .at(location, LocationBucketer.usState, state)
-                    .at(device, DeviceBucketer.osType, os));
+                    .at(location, state.bucketType, state)
+                    .at(device, osType, os));
 
             return opt.map(LongOp::getLong).orElse(0L);
         }
+
+
     }
 
     @Test
@@ -250,29 +273,29 @@ public class CompleteExampleTest {
         DateTime oneDayAgo = now.minusDays(1);
         DateTime oneMonthAgo = now.minusMonths(1);
 
-        mobileCube.addEvent(DeviceType.IPHONE, City.PORTLAND, now);
-        mobileCube.addEvent(DeviceType.IPAD, City.PORTLAND, now);
-        mobileCube.addEvent(DeviceType.SAMSUNG_GALAXY, City.PORTLAND, now);
-        mobileCube.addEvent(DeviceType.HTC_MYTOUCH, City.PORTLAND, now);
-        mobileCube.addEvent(DeviceType.HTC_MYTOUCH, City.PORTLAND, oneMonthAgo);
-        mobileCube.addEvent(DeviceType.IPAD, City.SEATTLE, now);
-        mobileCube.addEvent(DeviceType.IPAD, City.SEATTLE, oneHourAgo);
-        mobileCube.addEvent(DeviceType.IPHONE, City.SEATTLE, now);
-        mobileCube.addEvent(DeviceType.IPHONE, City.OLYMPIA, oneDayAgo);
-        mobileCube.addEvent(DeviceType.IPHONE, City.OLYMPIA, oneMonthAgo);
-        mobileCube.addEvent(DeviceType.IPHONE, City.OLYMPIA, oneMonthAgo);
-        mobileCube.addEvent(DeviceType.IPHONE, City.SEATTLE, oneMonthAgo);
+        mobileCube.addEvent(DeviceType.IPHONE, Location.PORTLAND, now);
+        mobileCube.addEvent(DeviceType.IPAD, Location.PORTLAND, now);
+        mobileCube.addEvent(DeviceType.SAMSUNG_GALAXY, Location.PORTLAND, now);
+        mobileCube.addEvent(DeviceType.HTC_MYTOUCH, Location.PORTLAND, now);
+        mobileCube.addEvent(DeviceType.HTC_MYTOUCH, Location.PORTLAND, oneMonthAgo);
+        mobileCube.addEvent(DeviceType.IPAD, Location.SEATTLE, now);
+        mobileCube.addEvent(DeviceType.IPAD, Location.SEATTLE, oneHourAgo);
+        mobileCube.addEvent(DeviceType.IPHONE, Location.SEATTLE, now);
+        mobileCube.addEvent(DeviceType.IPHONE, Location.OLYMPIA, oneDayAgo);
+        mobileCube.addEvent(DeviceType.IPHONE, Location.OLYMPIA, oneMonthAgo);
+        mobileCube.addEvent(DeviceType.IPHONE, Location.OLYMPIA, oneMonthAgo);
+        mobileCube.addEvent(DeviceType.IPHONE, Location.SEATTLE, oneMonthAgo);
 
         // There were two events from apple devices in Portland
-        long appleCountPortland = mobileCube.getCityManufacturerCount(City.PORTLAND, OsManufacturer.APPLE);
+        long appleCountPortland = mobileCube.getCityManufacturerCount(Location.PORTLAND, OsManufacturer.APPLE);
         Assert.assertEquals(2L, appleCountPortland);
 
         // There were 2 events from android devices in Portland
-        long androidCountPortland = mobileCube.getCityManufacturerCount(City.PORTLAND, OsManufacturer.ANDROID);
+        long androidCountPortland = mobileCube.getCityManufacturerCount(Location.PORTLAND, OsManufacturer.ANDROID);
         Assert.assertEquals(2L, androidCountPortland);
 
         // There were 5 events in Oregon
-        long oregonCount = mobileCube.getStateCount(UsState.OREGON);
+        long oregonCount = mobileCube.getStateCount(Location.OREGON);
         Assert.assertEquals(5L, oregonCount);
 
         // There were 2 iphone events today
@@ -289,7 +312,7 @@ public class CompleteExampleTest {
 
         // There were 3 events from apple devices last month in Washington
         long lastMonthWashingtonAppleCount = mobileCube.getStateMonthOsCount(
-                UsState.WASHINGTON, oneMonthAgo, OsManufacturer.APPLE);
+                Location.WASHINGTON, oneMonthAgo, OsManufacturer.APPLE);
         Assert.assertEquals(3L, lastMonthWashingtonAppleCount);
     }
 }

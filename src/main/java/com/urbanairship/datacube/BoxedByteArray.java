@@ -31,4 +31,8 @@ public class BoxedByteArray implements Serializable {
     public String toString() {
         return Hex.encodeHexString(bytes);
     }
+
+    public byte[] getBytes() {
+        return bytes;
+    }
 }

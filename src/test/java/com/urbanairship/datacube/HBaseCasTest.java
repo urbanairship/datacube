@@ -91,37 +91,6 @@ public class HBaseCasTest extends EmbeddedClusterTestAbstract {
         Assert.assertEquals((long) (updatesPerThread * numThreads), cellValueLong);
     }
 
-    private static class BytesOp implements Op {
-        public final byte[] bytes;
-
-        public BytesOp(byte[] bytes) {
-            this.bytes = bytes;
-        }
-
-        @Override
-        public byte[] serialize() {
-            return bytes;
-        }
-
-        @Override
-        public Op add(Op otherOp) {
-            long otherAsLong = Bytes.toLong(((BytesOp) otherOp).bytes);
-            long thisAsLong = Bytes.toLong(this.bytes);
-            long added = thisAsLong + otherAsLong;
-
-            return new BytesOp(Bytes.toBytes(added));
-        }
-
-        @Override
-        public Op subtract(Op otherOp) {
-            long otherAsLong = Bytes.toLong(((BytesOp) otherOp).bytes);
-            long thisAsLong = Bytes.toLong(this.bytes);
-            long subtracted = thisAsLong - otherAsLong;
-
-            return new BytesOp(Bytes.toBytes(subtracted));
-        }
-    }
-
     private static class BytesOpDeserializer implements Deserializer<BytesOp> {
         @Override
         public BytesOp fromBytes(byte[] bytes) {

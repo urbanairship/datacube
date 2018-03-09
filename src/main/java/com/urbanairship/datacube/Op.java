@@ -6,16 +6,18 @@ package com.urbanairship.datacube;
 
 import com.urbanairship.datacube.ops.LongOp;
 
+import java.util.function.Supplier;
+
 
 /**
  * A cell mutation or cell bucket. For example, a cube storing counters would contain Ops that
  * are numbers (see e.g. {@link LongOp}).
  */
-public interface Op extends CSerializable {
+public interface Op<T> extends CSerializable, Supplier<T> {
     /**
      * @return an Op that combines the effect of this and otherOp.
      */
-    Op add(Op otherOp);
+    Op<T> add(Op otherOp);
 
     /**
      * Return the difference between this op and the given one.
@@ -28,7 +30,7 @@ public interface Op extends CSerializable {
      * An example using LongOp:
      * assert new LongOp(10).add(new LongOp(15).subtract(10).equals(15)
      */
-    Op subtract(Op otherOp);
+    Op<T> subtract(Op otherOp);
 
     /**
      * Subclasses must override equals() and hashCode().

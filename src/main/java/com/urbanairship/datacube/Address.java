@@ -4,6 +4,7 @@ Copyright 2012 Urban Airship and Contributors
 
 package com.urbanairship.datacube;
 
+import com.google.common.base.Objects;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
@@ -12,7 +13,6 @@ import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Optional;
 
 /**
@@ -23,29 +23,38 @@ import java.util.Optional;
  */
 public class Address {
     private final Map<Dimension<?>, BucketTypeAndBucket> buckets = Maps.newHashMap();
-    private final DataCube<?> cube;
 
     private static final byte[] WILDCARD_FIELD = new byte[]{0};
     private static final byte[] NON_WILDCARD_FIELD = new byte[]{1};
+    private final boolean usePartitionByte;
+    private final List<Dimension<?>> dimensions;
 
-    public Address(DataCube<?> cube) {
-        this.cube = cube;
+    public static Address create(DataCube<?> cube) {
+        return new Address(cube.useAddressPrefixByteHash(), cube.getDimensions());
     }
 
-    public void at(Dimension<?> dimension, byte[] value) {
+    public Address(boolean usePartitionByte, List<Dimension<?>> dimensions) {
+        this.usePartitionByte = usePartitionByte;
+        this.dimensions = dimensions;
+    }
+
+    public Address at(Dimension<?> dimension, byte[] value) {
         if (dimension.isBucketed()) {
             throw new IllegalArgumentException("Dimension " + dimension +
                     " is a bucketed dimension. You can't query it without a bucket.");
         }
         at(dimension, BucketType.IDENTITY, value);
+        return this;
     }
 
-    public void at(Dimension<?> dimension, BucketType bucketType, byte[] bucket) {
+    public Address at(Dimension<?> dimension, BucketType bucketType, byte[] bucket) {
         buckets.put(dimension, new BucketTypeAndBucket(bucketType, bucket));
+        return this;
     }
 
-    public void at(Dimension<?> dimension, BucketTypeAndBucket bucketAndCoord) {
+    public Address at(Dimension<?> dimension, BucketTypeAndBucket bucketAndCoord) {
         buckets.put(dimension, bucketAndCoord);
+        return this;
     }
 
     public BucketTypeAndBucket get(Dimension<?> dimension) {
@@ -74,8 +83,6 @@ public class Address {
      * should consider this evidence that the key does not exist in the backing store.
      */
     private Optional<byte[]> toKey(IdService idService, boolean readOnly) throws IOException, InterruptedException {
-        List<Dimension<?>> dimensions = cube.getDimensions();
-
         boolean sawOnlyWildcardsSoFar = true;
         List<byte[]> reversedKeyElems = Lists.newArrayListWithCapacity(dimensions.size());
 
@@ -102,7 +109,7 @@ public class Address {
                 if (idService == null || !dimension.getDoIdSubstitution()) {
                     elem = bucketAndCoord.bucket;
                 } else {
-                    int dimensionNum = cube.getDimensions().indexOf(dimension);
+                    int dimensionNum = dimensions.indexOf(dimension);
                     if (readOnly) {
                         final Optional<byte[]> maybeId =
                                 idService.getId(dimensionNum, bucketAndCoord.bucket, dimension.getNumFieldBytes());
@@ -146,7 +153,7 @@ public class Address {
         }
         ByteBuffer bb;
         // Add a place holder for the hash byte if it's required
-        if (this.cube.useAddressPrefixByteHash()) {
+        if (usePartitionByte) {
             bb = ByteBuffer.allocate(totalKeySize + 1);
             bb.put((byte) 0x01);
         } else {
@@ -158,7 +165,7 @@ public class Address {
         }
 
         // Update the byte prefix placeholder of the hash of the key contents if required.
-        if (this.cube.useAddressPrefixByteHash()) {
+        if (usePartitionByte) {
             byte hashByte = Util.hashByteArray(bb.array(), 1, totalKeySize + 1);
             bb.put(0, hashByte);
         }
@@ -170,58 +177,27 @@ public class Address {
         return Optional.of(bb.array());
     }
 
+    @Override
     public String toString() {
-        StringBuilder sb = new StringBuilder();
-        sb.append("(");
-        boolean firstLoop = true;
-        for (Entry<Dimension<?>, BucketTypeAndBucket> e : buckets.entrySet()) {
-            if (!firstLoop) {
-                sb.append(", ");
-            }
-            firstLoop = false;
-            Dimension<?> dimension = e.getKey();
-            sb.append(dimension);
-            sb.append(": ");
-            sb.append(e.getValue());
-        }
-        sb.append(")");
-        return sb.toString();
+        return Objects.toStringHelper(this)
+                .add("buckets", buckets)
+                .add("usePartitionByte", usePartitionByte)
+                .add("dimensions", dimensions)
+                .toString();
     }
 
-    /**
-     * Eclipse auto-generated
-     */
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof Address)) return false;
+        Address address = (Address) o;
+        return usePartitionByte == address.usePartitionByte &&
+                Objects.equal(buckets, address.buckets) &&
+                Objects.equal(dimensions, address.dimensions);
+    }
+
     @Override
     public int hashCode() {
-        final int prime = 31;
-        int result = 1;
-        result = prime * result + ((buckets == null) ? 0 : buckets.hashCode());
-        result = prime * result + ((cube == null) ? 0 : cube.hashCode());
-        return result;
-    }
-
-    /**
-     * Eclipse auto-generated
-     */
-    @Override
-    public boolean equals(Object obj) {
-        if (this == obj)
-            return true;
-        if (obj == null)
-            return false;
-        if (getClass() != obj.getClass())
-            return false;
-        Address other = (Address) obj;
-        if (buckets == null) {
-            if (other.buckets != null)
-                return false;
-        } else if (!buckets.equals(other.buckets))
-            return false;
-        if (cube == null) {
-            if (other.cube != null)
-                return false;
-        } else if (!cube.equals(other.cube))
-            return false;
-        return true;
+        return Objects.hashCode(buckets, usePartitionByte, dimensions);
     }
 }

@@ -12,7 +12,7 @@ public class ReadBuilder {
     boolean built = false;
 
     public ReadBuilder(DataCube<?> cube) {
-        address = new Address(cube);
+        address = Address.create(cube);
     }
 
     public <O> ReadBuilder at(Dimension<?> dimension, O coordinate) {
@@ -24,7 +24,7 @@ public class ReadBuilder {
     }
 
     public <O> ReadBuilder at(Dimension<?> dimension, BucketType bucketType, O coord) {
-        Bucketer<?> bucketer = dimension.getBucketer();
+        Bucketer<O> bucketer = (Bucketer<O>) dimension.getBucketer();
         byte[] bucket = bucketer.bucketForRead(coord, bucketType).serialize();
         address.at(dimension, bucketType, bucket);
         return this;

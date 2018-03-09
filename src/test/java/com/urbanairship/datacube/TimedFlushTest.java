@@ -28,7 +28,7 @@ public class TimedFlushTest {
 
     @Test
     public void test() throws Exception {
-        Dimension<Color> colorDimension = new Dimension<Color>("color", new EnumToOrdinalBucketer<Color>(1), false, 1);
+        Dimension<Color> colorDimension = new Dimension<Color>("color", new EnumToOrdinalBucketer<Color>(1, Color.class), false, 1);
         Rollup colorRollup = new Rollup(colorDimension);
         IdService idService = new MapIdService();
         ConcurrentMap<BoxedByteArray, byte[]> backingMap = Maps.newConcurrentMap();

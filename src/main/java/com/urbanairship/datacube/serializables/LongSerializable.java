@@ -25,4 +25,8 @@ public class LongSerializable implements CSerializable {
     public static byte[] staticSerialize(long l) {
         return Util.longToBytes(l);
     }
+
+    public static long deserialize(byte[] bytes) {
+        return Util.bytesToLong(bytes);
+    }
 }

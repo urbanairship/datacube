@@ -67,6 +67,12 @@ public class OldHBaseIdService implements IdService {
     }
 
     @Override
+    public Optional<byte[]> getValueForId(int dimensionNum, byte[] id) throws IOException, InterruptedException {
+        // let's not try for the old stuff.
+        return Optional.empty();
+    }
+
+    @Override
     public byte[] getOrCreateId(int dimensionNum, byte[] input, int numIdBytes) throws IOException,
             InterruptedException {
         Validate.validateDimensionNum(dimensionNum);

@@ -25,14 +25,7 @@ public class Dimension<F> {
     private final boolean nullable;
 
     /**
-     * For dimensions where a single input bucket affects multiple buckets within that dimension.
-     * For example, a single input data point might affect hourly, daily, and monthly counts.
-     *
-     * @param doIdSubstitution whether to use the immutable bucket->uniqueId substition service
-     * @param fieldBytes       the number of bytes that will be reserved in database keys for coordinates in this
-     *                         dimension. For example, if values in this dimension have 1000 distinct values, then
-     *                         you'd need ceil(log2(1000)/8)=2 bytes (1000 values can be enumerated in 10 bits, which
-     *                         requires 2 full bytes).
+     * See {@link Dimension#Dimension(String, Bucketer, boolean, int, boolean)}
      */
     public Dimension(String name, Bucketer<F> bucketer, boolean doIdSubstitution, int fieldBytes) {
         this(name, bucketer, doIdSubstitution, fieldBytes, false);
@@ -46,7 +39,8 @@ public class Dimension<F> {
      * @param fieldBytes       number of bytes that will be reserved in database keys for coordinates in this
      *                         dimension. For example, if values in this dimension have 1000 distinct values, then
      *                         you'd need ceil(log2(1000)/8)=2 bytes (1000 values can be enumerated in 10 bits, which
-     *                         requires 2 full bytes).
+     *                         requires 2 full bytes). If you set doIdSubstitution to true, then this defines the number
+     *                         of bytes we should use to store ids in the main datacube row.
      * @param nullable         false if input values are required to specify a value for this dimension,
      *                         otherwise true
      */

@@ -124,5 +124,10 @@ public class IdServiceTests {
             }
         }
 
+        @Override
+        public Optional<byte[]> getValueForId(int dimensionNum, byte[] id) throws IOException, InterruptedException {
+            throw new RuntimeException("the feature this class tests doesn't make sense with getOrCreateId");
+        }
+
     }
 }

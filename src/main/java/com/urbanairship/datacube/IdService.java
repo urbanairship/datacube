@@ -5,6 +5,7 @@ Copyright 2012 Urban Airship and Contributors
 package com.urbanairship.datacube;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -30,9 +31,31 @@ import java.util.Optional;
  */
 
 public interface IdService {
+    /**
+     * create an id for the value if it doesn't exist
+     *
+     * @param dimensionNum dimension index-- e.g. this is an id for the fifth dimension of our rollup. Helps avoid
+     *                     collisions
+     * @param input        The input bytes for which we're establishing an id.
+     * @param numIdBytes   The number of bytes to reserve in the destination table for the value
+     *
+     * @return the short identifier to use in place of the {@param input}
+     *
+     * @throws IOException
+     * @throws InterruptedException
+     */
     byte[] getOrCreateId(int dimensionNum, byte[] input, int numIdBytes) throws IOException, InterruptedException;
 
     Optional<byte[]> getId(int dimensionNum, byte[] input, int numIdBytes) throws IOException, InterruptedException;
+
+    /**
+     * @param dimensionNum the index of the dimension for which we're retrieving the value
+     * @param id           the short id found in the hbase row.
+     * @return
+     * @throws IOException
+     * @throws InterruptedException
+     */
+    Optional<byte[]> getValueForId(int dimensionNum, byte[] id) throws IOException, InterruptedException;
 
     /**
      * Utilities to make implementation of IdService easier.

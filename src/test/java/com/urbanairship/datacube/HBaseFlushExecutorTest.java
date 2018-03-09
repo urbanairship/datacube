@@ -6,6 +6,7 @@ package com.urbanairship.datacube;
 
 import java.util.Optional;
 import com.google.common.collect.ImmutableList;
+import com.google.common.primitives.Longs;
 import com.urbanairship.datacube.DbHarness.CommitType;
 import com.urbanairship.datacube.bucketers.BigEndianLongBucketer;
 import com.urbanairship.datacube.dbharnesses.HBaseDbHarness;
@@ -62,7 +63,7 @@ public class HBaseFlushExecutorTest extends EmbeddedClusterTestAbstract {
 
         for (int i = 0; i < 1000; i++) {
             WriteBuilder at = new WriteBuilder().at(dimension, (long) i);
-            dataCubeIo.writeAsync(new BytesOp(i), at);
+            dataCubeIo.writeAsync(new BytesOp(Longs.toByteArray(i)), at);
         }
 
         dataCubeIo.flush();
@@ -75,41 +76,4 @@ public class HBaseFlushExecutorTest extends EmbeddedClusterTestAbstract {
         }
     }
 
-    private static class BytesOp implements Op {
-        public final byte[] bytes;
-
-        public BytesOp(long l) {
-            this.bytes = Bytes.toBytes(l);
-        }
-
-        @Override
-        public byte[] serialize() {
-            return bytes;
-        }
-
-        @Override
-        public Op add(Op otherOp) {
-            long otherAsLong = Bytes.toLong(((BytesOp) otherOp).bytes);
-            long thisAsLong = Bytes.toLong(this.bytes);
-            long added = thisAsLong + otherAsLong;
-
-            return new BytesOp(added);
-        }
-
-        @Override
-        public Op subtract(Op otherOp) {
-            long otherAsLong = Bytes.toLong(((BytesOp) otherOp).bytes);
-            long thisAsLong = Bytes.toLong(this.bytes);
-            long subtracted = thisAsLong - otherAsLong;
-
-            return new BytesOp(subtracted);
-        }
-    }
-
-    private static class BytesOpDeserializer implements Deserializer<BytesOp> {
-        @Override
-        public BytesOp fromBytes(byte[] bytes) {
-            return new BytesOp(Bytes.toLong(bytes));
-        }
-    }
 }

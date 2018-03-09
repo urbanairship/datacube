@@ -25,4 +25,8 @@ public class IntSerializable implements CSerializable {
     public static byte[] staticSerialize(int x) {
         return Util.intToBytes(x);
     }
+
+    public static int deserialize(byte[] x) {
+        return Util.bytesToInt(x);
+    }
 }

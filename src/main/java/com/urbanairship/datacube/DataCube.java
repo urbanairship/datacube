@@ -128,7 +128,7 @@ public class DataCube<T extends Op> {
             Set<List<byte[]>> crossProduct = Sets.cartesianProduct(coordSets);
 
             for (List<byte[]> crossProductTuple : crossProduct) {
-                Address outputAddress = new Address(this);
+                Address outputAddress = Address.create(this);
 
                 // Start out with all dimensions wildcard, overwrite with other values later
                 for (Dimension<?> dimension : dims) {

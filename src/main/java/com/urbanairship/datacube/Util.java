@@ -4,15 +4,15 @@ Copyright 2012 Urban Airship and Contributors
 
 package com.urbanairship.datacube;
 
-import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.util.Arrays;
-
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.client.HTable;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.client.ResultScanner;
 import org.apache.hadoop.hbase.client.Scan;
+
+import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.util.Arrays;
 
 public class Util {
     public static byte[] longToBytes(long l) {
@@ -23,11 +23,11 @@ public class Util {
      * Write a big-endian integer into the least significant bytes of a byte array.
      */
     public static byte[] intToBytesWithLen(int x, int len) {
-        if(len <= 4) {
+        if (len <= 4) {
             return trailingBytes(intToBytes(x), len);
         } else {
             ByteBuffer bb = ByteBuffer.allocate(len);
-            bb.position(len-4);
+            bb.position(len - 4);
             bb.putInt(x);
             assert bb.remaining() == 0;
             return bb.array();
@@ -35,29 +35,29 @@ public class Util {
     }
 
     public static long bytesToLong(byte[] bytes) {
-        if(bytes.length < 8) {
+        if (bytes.length < 8) {
             throw new IllegalArgumentException("Input array was too small: " +
                     Arrays.toString(bytes));
         }
-        
+
         return ByteBuffer.wrap(bytes).getLong();
     }
-    
+
     /**
      * Call this if you have a byte array to convert to long, but your array might need
-     * to be left-padded with zeros (if it is less than 8 bytes long). 
+     * to be left-padded with zeros (if it is less than 8 bytes long).
      */
     public static long bytesToLongPad(byte[] bytes) {
-        final int padZeros = Math.max(8-bytes.length, 0);
+        final int padZeros = Math.max(8 - bytes.length, 0);
         ByteBuffer bb = ByteBuffer.allocate(8);
-        for(int i=0; i<padZeros; i++) {
-            bb.put((byte)0);
+        for (int i = 0; i < padZeros; i++) {
+            bb.put((byte) 0);
         }
-        bb.put(bytes, 0, 8-padZeros);
+        bb.put(bytes, 0, 8 - padZeros);
         bb.flip();
         return bb.getLong();
     }
-    
+
     public static byte[] intToBytes(int x) {
         ByteBuffer bb = ByteBuffer.allocate(4);
         bb.putInt(x);
@@ -68,20 +68,33 @@ public class Util {
         return ByteBuffer.wrap(bytes).getInt();
     }
 
+    public static int bytesToIntPad(byte[] bytes) {
+        final int padZeros = Math.max(4 - bytes.length, 0);
+        ByteBuffer bb = ByteBuffer.allocate(4);
+        for (int i = 0; i < padZeros; i++) {
+            bb.put((byte) 0);
+        }
+        bb.put(bytes, 0, 4 - padZeros);
+        bb.flip();
+        return bb.getInt();
+    }
+
     public static byte[] leastSignificantBytes(long l, int numBytes) {
         byte[] all8Bytes = Util.longToBytes(l);
         return trailingBytes(all8Bytes, numBytes);
     }
 
     public static byte[] trailingBytes(byte[] bs, int numBytes) {
-        return Arrays.copyOfRange(bs, bs.length-numBytes, bs.length);
+        return Arrays.copyOfRange(bs, bs.length - numBytes, bs.length);
     }
 
     /**
      * A utility to allow hashing of a portion of an array without having to copy it.
+     *
      * @param array
      * @param startInclusive
      * @param endExclusive
+     *
      * @return hash byte
      */
     public static byte hashByteArray(byte[] array, int startInclusive, int endExclusive) {
@@ -95,13 +108,13 @@ public class Util {
         }
 
         int result = 1;
-        for (int i=startInclusive; i<endExclusive; i++){
+        for (int i = startInclusive; i < endExclusive; i++) {
             result = 31 * result + array[i];
         }
 
-        return (byte)result;
+        return (byte) result;
     }
-    
+
     /**
      * Only use this for testing/debugging. Inefficient.
      */
@@ -112,15 +125,15 @@ public class Util {
         try {
             hTable = new HTable(conf, tableName);
             rs = hTable.getScanner(new Scan());
-            for(@SuppressWarnings("unused") Result r: rs) {
+            for (@SuppressWarnings("unused") Result r : rs) {
                 count++;
             }
             return count;
         } finally {
-            if(hTable != null) {
+            if (hTable != null) {
                 hTable.close();
             }
-            if(rs != null) {
+            if (rs != null) {
                 rs.close();
             }
         }

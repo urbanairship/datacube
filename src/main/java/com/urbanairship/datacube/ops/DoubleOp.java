@@ -11,7 +11,7 @@ import com.urbanairship.datacube.Util;
 /**
  * Cube oplog mutation type for storing a double value.
  */
-public class DoubleOp implements Op {
+public class DoubleOp implements Op<Double> {
     private final double val;
     public static final DoubleOpDeserializer DESERIALIZER = new DoubleOpDeserializer();
 
@@ -61,6 +61,11 @@ public class DoubleOp implements Op {
     @Override
     public byte[] serialize() {
         return Util.longToBytes(Double.doubleToRawLongBits(val));
+    }
+
+    @Override
+    public Double get() {
+        return val;
     }
 
     public static class DoubleOpDeserializer implements Deserializer<DoubleOp> {

@@ -4,6 +4,7 @@ Copyright 2012 Urban Airship and Contributors
 
 package com.urbanairship.datacube.bucketers;
 
+import com.urbanairship.datacube.BucketType;
 import com.urbanairship.datacube.CSerializable;
 import com.urbanairship.datacube.serializables.StringSerializable;
 
@@ -22,5 +23,10 @@ public class StringToBytesBucketer extends AbstractIdentityBucketer<String> {
     @Override
     public CSerializable makeSerializable(String coord) {
         return new StringSerializable(coord);
+    }
+
+    @Override
+    public String deserialize(byte[] coord, BucketType bucketType) {
+        return StringSerializable.deserialize(coord);
     }
 }

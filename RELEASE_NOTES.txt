@@ -1,12 +1,24 @@
+6.0.0
+=====
+- Deserialize from address, which requires adding a lookupId method to the id service, and writing additional information
+  so that we have the id -> value mapping as well as the value -> id mapping.
+
+- Updates many of the serialization related interfaces and implementations to include a deserialize method.
+
+- Adds an AddressFormat and and impl so we can stop doing lookups in a method of our Read DAO
+
+- Updates the Bucketer interface so that you must parametrize your reads as well-- we stop passing in object and then
+  coercing willy nilly.
+
 5.0.0
 =====
 Bump to java 1.8.
-Move from gauava to java optionals
+Move from gauava to java optionals.
 Format every file according to intellij auto format.
-Remove commented out code
-Remove the "hacklog"
+Remove commented out code.
+Remove the "hacklog".
 Remove unnecessary public and static declarations from enums and interfaces.
-Remove unused parameters and classes
+Remove unused parameters and classes.
 
 4.1.1
 =====

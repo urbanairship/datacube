@@ -4,7 +4,6 @@ Copyright 2012 Urban Airship and Contributors
 
 package com.urbanairship.datacube.idservices;
 
-import com.codahale.metrics.Gauge;
 import com.codahale.metrics.Meter;
 import com.codahale.metrics.Timer;
 import com.google.common.cache.Cache;
@@ -43,20 +42,8 @@ public class CachingIdService implements IdService {
                 .softValues()
                 .recordStats()
                 .build();
-
-        Metrics.gauge(CachingIdService.class, cacheName + " ID Cache size", new Gauge<Long>() {
-            @Override
-            public Long getValue() {
-                return cache.size();
-            }
-        });
-
-        Metrics.gauge(CachingIdService.class, cacheName + "ID Cache effectiveness", new Gauge<Double>() {
-            @Override
-            public Double getValue() {
-                return cache.stats().hitRate();
-            }
-        });
+        Metrics.gauge(CachingIdService.class, cacheName + " ID Cache size", cache::size);
+        Metrics.gauge(CachingIdService.class, cacheName + "ID Cache effectiveness", () -> cache.stats().hitRate());
 
         this.idGetTime = Metrics.timer(CachingIdService.class, "id_get", cacheName);
         cachedNullResult = Metrics.meter(CachingIdService.class, cacheName, "cache null");
@@ -101,6 +88,11 @@ public class CachingIdService implements IdService {
         } finally {
             time.stop();
         }
+    }
+
+    @Override
+    public Optional<byte[]> getValueForId(int dimensionNum, byte[] id) throws IOException, InterruptedException {
+        return wrappedIdService.getValueForId(dimensionNum, id);
     }
 
     private class Key {

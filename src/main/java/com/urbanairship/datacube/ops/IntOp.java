@@ -11,7 +11,7 @@ import com.urbanairship.datacube.Util;
 /**
  * Cube oplog mutation type for storing a int counter.
  */
-public class IntOp implements Op {
+public class IntOp implements Op<Integer> {
     private final int val;
     public static final IntOpDeserializer DESERIALIZER = new IntOpDeserializer();
 
@@ -63,6 +63,11 @@ public class IntOp implements Op {
     @Override
     public byte[] serialize() {
         return Util.intToBytes(val);
+    }
+
+    @Override
+    public Integer get() {
+        return val;
     }
 
     public static class IntOpDeserializer implements Deserializer<IntOp> {

@@ -28,9 +28,14 @@ public class BigEndianLongBucketer implements Bucketer<Long> {
     }
 
     @Override
-    public CSerializable bucketForRead(Object coordinate, BucketType bucketType) {
+    public CSerializable bucketForRead(Long coordinate, BucketType bucketType) {
         assert bucketType == BucketType.IDENTITY;
-        return new LongSerializable((Long) coordinate);
+        return new LongSerializable(coordinate);
+    }
+
+    @Override
+    public Long deserialize(byte[] coord, BucketType bucketType) {
+        return LongSerializable.deserialize(coord);
     }
 
     @Override

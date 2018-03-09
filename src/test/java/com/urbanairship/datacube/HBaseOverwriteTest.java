@@ -5,6 +5,7 @@ Copyright 2012 Urban Airship and Contributors
 package com.urbanairship.datacube;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.primitives.Longs;
 import com.urbanairship.datacube.DbHarness.CommitType;
 import com.urbanairship.datacube.bucketers.BigEndianLongBucketer;
 import com.urbanairship.datacube.dbharnesses.HBaseDbHarness;
@@ -54,13 +55,13 @@ public class HBaseOverwriteTest extends EmbeddedClusterTestAbstract {
                 Long.MAX_VALUE, SyncLevel.FULL_SYNC);
 
         // Write the value "1" at address "100"
-        dataCubeIo.writeSync(new BytesOp(1L), new WriteBuilder().at(dimension, 100L));
+        dataCubeIo.writeSync(new BytesOp(Longs.toByteArray(1L)), new WriteBuilder().at(dimension, 100L));
 
         // Overwrite it with the value "2"
-        dataCubeIo.writeSync(new BytesOp(2L), new WriteBuilder().at(dimension, 100L));
+        dataCubeIo.writeSync(new BytesOp(Longs.toByteArray(2L)), new WriteBuilder().at(dimension, 100L));
 
         // The value at address "100" should be 2 (and not 1+2 or anything else)
-        long cellVal = dataCubeIo.get(new ReadBuilder(dataCube).at(dimension, 100L)).get().getLong();
+        long cellVal = Longs.fromByteArray(dataCubeIo.get(new ReadBuilder(dataCube).at(dimension, 100L)).get().get());
         Assert.assertEquals(2L, cellVal);
     }
 
@@ -82,52 +83,11 @@ public class HBaseOverwriteTest extends EmbeddedClusterTestAbstract {
 
         final DataCube<BytesOp> dataCube = new DataCube<BytesOp>(dimensions, rollups);
 
-        Address address = new Address(dataCube);
+        Address address = Address.create(dataCube);
         address.at(dimension, Bytes.toBytes(999L));
 
-        dbHarness.set(address, new BytesOp(value));
-        Assert.assertEquals(new BytesOp(value).getLong(), dbHarness.get(address).get().getLong());
+        dbHarness.set(address, new BytesOp(Longs.toByteArray(value)));
+        Assert.assertEquals(Longs.fromByteArray(new BytesOp(Longs.toByteArray(value)).get()), Longs.fromByteArray(dbHarness.get(address).get().get()));
     }
 
-    private static class BytesOp implements Op {
-        public final byte[] bytes;
-
-        public BytesOp(long l) {
-            this.bytes = Bytes.toBytes(l);
-        }
-
-        @Override
-        public byte[] serialize() {
-            return bytes;
-        }
-
-        @Override
-        public Op add(Op otherOp) {
-            long otherAsLong = Bytes.toLong(((BytesOp) otherOp).bytes);
-            long thisAsLong = Bytes.toLong(this.bytes);
-            long added = thisAsLong + otherAsLong;
-
-            return new BytesOp(added);
-        }
-
-        @Override
-        public Op subtract(Op otherOp) {
-            long otherAsLong = Bytes.toLong(((BytesOp) otherOp).bytes);
-            long thisAsLong = Bytes.toLong(this.bytes);
-            long subtracted = thisAsLong - otherAsLong;
-
-            return new BytesOp(subtracted);
-        }
-
-        public long getLong() {
-            return Bytes.toLong(bytes);
-        }
-    }
-
-    private static class BytesOpDeserializer implements Deserializer<BytesOp> {
-        @Override
-        public BytesOp fromBytes(byte[] bytes) {
-            return new BytesOp(Bytes.toLong(bytes));
-        }
-    }
 }
