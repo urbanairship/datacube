@@ -1,159 +1,146 @@
 package com.urbanairship.datacube.dbharnesses;
 
-import java.io.IOException;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.Future;
-
-import org.apache.commons.lang.NotImplementedException;
-
-import com.google.common.base.Optional;
 import com.urbanairship.datacube.Address;
 import com.urbanairship.datacube.Batch;
 import com.urbanairship.datacube.DbHarness;
 import com.urbanairship.datacube.Deserializer;
 import com.urbanairship.datacube.IdService;
 import com.urbanairship.datacube.Op;
-
+import org.apache.commons.lang.NotImplementedException;
 import redis.clients.jedis.Jedis;
 
+import java.io.IOException;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Future;
 
-public class RedisDbHarness<T extends Op> implements DbHarness<T>
-{
-	private static final Future<?> nullFuture = new MapDbHarness.NullFuture();
 
-	private final Jedis jedis;
-	private final int ttlSeconds;
-	private final Deserializer<T> deserializer;
-	private final CommitType commitType;
-	private final IdService idService;
+public class RedisDbHarness<T extends Op> implements DbHarness<T> {
+    private static final CompletableFuture<?> nullFuture = new CompletableFuture<>();
 
-	public RedisDbHarness(Jedis jedis, int ttlSeconds, Deserializer<T> deserializer,
-	                      CommitType commitType, IdService idService)
-	{
-		this.jedis = jedis;
-		this.ttlSeconds = ttlSeconds;
-		this.deserializer = deserializer;
-		this.commitType = commitType;
-		this.idService = idService;
-	}
+    private final Jedis jedis;
+    private final int ttlSeconds;
+    private final Deserializer<T> deserializer;
+    private final CommitType commitType;
+    private final IdService idService;
 
-	public RedisDbHarness(Jedis jedis, Deserializer<T> deserializer,
-	                      CommitType commitType, IdService idService)
-	{
-		this(jedis, -1, deserializer, commitType, idService);
-	}
+    public RedisDbHarness(Jedis jedis, int ttlSeconds, Deserializer<T> deserializer,
+                          CommitType commitType, IdService idService) {
+        this.jedis = jedis;
+        this.ttlSeconds = ttlSeconds;
+        this.deserializer = deserializer;
+        this.commitType = commitType;
+        this.idService = idService;
+    }
 
-	@Override
-	public Future<?> runBatchAsync(Batch<T> batch, AfterExecute<T> afterExecute) throws FullQueueException
-	{
-		for(Map.Entry<Address,T> entry: batch.getMap().entrySet()) {
-			Address address = entry.getKey();
-			T opFromBatch = entry.getValue();
+    public RedisDbHarness(Jedis jedis, Deserializer<T> deserializer,
+                          CommitType commitType, IdService idService) {
+        this(jedis, -1, deserializer, commitType, idService);
+    }
 
-			byte[] redisKey;
-			try {
-				redisKey = address.toWriteKey(idService);
-			} catch (Exception e) {
-				throw new RuntimeException(e);
-			}
+    @Override
+    public Future<?> runBatchAsync(Batch<T> batch, AfterExecute<T> afterExecute) throws FullQueueException {
+        for (Map.Entry<Address, T> entry : batch.getMap().entrySet()) {
+            Address address = entry.getKey();
+            T opFromBatch = entry.getValue();
 
-			if(commitType == CommitType.READ_COMBINE_CAS) {
-				Optional<byte[]> oldBytes;
-				try {
-					oldBytes = getRaw(address);
-				} catch (Exception e) {
-					throw new RuntimeException(e);
-				}
+            byte[] redisKey;
+            try {
+                redisKey = address.toWriteKey(idService);
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
 
-				T newOp;
-				if(oldBytes.isPresent()) {
-					T oldOp = deserializer.fromBytes(oldBytes.get());
-					newOp = (T)opFromBatch.add(oldOp);
-				} else {
-					newOp = opFromBatch;
-				}
+            if (commitType == CommitType.READ_COMBINE_CAS) {
+                Optional<byte[]> oldBytes;
+                try {
+                    oldBytes = getRaw(address);
+                } catch (Exception e) {
+                    throw new RuntimeException(e);
+                }
 
-				set(redisKey, newOp);
-			}
-			else if(commitType == CommitType.OVERWRITE) {
-				set(redisKey, opFromBatch);
-			}
-			else {
-				throw new AssertionError("Unsupported commit type: " + commitType);
-			}
-		}
+                T newOp;
+                if (oldBytes.isPresent()) {
+                    T oldOp = deserializer.fromBytes(oldBytes.get());
+                    newOp = (T) opFromBatch.add(oldOp);
+                } else {
+                    newOp = opFromBatch;
+                }
 
-		batch.reset();
-		afterExecute.afterExecute(null); // null throwable => success
-		return nullFuture;
-	}
+                set(redisKey, newOp);
+            } else if (commitType == CommitType.OVERWRITE) {
+                set(redisKey, opFromBatch);
+            } else {
+                throw new AssertionError("Unsupported commit type: " + commitType);
+            }
+        }
 
-	@Override
-	public Optional<T> get(Address address) throws IOException, InterruptedException
-	{
-		Optional<byte[]> bytes = getRaw(address);
-		if(bytes.isPresent()) {
-			return Optional.of(deserializer.fromBytes(bytes.get()));
-		} else {
-			return Optional.absent();
-		}
-	}
+        batch.reset();
+        afterExecute.afterExecute(null); // null throwable => success
+        return nullFuture;
+    }
 
-	@Override
-	public void set(Address address, T op) throws IOException, InterruptedException
-	{
-		byte[] redisKey;
-		try {
-			redisKey = address.toWriteKey(idService);
-		} catch (Exception e) {
-			throw new RuntimeException(e);
-		}
+    @Override
+    public java.util.Optional<T> get(Address address) throws IOException, InterruptedException {
+        Optional<byte[]> bytes = getRaw(address);
+        if (bytes.isPresent()) {
+            return Optional.of(deserializer.fromBytes(bytes.get()));
+        } else {
+            return Optional.empty();
+        }
+    }
 
-		set(redisKey, op);
-	}
+    @Override
+    public void set(Address address, T op) throws IOException, InterruptedException {
+        byte[] redisKey;
+        try {
+            redisKey = address.toWriteKey(idService);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
 
-	private void set(byte[] redisKey, T op)
-	{
-		if (ttlSeconds > 0)
-		{
-			jedis.setex(redisKey, ttlSeconds, op.serialize());
-		}
-		else
-		{
-			jedis.set(redisKey, op.serialize());
-		}
-	}
+        set(redisKey, op);
+    }
 
-	@Override
-	public List<Optional<T>> multiGet(List<Address> addresses) throws IOException {
-		throw new NotImplementedException();
-	}
+    private void set(byte[] redisKey, T op) {
+        if (ttlSeconds > 0) {
+            jedis.setex(redisKey, ttlSeconds, op.serialize());
+        } else {
+            jedis.set(redisKey, op.serialize());
+        }
+    }
 
-	@Override
-	public void flush() throws InterruptedException {
-		return; // all ops are synchronously applied, nothing to do
-	}
+    @Override
+    public List<Optional<T>> multiGet(List<Address> addresses) throws IOException {
+        throw new NotImplementedException();
+    }
 
-	private Optional<byte[]> getRaw(Address address) throws InterruptedException {
-		byte[] redisKey;
-		try {
-			final Optional<byte[]> maybeKey = address.toReadKey(idService);
-			if (maybeKey.isPresent()) {
-				redisKey = maybeKey.get();
-			} else {
-				return Optional.absent();
-			}
-		} catch (Exception e) {
-			throw new RuntimeException(e);
-		}
+    @Override
+    public void flush() throws InterruptedException {
+        return; // all ops are synchronously applied, nothing to do
+    }
 
-		byte[] bytes = jedis.get(redisKey);
+    private Optional<byte[]> getRaw(Address address) throws InterruptedException {
+        byte[] redisKey;
+        try {
+            final Optional<byte[]> maybeKey = address.toReadKey(idService);
+            if (maybeKey.isPresent()) {
+                redisKey = maybeKey.get();
+            } else {
+                return Optional.empty();
+            }
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
 
-		if(bytes == null) {
-			return Optional.absent();
-		} else {
-			return Optional.of(bytes);
-		}
-	}
+        byte[] bytes = jedis.get(redisKey);
+
+        if (bytes == null) {
+            return Optional.empty();
+        } else {
+            return Optional.of(bytes);
+        }
+    }
 }
