@@ -21,18 +21,18 @@ public class DoubleOp implements Op {
 
     @Override
     public Op add(Op otherOp) {
-        if(!(otherOp instanceof DoubleOp)) {
+        if (!(otherOp instanceof DoubleOp)) {
             throw new RuntimeException();
         }
-        return new DoubleOp(val + ((DoubleOp)otherOp).val);
+        return new DoubleOp(val + ((DoubleOp) otherOp).val);
     }
 
     @Override
     public Op subtract(Op otherOp) {
-        if(!(otherOp instanceof DoubleOp)) {
+        if (!(otherOp instanceof DoubleOp)) {
             throw new RuntimeException();
         }
-        return new DoubleOp(this.val - ((DoubleOp)otherOp).val);
+        return new DoubleOp(this.val - ((DoubleOp) otherOp).val);
     }
 
     @Override

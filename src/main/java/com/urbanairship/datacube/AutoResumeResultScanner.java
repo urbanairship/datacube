@@ -1,11 +1,5 @@
 package com.urbanairship.datacube;
 
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Iterator;
-
-import javax.annotation.concurrent.NotThreadSafe;
-
 import org.apache.hadoop.hbase.client.HTableInterface;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.client.ResultScanner;
@@ -15,17 +9,22 @@ import org.apache.hadoop.hbase.regionserver.LeaseException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.concurrent.NotThreadSafe;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Iterator;
+
 /**
  * A ResultScanner that will restart if scan times out on the region servier. This will
  * happen if the client doesn't ask for more results for a certain length of time.
- * 
+ *
  * This is particularly useful when doing a merge-join, when one iterator input may go unused for
  * a long time.
  */
 @NotThreadSafe
 public class AutoResumeResultScanner implements ResultScanner {
     public static final Logger log = LoggerFactory.getLogger(AutoResumeResultScanner.class);
-    
+
     private final HTableInterface hTable;
     private final Scan scan;
 
@@ -76,7 +75,7 @@ public class AutoResumeResultScanner implements ResultScanner {
             }
         };
     }
-    
+
     private int batchSize() {
         return Math.max(1, scan.getCaching());
     }
@@ -87,7 +86,7 @@ public class AutoResumeResultScanner implements ResultScanner {
     @Override
     public Result next() throws IOException {
         boolean shouldReadNewBatch = false;
-        if(currentBatch == null) {
+        if (currentBatch == null) {
             // Fresh start, no result batch has yet been loaded. Get one.
             resultScanner = hTable.getScanner(scan);
             currentBatch = new Result[batchSize()];
@@ -97,7 +96,7 @@ public class AutoResumeResultScanner implements ResultScanner {
             shouldReadNewBatch = true;
         }
 
-        if(shouldReadNewBatch) {
+        if (shouldReadNewBatch) {
             boolean shouldRestartScan = false;
             try {
                 currentBatch = resultScanner.next(batchSize());
@@ -109,17 +108,17 @@ public class AutoResumeResultScanner implements ResultScanner {
                 log.warn("Got ScannerTimeoutException, restarting scan (recoverable)", e);
                 shouldRestartScan = true;
             }
-            
-            if(shouldRestartScan) { 
+
+            if (shouldRestartScan) {
                 // There was a timeout exception while scanning. Get a new ResultScanner starting
                 // from the last row seen.
                 Scan resumeScan = new Scan(scan);
-                if(resumeAtResult != null) {
+                if (resumeAtResult != null) {
                     resumeScan.setStartRow(resumeAtResult.getRow());
                 }
-                
+
                 resultScanner = hTable.getScanner(resumeScan);
-                if(resumeAtResult != null) {
+                if (resumeAtResult != null) {
                     // We're resuming a scan. Skip the first Result, which we already returned.
                     resultScanner.next();
                 }
@@ -128,41 +127,41 @@ public class AutoResumeResultScanner implements ResultScanner {
                 numRestarts++;
             }
         }
-        
-        if(nextBatchIndex == currentBatch.length) {
+
+        if (nextBatchIndex == currentBatch.length) {
             resultScanner.close();
             return null;
         }
-        
-        resumeAtResult = currentBatch[nextBatchIndex++]; 
-        return resumeAtResult;  
+
+        resumeAtResult = currentBatch[nextBatchIndex++];
+        return resumeAtResult;
     }
-    
+
     /**
      * @return up to nbRows results, or empty array if scan is finished. Never returns null.
      */
     @Override
     public Result[] next(int nbRows) throws IOException {
         ArrayList<Result> returnList = new ArrayList<Result>(nbRows);
-        
-        for(int i=0; i<nbRows; i++) {
+
+        for (int i = 0; i < nbRows; i++) {
             Result next = next();
-            if(next == null) {
+            if (next == null) {
                 break;
             }
             returnList.add(next);
         }
-        
+
         return returnList.toArray(new Result[returnList.size()]);
     }
 
     @Override
     public void close() {
-        if(resultScanner != null) {
+        if (resultScanner != null) {
             resultScanner.close();
         }
     }
-    
+
     public int getNumRestarts() {
         return numRestarts;
     }

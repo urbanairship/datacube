@@ -4,7 +4,6 @@ Copyright 2012 Urban Airship and Contributors
 
 package com.urbanairship.datacube.idservices;
 
-import com.google.common.base.Optional;
 import com.google.common.collect.Maps;
 import com.urbanairship.datacube.BoxedByteArray;
 import com.urbanairship.datacube.IdService;
@@ -16,6 +15,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * An implementation of IdService that's backed by an in-memory map instead of a database.
@@ -82,13 +82,13 @@ public class MapIdService implements IdService {
         Map<BoxedByteArray, Long> idMapForDimension = idMap.get(dimensionNum);
 
         if (idMapForDimension == null) {
-            return Optional.absent();
+            return Optional.empty();
         }
 
         final BoxedByteArray inputBytes = new BoxedByteArray(bytes);
         final Long id = idMapForDimension.get(inputBytes);
         if (id == null) {
-            return Optional.absent();
+            return Optional.empty();
         } else {
             byte[] idBytesNotTruncated = Util.longToBytes(id);
             byte[] idBytesTruncated = Arrays.copyOfRange(idBytesNotTruncated, 8 - numIdBytes, 8);

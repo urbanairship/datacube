@@ -21,7 +21,7 @@ public class UtilUnitTest {
 
         try {
             // it should fail here with an invalid range
-            Util.hashByteArray(testBytes, testBytes.length-2, testBytes.length-3);
+            Util.hashByteArray(testBytes, testBytes.length - 2, testBytes.length - 3);
         } catch (IllegalArgumentException e) {
             // should arrive here
         }

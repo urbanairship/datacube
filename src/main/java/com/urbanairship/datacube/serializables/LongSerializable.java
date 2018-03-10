@@ -12,7 +12,7 @@ import com.urbanairship.datacube.Util;
  */
 public class LongSerializable implements CSerializable {
     private final long l;
-    
+
     public LongSerializable(long l) {
         this.l = l;
     }

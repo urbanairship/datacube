@@ -152,7 +152,7 @@ public class HBaseBackfillerTest extends EmbeddedClusterTestAbstract {
                 Long.MAX_VALUE, SyncLevel.FULL_SYNC);
         
         // Before doing any snapshotting/backfilling, there's one value "5" in the cube.
-        cubeIo.writeSync(new LongOp(5), new WriteBuilder(cube).at(onlyDimension, "coord1"));
+        cubeIo.writeSync(new LongOp(5), new WriteBuilder().at(onlyDimension, "coord1"));
         
         // Snapshot the source table
         Assert.assertTrue(new HBaseSnapshotter(conf, CUBE_DATA_TABLE, CF, SNAPSHOT_DEST_TABLE,
@@ -164,8 +164,8 @@ public class HBaseBackfillerTest extends EmbeddedClusterTestAbstract {
         
         // Simulate two writes to the live table that wouldn't be seen by the app as it backfills.
         // This is like a client doing a write concurrently with a backfill.
-        cubeIo.writeSync(new LongOp(6), new WriteBuilder(cube).at(onlyDimension, "coord1"));
-        cubeIo.writeSync(new LongOp(7), new WriteBuilder(cube).at(onlyDimension, "coord2"));
+        cubeIo.writeSync(new LongOp(6), new WriteBuilder().at(onlyDimension, "coord1"));
+        cubeIo.writeSync(new LongOp(7), new WriteBuilder().at(onlyDimension, "coord2"));
         
         HBaseBackfillMerger backfiller = new HBaseBackfillMerger(conf, ArrayUtils.EMPTY_BYTE_ARRAY,
                 CUBE_DATA_TABLE, SNAPSHOT_DEST_TABLE, BACKFILLED_TABLE, CF, 

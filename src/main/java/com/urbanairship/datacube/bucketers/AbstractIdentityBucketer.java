@@ -10,7 +10,7 @@ import com.urbanairship.datacube.Bucketer;
 import com.urbanairship.datacube.CSerializable;
 
 /**
- * An implementation of the {@link cBucketer} to make it easy to create a bucketer that 
+ * An implementation of the {@link Bucketer} to make it easy to create a bucketer that
  * always uses the identity bucket type ({@link BucketType#IDENTITY}).
  */
 public abstract class AbstractIdentityBucketer<T> implements Bucketer<T> {

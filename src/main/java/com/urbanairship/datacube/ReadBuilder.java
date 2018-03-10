@@ -10,13 +10,13 @@ package com.urbanairship.datacube;
 public class ReadBuilder {
     private final Address address;
     boolean built = false;
-    
+
     public ReadBuilder(DataCube<?> cube) {
         address = new Address(cube);
     }
 
     public <O> ReadBuilder at(Dimension<?> dimension, O coordinate) {
-        if(dimension.isBucketed()) {
+        if (dimension.isBucketed()) {
             throw new IllegalArgumentException("This dimension requires you to specify a bucketType");
         }
         this.at(dimension, BucketType.IDENTITY, coordinate);
@@ -29,9 +29,9 @@ public class ReadBuilder {
         address.at(dimension, bucketType, bucket);
         return this;
     }
-    
+
     public Address build() {
-        if(built) {
+        if (built) {
             throw new RuntimeException("Already built");
         }
         built = true;

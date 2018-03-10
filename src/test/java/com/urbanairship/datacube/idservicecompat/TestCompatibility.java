@@ -32,10 +32,10 @@ import java.util.concurrent.TimeUnit;
 public class TestCompatibility extends EmbeddedClusterTestAbstract {
 
     //Parent class cleanup methods will nuke table contents between tests.
-    private static final byte[] ID_COUNT_TABLE = "ID_COUNTER".getBytes();
-    private static final byte[] ID_LOOKUP_TABLE = "ID_LOOKUP".getBytes();
-    private static final byte[] ID_CF = "L".getBytes();
-    private static final byte[] CUBE_NAME= "CU".getBytes();
+    private static final byte[] ID_COUNT_TABLE = "ID_COUNTER" .getBytes();
+    private static final byte[] ID_LOOKUP_TABLE = "ID_LOOKUP" .getBytes();
+    private static final byte[] ID_CF = "L" .getBytes();
+    private static final byte[] CUBE_NAME = "CU" .getBytes();
     private static final int DIMENSION = 0;
     private static final int NUM_ID_BYTES = 7;
 

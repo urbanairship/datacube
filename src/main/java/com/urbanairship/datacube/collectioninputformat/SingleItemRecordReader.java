@@ -4,31 +4,32 @@ Copyright 2012 Urban Airship and Contributors
 
 package com.urbanairship.datacube.collectioninputformat;
 
-import java.io.IOException;
-
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.mapreduce.InputSplit;
 import org.apache.hadoop.mapreduce.RecordReader;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 
+import java.io.IOException;
+
 /**
  * For internal use by CollectionInputFormat.
  */
-public class SingleItemRecordReader extends RecordReader<Writable,NullWritable>{
+public class SingleItemRecordReader extends RecordReader<Writable, NullWritable> {
     private final SingleValueSplit split;
-    boolean nextKeyValueCalled = false;
-    
+    private boolean nextKeyValueCalled = false;
+
     public SingleItemRecordReader(SingleValueSplit split) {
         this.split = split;
     }
 
     @Override
-    public void close() throws IOException { }
+    public void close() throws IOException {
+    }
 
     @Override
     public Writable getCurrentKey() throws IOException, InterruptedException {
-        return ((SingleValueSplit)split).getKey();
+        return split.getKey();
     }
 
     @Override
@@ -47,7 +48,7 @@ public class SingleItemRecordReader extends RecordReader<Writable,NullWritable>{
 
     @Override
     public boolean nextKeyValue() throws IOException, InterruptedException {
-        if(nextKeyValueCalled) {
+        if (nextKeyValueCalled) {
             return false;
         } else {
             nextKeyValueCalled = true;

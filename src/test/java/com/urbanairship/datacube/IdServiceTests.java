@@ -4,7 +4,6 @@ Copyright 2012 Urban Airship and Contributors
 
 package com.urbanairship.datacube;
 
-import com.google.common.base.Optional;
 import com.google.common.math.LongMath;
 import com.urbanairship.datacube.idservices.CachingIdService;
 import org.junit.Assert;
@@ -12,6 +11,7 @@ import org.junit.Test;
 
 import java.io.IOException;
 import java.util.HashSet;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -22,7 +22,7 @@ public class IdServiceTests {
 
         // Different inputs should always produce different outputs (non-repeating ids)
         Set<BoxedByteArray> idsSeen = new HashSet<BoxedByteArray>();
-        for(int i=0; i<500; i++) {
+        for (int i = 0; i < 500; i++) {
             byte[] newId = idService.getOrCreateId(0, Util.longToBytes(i), numFieldBytes);
             Assert.assertEquals(numFieldBytes, newId.length);
             BoxedByteArray newBox = new BoxedByteArray(newId);
@@ -39,15 +39,14 @@ public class IdServiceTests {
     /**
      * Generating 2^(fieldbits) unique IDs should work, then generating one more should raise an
      * exception because no more IDs were available.
-     *
      */
     public static void testExhaustion(IdService idService, int numFieldBytes, int dimensionNum)
             throws Exception {
         int numFieldBits = numFieldBytes * 8;
 
         long numToGenerate = LongMath.pow(2, numFieldBits);
-        long i=0;
-        for(; i<numToGenerate; i++) {
+        long i = 0;
+        for (; i < numToGenerate; i++) {
             byte[] id = idService.getOrCreateId(dimensionNum, Util.longToBytes(i), numFieldBytes);
             Assert.assertEquals(numFieldBytes, id.length);
         }
@@ -101,8 +100,8 @@ public class IdServiceTests {
 
     private static final class CountingIdService implements IdService {
 
-        public static final byte[] known = "known".getBytes();
-        public static final byte[] unknown = "unknown".getBytes();
+        public static final byte[] known = "known" .getBytes();
+        public static final byte[] unknown = "unknown" .getBytes();
 
         public final AtomicInteger knownCount = new AtomicInteger(0);
         public final AtomicInteger unKnownCount = new AtomicInteger(0);
@@ -119,11 +118,11 @@ public class IdServiceTests {
                 return Optional.of(known);
             } else if (input == unknown) {
                 unKnownCount.incrementAndGet();
-                return Optional.absent();
+                return Optional.empty();
             } else {
                 throw new RuntimeException("only use the two values for testing plz");
             }
         }
-        
+
     }
 }

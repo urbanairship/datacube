@@ -1,6 +1,5 @@
 package com.urbanairship.datacube.idservicecompat;
 
-import com.google.common.base.Optional;
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Multimap;
 import com.google.common.math.LongMath;
@@ -29,6 +28,7 @@ import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Map.Entry;
+import java.util.Optional;
 
 /**
  * This class is copied from DataCube v1.3.0, and exists here to verify that
@@ -42,6 +42,7 @@ public class OldHBaseIdService implements IdService {
     public static final long ALLOC_TIMEOUT_MS = 10000;
 
     private enum Status {ALLOCATING, ALLOCATED}// don't change ordinals
+
     private static final byte[] ALLOCATING_BYTES = new byte[]{(byte) Status.ALLOCATING.ordinal()};
 
     private final HTablePool pool;

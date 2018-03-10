@@ -7,7 +7,6 @@ package com.urbanairship.datacube.idservices;
 import com.codahale.metrics.Gauge;
 import com.codahale.metrics.Meter;
 import com.codahale.metrics.Timer;
-import com.google.common.base.Optional;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.urbanairship.datacube.BoxedByteArray;
@@ -15,6 +14,7 @@ import com.urbanairship.datacube.IdService;
 import com.urbanairship.datacube.metrics.Metrics;
 
 import java.io.IOException;
+import java.util.Optional;
 
 /**
  * An IdService that wraps around another IdService and caches its results. Calls to getOrCreateId() are
@@ -94,7 +94,7 @@ public class CachingIdService implements IdService {
                 }
                 return id;
             } else if (cachedVal == EMPTY_BYTE_ARRAY) {
-                return Optional.absent();
+                return Optional.empty();
             } else {
                 return Optional.of(cachedVal);
             }

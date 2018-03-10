@@ -12,7 +12,7 @@ import com.urbanairship.datacube.Util;
  */
 public class IntSerializable implements CSerializable {
     private final int x;
-    
+
     public IntSerializable(int x) {
         this.x = x;
     }

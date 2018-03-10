@@ -80,18 +80,14 @@ public class BackfillExampleTest extends EmbeddedClusterTestAbstract {
         }
 
         public void put(Event event) throws Exception {
-            dataCubeIo.writeSync(new LongOp(1), new WriteBuilder(dataCube)
+            dataCubeIo.writeSync(new LongOp(1), new WriteBuilder()
                     .at(timeDimension, event.time));
         }
         
         public long getHourCount(DateTime hour) throws IOException, InterruptedException  {
-            Optional<LongOp> countOpt = dataCubeIo.get(new ReadBuilder(dataCube)
+            java.util.Optional<LongOp> countOpt = dataCubeIo.get(new ReadBuilder(dataCube)
                 .at(timeDimension, HourDayMonthBucketer.hours, hour));
-            if(countOpt.isPresent()) {
-                return countOpt.get().getLong();
-            } else {
-                return 0L;
-            }
+            return countOpt.map(LongOp::getLong).orElse(0L);
         }
     }
     

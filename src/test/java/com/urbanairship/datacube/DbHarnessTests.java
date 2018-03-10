@@ -4,7 +4,6 @@ Copyright 2012 Urban Airship and Contributors
 
 package com.urbanairship.datacube;
 
-import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.urbanairship.datacube.bucketers.HourDayMonthBucketer;
@@ -15,6 +14,7 @@ import org.joda.time.DateTimeZone;
 import org.junit.Assert;
 
 import java.util.List;
+import java.util.Optional;
 
 public class DbHarnessTests {
     /**
@@ -48,13 +48,13 @@ public class DbHarnessTests {
         DateTime now = new DateTime(DateTimeZone.UTC);
 
         // Do an increment of 5 for a certain time and zipcode
-        cubeIo.writeSync(new LongOp(5), new WriteBuilder(cube)
+        cubeIo.writeSync(new LongOp(5), new WriteBuilder()
                 .at(time, now)
                 .at(zipcode, "97201"));
 
         // Do an increment of 10 for the same zipcode in a different hour of the same day
         DateTime differentHour = now.withHourOfDay((now.getHourOfDay() + 1) % 24);
-        cubeIo.writeSync(new LongOp(10), new WriteBuilder(cube)
+        cubeIo.writeSync(new LongOp(10), new WriteBuilder()
                 .at(time, differentHour)
                 .at(zipcode, "97201"));
 
@@ -107,13 +107,13 @@ public class DbHarnessTests {
         DateTime now = new DateTime(DateTimeZone.UTC);
 
         // Do an increment of 5 for a certain time and zipcode
-        cubeIo.writeSync(new LongOp(5), new WriteBuilder(cube)
+        cubeIo.writeSync(new LongOp(5), new WriteBuilder()
                 .at(time, now)
                 .at(zipcode, "97201"));
 
         // Do an increment of 10 for the same zipcode in a different hour of the same day
         DateTime differentHour = now.withHourOfDay((now.getHourOfDay() + 1) % 24);
-        cubeIo.writeSync(new LongOp(10), new WriteBuilder(cube)
+        cubeIo.writeSync(new LongOp(10), new WriteBuilder()
                 .at(time, differentHour)
                 .at(zipcode, "97201"));
 

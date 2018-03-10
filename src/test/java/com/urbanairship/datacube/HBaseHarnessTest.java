@@ -10,21 +10,22 @@ import com.urbanairship.datacube.ops.LongOp;
 import org.apache.hadoop.hbase.client.HTablePool;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
-import org.junit.*;
+import org.junit.Assert;
+import org.junit.BeforeClass;
+import org.junit.Ignore;
+import org.junit.Test;
 
 import javax.annotation.Nullable;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.Future;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 
 public class HBaseHarnessTest extends EmbeddedClusterTestAbstract {
-    public static final byte[] DATA_CUBE_TABLE = "data_cube".getBytes();
+    public static final byte[] DATA_CUBE_TABLE = "data_cube" .getBytes();
 
-    public static final byte[] CF = "c".getBytes();
+    public static final byte[] CF = "c" .getBytes();
 
-    
 
     @BeforeClass
     public static void setupCluster() throws Exception {
@@ -52,19 +53,19 @@ public class HBaseHarnessTest extends EmbeddedClusterTestAbstract {
 
         HTablePool pool = new HTablePool(getTestUtil().getConfiguration(), Integer.MAX_VALUE);
         DbHarness<LongOp> hbaseDbHarness = new HBaseDbHarness<LongOp>(pool,
-                "dh".getBytes(), DATA_CUBE_TABLE, CF, LongOp.DESERIALIZER, idService,
-                DbHarness.CommitType.INCREMENT, new TestCallback(s), 1, 1 , 1, "none");
+                "dh" .getBytes(), DATA_CUBE_TABLE, CF, LongOp.DESERIALIZER, idService,
+                DbHarness.CommitType.INCREMENT, new TestCallback(s), 1, 1, 1, "none");
         // Do an increment of 5 for a certain time and zipcode
         DataCubeIo<LongOp> dataCubeIo = new DataCubeIo<LongOp>(dataCube, hbaseDbHarness, 1, 100000, SyncLevel.BATCH_SYNC);
 
-        dataCubeIo.writeSync(new LongOp(5), new WriteBuilder(dataCube)
+        dataCubeIo.writeSync(new LongOp(5), new WriteBuilder()
                 .at(time, DateTime.now(DateTimeZone.UTC))
                 .at(zipcode, "97201"));
 
         boolean callbackCalled = s.tryAcquire(1, TimeUnit.SECONDS);
         Assert.assertTrue(callbackCalled);
 
-        dataCubeIo.writeAsync(new LongOp(5), new WriteBuilder(dataCube)
+        dataCubeIo.writeAsync(new LongOp(5), new WriteBuilder()
                 .at(time, DateTime.now(DateTimeZone.UTC))
                 .at(zipcode, "97202"));
 
@@ -91,12 +92,12 @@ public class HBaseHarnessTest extends EmbeddedClusterTestAbstract {
 
         HTablePool pool = new HTablePool(getTestUtil().getConfiguration(), Integer.MAX_VALUE);
         DbHarness<LongOp> hbaseDbHarness = new HBaseDbHarness<LongOp>(pool,
-                "dh".getBytes(), DATA_CUBE_TABLE, CF, LongOp.DESERIALIZER, idService,
-                DbHarness.CommitType.INCREMENT, 1, 1 , 1, "none");
+                "dh" .getBytes(), DATA_CUBE_TABLE, CF, LongOp.DESERIALIZER, idService,
+                DbHarness.CommitType.INCREMENT, 1, 1, 1, "none");
 
         DataCubeIo<LongOp> dataCubeIo = new DataCubeIo<LongOp>(dataCube, hbaseDbHarness, 1, 100000, SyncLevel.BATCH_SYNC);
 
-        dataCubeIo.writeSync(new LongOp(5), new WriteBuilder(dataCube)
+        dataCubeIo.writeSync(new LongOp(5), new WriteBuilder()
                 .at(time, DateTime.now(DateTimeZone.UTC))
                 .at(zipcode, "97201"));
     }

@@ -9,18 +9,17 @@ import com.codahale.metrics.Gauge;
 import com.codahale.metrics.Histogram;
 import com.codahale.metrics.Timer;
 import com.google.common.base.Function;
-import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.urbanairship.datacube.Address;
-import com.urbanairship.datacube.ThreadedIdServiceLookup;
 import com.urbanairship.datacube.Batch;
 import com.urbanairship.datacube.DbHarness;
 import com.urbanairship.datacube.Deserializer;
 import com.urbanairship.datacube.IdService;
 import com.urbanairship.datacube.NamedThreadFactory;
 import com.urbanairship.datacube.Op;
+import com.urbanairship.datacube.ThreadedIdServiceLookup;
 import com.urbanairship.datacube.metrics.Metrics;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.lang.ArrayUtils;
@@ -39,6 +38,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Callable;
@@ -157,7 +157,7 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
         if (!maybeKey.isPresent()) {
             // If we fail to make the key, some mapped dimension value had never been seen.
             // In that case, there can't be a value in our backing store.
-            return Optional.absent();
+            return Optional.empty();
         }
 
         final byte[] rowKey = ArrayUtils.addAll(uniqueCubeName, maybeKey.get());
@@ -170,7 +170,7 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
                 log.debug("Returning absent for cube:" + Arrays.toString(uniqueCubeName) +
                         " for address:" + c + " key " + Base64.encodeBase64String(rowKey));
             }
-            return Optional.absent();
+            return Optional.empty();
         } else {
             T deserialized = deserializer.fromBytes(result.value());
             if (log.isDebugEnabled()) {
@@ -420,12 +420,12 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
 
         while (resultsOptionals.size() < size) {
             if (unknownKeyPositions.contains(outputPosition)) {
-                resultsOptionals.add(Optional.<T>absent());
+                resultsOptionals.add(Optional.<T>empty());
             } else {
                 final Result result = results[resultPosition];
 
                 if (result == null || result.isEmpty()) {
-                    resultsOptionals.add(Optional.<T>absent());
+                    resultsOptionals.add(Optional.<T>empty());
                 } else {
                     T deserialized = deserializer.fromBytes(result.value());
                     resultsOptionals.add(Optional.of(deserialized));
