@@ -31,9 +31,9 @@ public class DataCube<T extends Op> {
 
     public enum PREFIX_MODE {NO_ADDRESS_PREFIX, MOD_ADDRESS_PREFIX}
 
-    private final List<Dimension<?>> dims;
+    private final List<Dimension<?, ?>> dims;
     private final List<Rollup> rollups;
-    private final Multimap<Dimension<?>, BucketType> bucketsOfInterest;
+    private final Multimap<Dimension<?, ?>, BucketType> bucketsOfInterest;
     private final Set<Set<DimensionAndBucketType>> validAddressSet;
     private final boolean useAddressPrefixByteHash;
 
@@ -41,7 +41,7 @@ public class DataCube<T extends Op> {
      * @param dims    see {@link Dimension}
      * @param rollups see {@link Rollup}
      */
-    public DataCube(List<Dimension<?>> dims, List<Rollup> rollups) {
+    public DataCube(List<Dimension<?,?>> dims, List<Rollup> rollups) {
         this(dims, rollups, PREFIX_MODE.NO_ADDRESS_PREFIX);
     }
 
@@ -56,7 +56,7 @@ public class DataCube<T extends Op> {
      *                   not map properly.  Also, data from versions of datacube before 2.0.0,
      *                   with this feature enabled, is not compatible with 2.0.0+.
      */
-    public DataCube(List<Dimension<?>> dims, List<Rollup> rollups, PREFIX_MODE prefixMode) {
+    public DataCube(List<Dimension<?, ?>> dims, List<Rollup> rollups, PREFIX_MODE prefixMode) {
         this.dims = dims;
         this.rollups = rollups;
         this.validAddressSet = Sets.newHashSet();
@@ -100,7 +100,7 @@ public class DataCube<T extends Op> {
 
             boolean dimensionHadNoBucket = false;
             for (DimensionAndBucketType dimAndBucketType : rollup.getComponents()) {
-                Dimension<?> dimension = dimAndBucketType.dimension;
+                Dimension<?, ?> dimension = dimAndBucketType.dimension;
                 BucketType bucketType = dimAndBucketType.bucketType;
 
                 SetMultimap<BucketType, byte[]> bucketsForDimension =
@@ -131,13 +131,13 @@ public class DataCube<T extends Op> {
                 Address outputAddress = Address.create(this);
 
                 // Start out with all dimensions wildcard, overwrite with other values later
-                for (Dimension<?> dimension : dims) {
+                for (Dimension<?, ?> dimension : dims) {
                     outputAddress.at(dimension, BucketTypeAndBucket.WILDCARD);
                 }
 
                 for (int i = 0; i < crossProductTuple.size(); i++) {
                     byte[] coord = crossProductTuple.get(i);
-                    Dimension<?> dim = rollup.getComponents().get(i).dimension;
+                    Dimension<?, ?> dim = rollup.getComponents().get(i).dimension;
                     BucketType bucketType = rollup.getComponents().get(i).bucketType;
 
                     outputAddress.at(dim, new BucketTypeAndBucket(bucketType, coord));
@@ -154,7 +154,7 @@ public class DataCube<T extends Op> {
         return useAddressPrefixByteHash;
     }
 
-    public List<Dimension<?>> getDimensions() {
+    public List<Dimension<?, ?>> getDimensions() {
         return dims;
     }
 
@@ -165,13 +165,13 @@ public class DataCube<T extends Op> {
         Set<DimensionAndBucketType> dimsAndBucketsSpecified = new HashSet<DimensionAndBucketType>(addr.getBuckets().size());
 
         // Find out which dimensions have literal values (not wildcards)
-        for (Entry<Dimension<?>, BucketTypeAndBucket> e : addr.getBuckets().entrySet()) {
+        for (Entry<Dimension<?, ?>, BucketTypeAndBucket> e : addr.getBuckets().entrySet()) {
             BucketTypeAndBucket bucketTypeAndCoord = e.getValue();
             if (bucketTypeAndCoord == BucketTypeAndBucket.WILDCARD) {
                 continue;
             }
 
-            Dimension<?> dimension = e.getKey();
+            Dimension<?, ?> dimension = e.getKey();
             BucketType bucketType = bucketTypeAndCoord.bucketType;
 
             dimsAndBucketsSpecified.add(new DimensionAndBucketType(dimension, bucketType));
@@ -200,7 +200,7 @@ public class DataCube<T extends Op> {
         throw new IllegalArgumentException(errMsg.toString());
     }
 
-    Multimap<Dimension<?>, BucketType> getBucketsOfInterest() {
+    Multimap<Dimension<?, ?>, BucketType> getBucketsOfInterest() {
         return bucketsOfInterest;
     }
 }

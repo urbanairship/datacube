@@ -44,9 +44,8 @@ public class HBaseFlushExecutorTest extends EmbeddedClusterTestAbstract {
     }
 
     public void doTestForSyncLevel(SyncLevel syncLevel) throws Exception {
-        final Dimension<Long> dimension = new Dimension<Long>("mydimension", new BigEndianLongBucketer(),
-                false, 8);
-        List<Dimension<?>> dimensions = ImmutableList.<Dimension<?>>of(dimension);
+        final Dimension<Long, Long> dimension = new Dimension<Long, Long>("mydimension", new BigEndianLongBucketer(), false, 8);
+        List<Dimension<?,?>> dimensions = ImmutableList.of(dimension);
 
         Rollup rollup = new Rollup(dimension);
         List<Rollup> rollups = ImmutableList.of(rollup);

@@ -8,7 +8,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSetMultimap;
 import com.google.common.collect.SetMultimap;
 import com.urbanairship.datacube.BucketType;
-import com.urbanairship.datacube.Bucketer;
+import com.urbanairship.datacube.UniBucketer;
 import com.urbanairship.datacube.CSerializable;
 import com.urbanairship.datacube.ops.LongOp;
 import com.urbanairship.datacube.serializables.LongSerializable;
@@ -18,7 +18,7 @@ import java.util.List;
 /**
  * You can use this when one of your dimension coordinate types is a straightforward Long.
  */
-public class BigEndianLongBucketer implements Bucketer<Long> {
+public class BigEndianLongBucketer implements UniBucketer<Long> {
     private final static List<BucketType> bucketTypes = ImmutableList.of(BucketType.IDENTITY);
 
     @Override
@@ -34,7 +34,7 @@ public class BigEndianLongBucketer implements Bucketer<Long> {
     }
 
     @Override
-    public Long deserialize(byte[] coord, BucketType bucketType) {
+    public Long deserialize(byte[] coord) {
         return LongSerializable.deserialize(coord);
     }
 

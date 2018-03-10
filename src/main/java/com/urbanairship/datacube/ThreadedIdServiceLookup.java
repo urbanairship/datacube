@@ -95,7 +95,7 @@ public class ThreadedIdServiceLookup implements Closeable {
         executorService.shutdown();
     }
 
-    private class ReadKeyCallable implements Callable<java.util.Optional<byte[]>> {
+    private class ReadKeyCallable implements Callable<Optional<byte[]>> {
 
         private final IdService idService;
         private final Address address;
@@ -110,8 +110,8 @@ public class ThreadedIdServiceLookup implements Closeable {
         }
 
         @Override
-        public java.util.Optional<byte[]> call() throws Exception {
-            final java.util.Optional<byte[]> maybeKey = address.toReadKey(idService);
+        public Optional<byte[]> call() throws Exception {
+            final Optional<byte[]> maybeKey = address.toReadKey(idService);
             if (!maybeKey.isPresent()) {
                 unknownKeyPositions.add(index);
             }

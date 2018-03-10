@@ -4,7 +4,6 @@ Copyright 2012 Urban Airship and Contributors
 
 package com.urbanairship.datacube.bucketers;
 
-import com.urbanairship.datacube.BucketType;
 import com.urbanairship.datacube.CSerializable;
 import com.urbanairship.datacube.serializables.BooleanSerializable;
 
@@ -32,7 +31,7 @@ public class BooleanBucketer extends AbstractIdentityBucketer<Boolean> {
     }
 
     @Override
-    public Boolean deserialize(byte[] coord, BucketType bucketType) {
+    public Boolean deserialize(byte[] coord) {
         return BooleanSerializable.deserializ(coord);
     }
 }

@@ -8,10 +8,10 @@ package com.urbanairship.datacube;
  * A struct for specifying a dimension and bucket type to be used in a rollup.
  */
 public class DimensionAndBucketType {
-    public final Dimension<?> dimension;
+    public final Dimension<?,?> dimension;
     public final BucketType bucketType;
 
-    public DimensionAndBucketType(Dimension<?> dimension, BucketType bucketType) {
+    public DimensionAndBucketType(Dimension<?,?> dimension, BucketType bucketType) {
         this.dimension = dimension;
         this.bucketType = bucketType;
     }
@@ -20,7 +20,7 @@ public class DimensionAndBucketType {
      * Use this constructor when you're specifying an Rollup involving a dimension that
      * doesn't use bucketing.
      */
-    public DimensionAndBucketType(Dimension<?> dimension) {
+    public DimensionAndBucketType(Dimension<?,?> dimension) {
         this.dimension = dimension;
         this.bucketType = BucketType.IDENTITY;
     }

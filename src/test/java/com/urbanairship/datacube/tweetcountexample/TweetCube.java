@@ -39,27 +39,15 @@ public class TweetCube {
     /*
      *  Each dimension is some feature of a tweet.
      */
-    Dimension<DateTime> timeDimension = new Dimension<DateTime>(
-            "time",                     // dimension name, for debugging output
-            new HourDayMonthBucketer(), // bucketer, controls conversion to row key(s)
-            false,                      // don't convert dimension values to id numbers
-            8);                         // reserve 8 bytes for this field in the row key
-    Dimension<String> retweetedFromDimension = new Dimension<String>(
-            "retweetedFrom",
-            new StringToBytesBucketer(),
-            true,
-            4);
-    Dimension<String> userDimension = new Dimension<String>(
-            "user",
-            new StringToBytesBucketer(),
-            true,
-            4);
-    Dimension<Collection<String>> tagsDimension = new Dimension<Collection<String>>(
+    Dimension<DateTime, DateTime> timeDimension = new Dimension<DateTime, DateTime>("time", new HourDayMonthBucketer(), false, 8);                         // reserve 8 bytes for this field in the row key
+    Dimension<String, String> retweetedFromDimension = new Dimension<String, String>("retweetedFrom", new StringToBytesBucketer(), true, 4);
+    Dimension<String, String> userDimension = new Dimension<String, String>("user", new StringToBytesBucketer(), true, 4);
+    Dimension<Collection<String>, String> tagsDimension = new Dimension<>(
             "tags",
             new TagsBucketer(),
             true,
             7);
-    List<Dimension<?>> dimensions = ImmutableList.<Dimension<?>>of(timeDimension,
+    List<Dimension<?, ?>> dimensions = ImmutableList.of(timeDimension,
             retweetedFromDimension, userDimension, tagsDimension);
 
     /**

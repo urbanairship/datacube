@@ -68,17 +68,6 @@ public class Util {
         return ByteBuffer.wrap(bytes).getInt();
     }
 
-    public static int bytesToIntPad(byte[] bytes) {
-        final int padZeros = Math.max(4 - bytes.length, 0);
-        ByteBuffer bb = ByteBuffer.allocate(4);
-        for (int i = 0; i < padZeros; i++) {
-            bb.put((byte) 0);
-        }
-        bb.put(bytes, 0, 4 - padZeros);
-        bb.flip();
-        return bb.getInt();
-    }
-
     public static byte[] leastSignificantBytes(long l, int numBytes) {
         byte[] all8Bytes = Util.longToBytes(l);
         return trailingBytes(all8Bytes, numBytes);
@@ -115,27 +104,4 @@ public class Util {
         return (byte) result;
     }
 
-    /**
-     * Only use this for testing/debugging. Inefficient.
-     */
-    public static long countRows(Configuration conf, byte[] tableName) throws IOException {
-        HTable hTable = null;
-        ResultScanner rs = null;
-        long count = 0;
-        try {
-            hTable = new HTable(conf, tableName);
-            rs = hTable.getScanner(new Scan());
-            for (@SuppressWarnings("unused") Result r : rs) {
-                count++;
-            }
-            return count;
-        } finally {
-            if (hTable != null) {
-                hTable.close();
-            }
-            if (rs != null) {
-                rs.close();
-            }
-        }
-    }
 }

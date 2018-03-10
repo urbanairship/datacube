@@ -37,9 +37,9 @@ public class HBaseOverwriteTest extends EmbeddedClusterTestAbstract {
      */
     @Test
     public void test() throws Exception {
-        final Dimension<Long> dimension = new Dimension<Long>("mydimension", new BigEndianLongBucketer(),
+        final Dimension<Long, Long> dimension = new Dimension<Long, Long>("mydimension", new BigEndianLongBucketer(),
                 false, 8);
-        List<Dimension<?>> dimensions = ImmutableList.<Dimension<?>>of(dimension);
+        List<Dimension<?, ?>> dimensions = ImmutableList.of(dimension);
 
         Rollup rollup = new Rollup(dimension);
         List<Rollup> rollups = ImmutableList.of(rollup);
@@ -68,9 +68,9 @@ public class HBaseOverwriteTest extends EmbeddedClusterTestAbstract {
     @Test
     public void testSetGet() throws Exception {
         final long value = 100L;
-        final Dimension<Long> dimension = new Dimension<Long>("mydimension", new BigEndianLongBucketer(),
+        final Dimension<Long, Long> dimension = new Dimension<>("mydimension", new BigEndianLongBucketer(),
                 false, 8);
-        List<Dimension<?>> dimensions = ImmutableList.<Dimension<?>>of(dimension);
+        List<Dimension<?, ?>> dimensions = ImmutableList.of(dimension);
 
         Rollup rollup = new Rollup(dimension);
         List<Rollup> rollups = ImmutableList.of(rollup);

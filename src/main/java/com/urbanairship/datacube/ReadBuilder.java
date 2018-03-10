@@ -16,11 +16,11 @@ public class ReadBuilder {
         address = Address.create(cube);
     }
 
-    public ReadBuilder(boolean usePartitionByte, List<Dimension<?>> dimensions) {
+    public ReadBuilder(boolean usePartitionByte, List<Dimension<?, ?>> dimensions) {
         address = new Address(usePartitionByte, dimensions);
     }
 
-    public <O> ReadBuilder at(Dimension<?> dimension, O coordinate) {
+    public <O> ReadBuilder at(Dimension<?, O> dimension, O coordinate) {
         if (dimension.isBucketed()) {
             throw new IllegalArgumentException("This dimension requires you to specify a bucketType");
         }
@@ -28,8 +28,8 @@ public class ReadBuilder {
         return this;
     }
 
-    public <O> ReadBuilder at(Dimension<?> dimension, BucketType bucketType, O coord) {
-        Bucketer<O> bucketer = (Bucketer<O>) dimension.getBucketer();
+    public <O> ReadBuilder at(Dimension<?, O> dimension, BucketType bucketType, O coord) {
+        Bucketer<?, O> bucketer = dimension.getBucketer();
         byte[] bucket = bucketer.bucketForRead(coord, bucketType).serialize();
         address.at(dimension, bucketType, bucket);
         return this;

@@ -140,12 +140,12 @@ public class HBaseBackfillerTest extends EmbeddedClusterTestAbstract {
         DbHarness<LongOp> hbaseDbHarness = new HBaseDbHarness<LongOp>(pool, 
                 ArrayUtils.EMPTY_BYTE_ARRAY, CUBE_DATA_TABLE, CF, LongOp.DESERIALIZER, 
                 idService, CommitType.INCREMENT);
-        
-        Dimension<String> onlyDimension = new Dimension<String>("mydimension", 
-                new StringToBytesBucketer(), true, 2);
+
+        Bucketer<String, String> bucketer = new StringToBytesBucketer();
+        Dimension<String, String> onlyDimension = new Dimension<String, String>("mydimension", bucketer, true, 2);
         
         Rollup rollup = new Rollup(onlyDimension, BucketType.IDENTITY);
-        List<Dimension<?>> dims = ImmutableList.<Dimension<?>>of(onlyDimension);
+        List<Dimension<?,?>> dims = ImmutableList.<Dimension<?,?>>of(onlyDimension);
         List<Rollup> rollups = ImmutableList.of(rollup);
         DataCube<LongOp> cube = new DataCube<LongOp>(dims, rollups);
         DataCubeIo<LongOp> cubeIo = new DataCubeIo<LongOp>(cube, hbaseDbHarness, 1,

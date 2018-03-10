@@ -1,6 +1,9 @@
 package com.urbanairship.datacube;
 
+import com.google.common.collect.HashMultimap;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
+import com.google.common.collect.SetMultimap;
 import com.google.common.primitives.Ints;
 import com.google.common.primitives.Longs;
 import com.urbanairship.datacube.bucketers.AbstractIdentityBucketer;
@@ -12,11 +15,9 @@ import com.urbanairship.datacube.serializables.LongSerializable;
 import org.joda.time.DateTime;
 import org.mockito.MockitoAnnotations;
 
-import java.util.Date;
 import java.util.List;
 import java.util.Optional;
 
-import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 
@@ -25,12 +26,15 @@ public class OffsetBasedAddressFormatTest {
     OffsetBasedAddressFormat target;
 
 
-    private List<Dimension<?>> dimensions;
+    private List<Dimension<?, ?>> dimensions;
 
-    private Dimension<String> name;
-    private Dimension<Integer> id;
-    private Dimension<Double> dollars;
-    private Dimension<DateTime> time;
+    private Dimension<String, String> name;
+    private Dimension<Integer, Integer> id;
+    private Dimension<Double, Long> dollars;
+    private Dimension<DateTime, DateTime> time;
+
+    BucketType ones = new BucketType("ones precision", new byte[]{0});
+    BucketType tens = new BucketType("tens precision", new byte[]{1});
 
 
     @org.junit.Before
@@ -38,15 +42,32 @@ public class OffsetBasedAddressFormatTest {
         MockitoAnnotations.initMocks(this);
         name = new Dimension<>("name", StringToBytesBucketer.getInstance(), true, 4);
         id = new Dimension<>("id", new BigEndianIntBucketer(), false, Ints.BYTES);
-        dollars = new Dimension<>("dollars", new AbstractIdentityBucketer<Double>() {
+        dollars = new Dimension<>("dollars", new Bucketer<Double, Long>() {
             @Override
-            public CSerializable makeSerializable(Double coord) {
-                return new LongSerializable((long) Math.floor(coord));
+            public SetMultimap<BucketType, CSerializable> bucketForWrite(Double coordinate) {
+                // write 11.32
+                HashMultimap<BucketType, CSerializable> m = HashMultimap.create();
+                m.put(ones, new LongSerializable((long) Math.floor(coordinate)));
+                m.put(tens, new LongSerializable((long) Math.floor(coordinate / 10)));
+                return m;
             }
 
             @Override
-            public Double deserialize(byte[] coord, BucketType bucketType) {
-                return (double) LongSerializable.deserialize(coord);
+            public CSerializable bucketForRead(Long coordinate, BucketType bucketType) {
+                // read 1 at tens precision => [0.0, 10.0)
+                // read 14 at tens precision => [10.0, 20.0)
+                // read 1 at 1s precision => [1.0, 2.0)
+                return new LongSerializable(coordinate);
+            }
+
+            @Override
+            public Long deserialize(byte[] coord) {
+                return LongSerializable.deserialize(coord);
+            }
+
+            @Override
+            public List<BucketType> getBucketTypes() {
+                return ImmutableList.of(ones, tens);
             }
         }, false, Long.BYTES);
         time = new Dimension<>("time", new HourDayMonthBucketer(), false, Longs.BYTES);
@@ -71,7 +92,7 @@ public class OffsetBasedAddressFormatTest {
         Address allDimensionsNoHash = new ReadBuilder(true, dimensions)
                 .at(this.name, "roger")
                 .at(this.id, 10)
-                .at(this.dollars, 11.11)
+                .at(this.dollars, ones,11L)
                 .at(this.time, HourDayMonthBucketer.days, new DateTime())
                 .build();
 
@@ -102,13 +123,13 @@ public class OffsetBasedAddressFormatTest {
         assertEquals(nameKey.get().length,
                 1 // to say wildcard or nah
                         + 1 // for the partition byte
-                + this.name.getNumFieldBytes() // and then we skip all the rest because the follow name in the key.
+                        + this.name.getNumFieldBytes() // and then we skip all the rest because the follow name in the key.
                         + this.name.getBucketPrefixSize() // should be zero cause we're wildcard.
         );
 
         assertEquals(keyId.get().length,
                 1 // partition byte
-                + 1 // to say wildcard or nah
+                        + 1 // to say wildcard or nah
                         + this.name.getNumFieldBytes()
                         + this.name.getBucketPrefixSize()
                         + 1 // to say wildcard or nah

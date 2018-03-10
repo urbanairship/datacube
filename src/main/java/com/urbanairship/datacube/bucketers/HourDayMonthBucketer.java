@@ -9,7 +9,7 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.ImmutableSetMultimap;
 import com.google.common.collect.SetMultimap;
 import com.urbanairship.datacube.BucketType;
-import com.urbanairship.datacube.Bucketer;
+import com.urbanairship.datacube.UniBucketer;
 import com.urbanairship.datacube.CSerializable;
 import com.urbanairship.datacube.serializables.LongSerializable;
 import org.joda.time.DateTime;
@@ -17,7 +17,7 @@ import org.joda.time.DateTime;
 import java.util.List;
 import java.util.Set;
 
-public class HourDayMonthBucketer implements Bucketer<DateTime> {
+public class HourDayMonthBucketer implements UniBucketer<DateTime> {
     public static final BucketType hours = new BucketType("hour", new byte[]{1});
     public static final BucketType days = new BucketType("day", new byte[]{2});
     public static final BucketType months = new BucketType("month", new byte[]{3});
@@ -62,7 +62,7 @@ public class HourDayMonthBucketer implements Bucketer<DateTime> {
     }
 
     @Override
-    public DateTime deserialize(byte[] coord, BucketType bucketType) {
+    public DateTime deserialize(byte[] coord) {
         long millis = LongSerializable.deserialize(coord);
         return new DateTime(millis);
     }

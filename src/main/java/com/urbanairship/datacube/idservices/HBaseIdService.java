@@ -168,7 +168,6 @@ public class HBaseIdService implements IdService {
     @Override
     public Optional<byte[]> getValueForId(int dimensionNum, byte[] id) throws IOException, InterruptedException {
         if (reverseLookupTable == null) {
-
             return Optional.empty();
         }
         final Get get = new Get(makeLookupKey(dimensionNum, id));

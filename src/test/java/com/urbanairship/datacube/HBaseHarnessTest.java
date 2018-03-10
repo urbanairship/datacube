@@ -35,15 +35,15 @@ public class HBaseHarnessTest extends EmbeddedClusterTestAbstract {
     @Test
     public void basicCallbackTest() throws Exception {
         HourDayMonthBucketer hourDayMonthBucketer = new HourDayMonthBucketer();
-        Dimension<DateTime> time = new Dimension<DateTime>("time", hourDayMonthBucketer, false, 8);
-        Dimension<String> zipcode = new Dimension<String>("zipcode", new StringToBytesBucketer(), true, 5);
+        Dimension<DateTime, DateTime> time = new Dimension<DateTime, DateTime>("time", hourDayMonthBucketer, false, 8);
+        Dimension<String, String> zipcode = new Dimension<String, String>("zipcode", new StringToBytesBucketer(), true, 5);
 
         Rollup hourAndZipRollup = new Rollup(zipcode, time, HourDayMonthBucketer.hours);
         Rollup dayAndZipRollup = new Rollup(zipcode, time, HourDayMonthBucketer.days);
         Rollup hourRollup = new Rollup(time, HourDayMonthBucketer.hours);
         Rollup dayRollup = new Rollup(time, HourDayMonthBucketer.days);
 
-        List<Dimension<?>> dimensions = ImmutableList.<Dimension<?>>of(time, zipcode);
+        List<Dimension<?,?>> dimensions = ImmutableList.of(time, zipcode);
         List<Rollup> rollups = ImmutableList.of(hourAndZipRollup, dayAndZipRollup, hourRollup, dayRollup);
 
         DataCube<LongOp> dataCube = new DataCube<LongOp>(dimensions, rollups);
@@ -76,15 +76,15 @@ public class HBaseHarnessTest extends EmbeddedClusterTestAbstract {
     @Test
     public void noCallbackTest() throws Exception {
         HourDayMonthBucketer hourDayMonthBucketer = new HourDayMonthBucketer();
-        Dimension<DateTime> time = new Dimension<DateTime>("time", hourDayMonthBucketer, false, 8);
-        Dimension<String> zipcode = new Dimension<String>("zipcode", new StringToBytesBucketer(), true, 5);
+        Dimension<DateTime, DateTime> time = new Dimension<>("time", hourDayMonthBucketer, false, 8);
+        Dimension<String, String> zipcode = new Dimension<>("zipcode", new StringToBytesBucketer(), true, 5);
 
         Rollup hourAndZipRollup = new Rollup(zipcode, time, HourDayMonthBucketer.hours);
         Rollup dayAndZipRollup = new Rollup(zipcode, time, HourDayMonthBucketer.days);
         Rollup hourRollup = new Rollup(time, HourDayMonthBucketer.hours);
         Rollup dayRollup = new Rollup(time, HourDayMonthBucketer.days);
 
-        List<Dimension<?>> dimensions = ImmutableList.<Dimension<?>>of(time, zipcode);
+        List<Dimension<?,?>> dimensions = ImmutableList.of(time, zipcode);
         List<Rollup> rollups = ImmutableList.of(hourAndZipRollup, dayAndZipRollup, hourRollup, dayRollup);
 
         DataCube<LongOp> dataCube = new DataCube<LongOp>(dimensions, rollups);

@@ -42,10 +42,8 @@ public class HBaseBackfillIntegrationTest extends EmbeddedClusterTestAbstract {
     private static final byte[] IDSERVICE_COUNTER_TABLE = "counter_table" .getBytes();
     private static final byte[] CF = "c" .getBytes();
 
-    private static final Dimension<DateTime> timeDimension = new Dimension<DateTime>("time",
-            new HourDayMonthBucketer(), false, 8);
-    private static final Dimension<Color> colorDimension = new Dimension<Color>("color",
-            new EnumToOrdinalBucketer<Color>(1, Color.class), false, 1);
+    private static final Dimension<DateTime, DateTime> timeDimension = new Dimension<DateTime, DateTime>("time", new HourDayMonthBucketer(), false, 8);
+    private static final Dimension<Color, Color> colorDimension = new Dimension<Color, Color>("color", new EnumToOrdinalBucketer<Color>(1, Color.class), false, 1);
 
     private static IdService idService;
     private static DataCube<LongOp> oldCube, newCube;
@@ -144,10 +142,10 @@ public class HBaseBackfillIntegrationTest extends EmbeddedClusterTestAbstract {
         Rollup hourColorRollup = new Rollup(colorDimension, timeDimension, HourDayMonthBucketer.hours);
         Rollup dayRollup = new Rollup(timeDimension, HourDayMonthBucketer.days);
 
-        List<Dimension<?>> oldDims = ImmutableList.of(timeDimension);
+        List<Dimension<?,?>> oldDims = ImmutableList.of(timeDimension);
         List<Rollup> oldRollups = ImmutableList.of(hourRollup, dayRollup);
 
-        List<Dimension<?>> newDims = ImmutableList.of(timeDimension, colorDimension);
+        List<Dimension<?,?>> newDims = ImmutableList.of(timeDimension, colorDimension);
         List<Rollup> newRollups = ImmutableList.of(hourRollup, dayRollup, hourColorRollup);
 
         oldCube = new DataCube<LongOp>(oldDims, oldRollups);

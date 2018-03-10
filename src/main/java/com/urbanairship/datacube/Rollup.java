@@ -20,9 +20,9 @@ import java.util.Set;
 public class Rollup {
     private final List<DimensionAndBucketType> components;
 
-    public Rollup(Dimension<?>... dims) {
+    public Rollup(Dimension<?,?>... dims) {
         this.components = new ArrayList<DimensionAndBucketType>(dims.length);
-        for (Dimension<?> dim : dims) {
+        for (Dimension<?,?> dim : dims) {
             this.components.add(new DimensionAndBucketType(dim, BucketType.IDENTITY));
         }
     }
@@ -34,21 +34,21 @@ public class Rollup {
     /**
      * Convenient wrapper around {@link #Rollup(Set)} that builds a set for you.
      */
-    public Rollup(Dimension<?> d) {
+    public Rollup(Dimension<?,?> d) {
         this(ImmutableSet.of(new DimensionAndBucketType(d, BucketType.IDENTITY)));
     }
 
     /**
      * Convenient wrapper around {@link #Rollup(Set)} that builds a set for you.
      */
-    public Rollup(Dimension<?> d, BucketType bt) {
+    public Rollup(Dimension<?,?> d, BucketType bt) {
         this(ImmutableSet.of(new DimensionAndBucketType(d, bt)));
     }
 
     /**
      * Convenient wrapper around {@link #Rollup(Set)} that builds a set for you.
      */
-    public Rollup(Dimension<?> d1, BucketType bt1, Dimension<?> d2, BucketType bt2) {
+    public Rollup(Dimension<?,?> d1, BucketType bt1, Dimension<?,?> d2, BucketType bt2) {
         this(ImmutableSet.of(new DimensionAndBucketType(d1, bt1),
                 new DimensionAndBucketType(d2, bt2)));
     }
@@ -56,8 +56,8 @@ public class Rollup {
     /**
      * Convenient wrapper around {@link #Rollup(Set)} that builds a set for you.
      */
-    public Rollup(Dimension<?> d1, BucketType bt1, Dimension<?> d2, BucketType bt2,
-                  Dimension<?> d3, BucketType bt3) {
+    public Rollup(Dimension<?,?> d1, BucketType bt1, Dimension<?,?> d2, BucketType bt2,
+                  Dimension<?,?> d3, BucketType bt3) {
         this(ImmutableSet.of(new DimensionAndBucketType(d1, bt1),
                 new DimensionAndBucketType(d2, bt2), new DimensionAndBucketType(d3, bt3)));
     }
@@ -65,7 +65,7 @@ public class Rollup {
     /**
      * Convenient wrapper around {@link #Rollup(Set)} that builds a set for you.
      */
-    public Rollup(Dimension<?> d1, Dimension<?> d2) {
+    public Rollup(Dimension<?,?> d1, Dimension<?,?> d2) {
         this(ImmutableSet.of(new DimensionAndBucketType(d1, BucketType.IDENTITY),
                 new DimensionAndBucketType(d2, BucketType.IDENTITY)));
     }
@@ -73,7 +73,7 @@ public class Rollup {
     /**
      * Convenient wrapper around {@link #Rollup(Set)} that builds a set for you.
      */
-    public Rollup(Dimension<?> d1, Dimension<?> d2, BucketType bt2) {
+    public Rollup(Dimension<?,?> d1, Dimension<?,?> d2, BucketType bt2) {
         this(ImmutableSet.of(new DimensionAndBucketType(d1, BucketType.IDENTITY),
                 new DimensionAndBucketType(d2, bt2)));
     }

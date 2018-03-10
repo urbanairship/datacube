@@ -32,9 +32,9 @@ public class OffsetBasedAddressFormat implements AddressFormatter {
     private static final BaseEncoding BASE_64 = BaseEncoding.base64();
 
     private final IdService idService;
-    private final List<Dimension<?>> dimensions;
+    private final List<Dimension<?, ?>> dimensions;
     private final boolean useAddressPrefixByteHash;
-    private final BiFunction<Boolean, List<Dimension<?>>, Address> addressSupplier;
+    private final BiFunction<Boolean, List<Dimension<?, ?>>, Address> addressSupplier;
 
     public OffsetBasedAddressFormat(DataCube<?> cube, IdService idService) {
         this(
@@ -46,7 +46,7 @@ public class OffsetBasedAddressFormat implements AddressFormatter {
         );
     }
 
-    public OffsetBasedAddressFormat(List<Dimension<?>> dimensions, boolean addPartitionByte, IdService idService, BiFunction<Boolean, List<Dimension<?>>, Address> addressSupplier) {
+    public OffsetBasedAddressFormat(List<Dimension<?, ?>> dimensions, boolean addPartitionByte, IdService idService, BiFunction<Boolean, List<Dimension<?, ?>>, Address> addressSupplier) {
         this.dimensions = dimensions;
         this.useAddressPrefixByteHash = addPartitionByte;
         this.idService = idService;
@@ -65,7 +65,7 @@ public class OffsetBasedAddressFormat implements AddressFormatter {
         // We build up the key in reverse order so we can leave off wildcards at the end of the key.
         // The reasoning for this is complicated, please see design docs.
         for (int i = dimensions.size() - 1; i >= 0; i--) {
-            Dimension<?> dimension = dimensions.get(i);
+            Dimension<?, ?> dimension = dimensions.get(i);
             BucketTypeAndBucket bucketAndCoord = address.get(dimension);
 
             if (bucketAndCoord == null || bucketAndCoord.bucketType == BucketType.WILDCARD) {
@@ -146,7 +146,7 @@ public class OffsetBasedAddressFormat implements AddressFormatter {
         return Util.hashByteArray(bytes, 1, bytes.length);
     }
 
-    private byte[] getBucket(boolean readOnly, Dimension<?> dimension, BucketTypeAndBucket bucketAndCoord) throws IOException, InterruptedException {
+    private byte[] getBucket(boolean readOnly, Dimension<?, ?> dimension, BucketTypeAndBucket bucketAndCoord) throws IOException, InterruptedException {
         byte[] bucket;
 
         if (idService == null || !dimension.getDoIdSubstitution()) {
@@ -194,7 +194,7 @@ public class OffsetBasedAddressFormat implements AddressFormatter {
 
         Address address = addressSupplier.apply(useAddressPrefixByteHash, dimensions);
 
-        for (Dimension<?> dimension : dimensions) {
+        for (Dimension<?, ?> dimension : dimensions) {
             if (remainingBytes <= 0) {
                 // we might exit early if it turns out that we have nothing but wildcards remaining, which are omitted
                 // from the serialized format.

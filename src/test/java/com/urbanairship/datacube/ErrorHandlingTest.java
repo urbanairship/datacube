@@ -37,13 +37,13 @@ public class ErrorHandlingTest extends EmbeddedClusterTestAbstract {
                 idService, CommitType.INCREMENT, 5, 2, 2, null);
         
         DataCube<LongOp> cube;
-        
-        Dimension<String> zipcode = new Dimension<String>("zipcode", new StringToBytesBucketer(), 
-                true, 5);
+
+        Bucketer<String, String> bucketer = new StringToBytesBucketer();
+        Dimension<String, String> zipcode = new Dimension<String, String>("zipcode", bucketer, true, 5);
 
         Rollup zipRollup = new Rollup(zipcode);
         
-        List<Dimension<?>> dimensions =  ImmutableList.<Dimension<?>>of(zipcode);
+        List<Dimension<?,?>> dimensions =  ImmutableList.<Dimension<?,?>>of(zipcode);
         List<Rollup> rollups = ImmutableList.of(zipRollup);
         
         cube = new DataCube<LongOp>(dimensions, rollups);

@@ -110,7 +110,7 @@ public class CompleteExampleTest {
          * Bucketize cities into two buckets: (1) the state they belong to and (2) their
          * literal city name
          */
-        static class LocationBucketer implements Bucketer<Location> {
+        static class LocationBucketer implements UniBucketer<Location> {
 
             public SetMultimap<BucketType, CSerializable> bucketForWrite(Location location) {
                 ImmutableSetMultimap.Builder<BucketType, CSerializable> mapBuilder =
@@ -125,7 +125,7 @@ public class CompleteExampleTest {
             }
 
             @Override
-            public Location deserialize(byte[] coord, BucketType bucketType) {
+            public Location deserialize(byte[] coord) {
                 return Location.deserialize(coord);
             }
 
@@ -141,19 +141,19 @@ public class CompleteExampleTest {
         BucketType deviceName = BucketType.IDENTITY;
         BucketType osType = BucketType.IDENTITY;
 
-        Dimension<DateTime> time = new Dimension<DateTime>("time", new HourDayMonthBucketer(), false, 8);
+        Dimension<DateTime,DateTime> time = new Dimension<DateTime, DateTime>("time", new HourDayMonthBucketer(), false, 8);
 
         /**
          * Bucketize mobile devices into two bucket types: (1) the literal device type (e.g.
          * ipad, mytouch) and (2) the OS manufacturer (apple, android)
          */
-        Bucketer<DeviceType> deviceTypeBucketer = new EnumToOrdinalBucketer<>(1, DeviceType.class);
-        Bucketer<OsManufacturer> manufacturerBucketer = new EnumToOrdinalBucketer<>(1, OsManufacturer.class);
+        UniBucketer<DeviceType> deviceTypeBucketer = new EnumToOrdinalBucketer<>(1, DeviceType.class);
+        UniBucketer<OsManufacturer> manufacturerBucketer = new EnumToOrdinalBucketer<>(1, OsManufacturer.class);
 
-        Dimension<DeviceType> device = new Dimension<>("device", deviceTypeBucketer, true, 1);
-        Dimension<OsManufacturer> manufacturer = new Dimension<>("manufacturer", manufacturerBucketer, true, 1);
-        Dimension<Location> location = new Dimension<>("location", new LocationBucketer(), false, 4);
-        List<Dimension<?>> dimensions = ImmutableList.<Dimension<?>>of(time, device, manufacturer, location);
+        Dimension<DeviceType, DeviceType> device = new Dimension<DeviceType, DeviceType>("device", deviceTypeBucketer, true, 1);
+        Dimension<OsManufacturer, OsManufacturer> manufacturer = new Dimension<OsManufacturer, OsManufacturer>("manufacturer", manufacturerBucketer, true, 1);
+        Dimension<Location, Location> location = new Dimension<Location, Location>("location", new LocationBucketer(), false, 4);
+        List<Dimension<?, ?>> dimensions = ImmutableList.of(time, device, manufacturer, location);
 
         Rollup cityAndOsRollup = new Rollup(location, usCityBucketType, manufacturer, osType);
         Rollup stateRollup = new Rollup(location, usStateBucketType);
@@ -225,7 +225,7 @@ public class CompleteExampleTest {
             java.util.Optional<LongOp> opt = dataCubeIo.get(new ReadBuilder(dataCube)
                     .at(time, HourDayMonthBucketer.months, month)
                     .at(location, state.bucketType, state)
-                    .at(device, osType, os));
+                    .at(manufacturer, osType, os));
 
             return opt.map(LongOp::getLong).orElse(0L);
         }

@@ -6,17 +6,17 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSetMultimap;
 import com.google.common.collect.SetMultimap;
 import com.urbanairship.datacube.BucketType;
-import com.urbanairship.datacube.Bucketer;
+import com.urbanairship.datacube.UniBucketer;
 import com.urbanairship.datacube.CSerializable;
 
 /**
- * An implementation of the {@link Bucketer} to make it easy to create a bucketer that
+ * An implementation of the {@link UniBucketer} to make it easy to create a bucketer that
  * always uses the identity bucket type ({@link BucketType#IDENTITY}).
  *
  * Each input is written to a single bucket, as opposed to some other bucket types, e.g. the {@link HourDayMonthBucketer}
  * which fans each write out to a number of buckets.
  */
-public abstract class AbstractIdentityBucketer<T> implements Bucketer<T> {
+public abstract class AbstractIdentityBucketer<T> implements UniBucketer<T> {
     private final List<BucketType> bucketTypes = ImmutableList.of(BucketType.IDENTITY);
     
     @Override

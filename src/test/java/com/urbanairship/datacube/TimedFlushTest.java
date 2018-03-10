@@ -24,18 +24,16 @@ public class TimedFlushTest {
 
     enum Color {RED, BLUE}
 
-    ;
-
     @Test
     public void test() throws Exception {
-        Dimension<Color> colorDimension = new Dimension<Color>("color", new EnumToOrdinalBucketer<Color>(1, Color.class), false, 1);
+        Dimension<Color, Color> colorDimension = new Dimension<>("color", new EnumToOrdinalBucketer<Color>(1, Color.class), false, 1);
         Rollup colorRollup = new Rollup(colorDimension);
         IdService idService = new MapIdService();
         ConcurrentMap<BoxedByteArray, byte[]> backingMap = Maps.newConcurrentMap();
         DbHarness<LongOp> dbHarness = new MapDbHarness<LongOp>(backingMap,
                 new LongOp.LongOpDeserializer(), CommitType.READ_COMBINE_CAS, idService);
 
-        DataCube<LongOp> cube = new DataCube<LongOp>(ImmutableList.<Dimension<?>>of(colorDimension),
+        DataCube<LongOp> cube = new DataCube<LongOp>(ImmutableList.of(colorDimension),
                 ImmutableList.of(colorRollup));
         DataCubeIo<LongOp> cubeIo = new DataCubeIo<LongOp>(cube, dbHarness, Integer.MAX_VALUE,
                 TimeUnit.SECONDS.toMillis(1), SyncLevel.BATCH_SYNC);

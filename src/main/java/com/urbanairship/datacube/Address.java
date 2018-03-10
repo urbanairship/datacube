@@ -19,21 +19,21 @@ import java.util.Optional;
  * If you're just trying to use the datacube normally, check out {@link DataCubeIo}, {@link ReadBuilder}
  */
 public class Address {
-    private final Map<Dimension<?>, BucketTypeAndBucket> buckets = Maps.newHashMap();
+    private final Map<Dimension<?, ?>, BucketTypeAndBucket> buckets = Maps.newHashMap();
 
     private final boolean usePartitionByte;
-    private final List<Dimension<?>> dimensions;
+    private final List<Dimension<?, ?>> dimensions;
 
     public static Address create(DataCube<?> cube) {
         return new Address(cube.useAddressPrefixByteHash(), cube.getDimensions());
     }
 
-    public Address(boolean usePartitionByte, List<Dimension<?>> dimensions) {
+    public Address(boolean usePartitionByte, List<Dimension<?, ?>> dimensions) {
         this.usePartitionByte = usePartitionByte;
         this.dimensions = dimensions;
     }
 
-    public Address at(Dimension<?> dimension, byte[] value) {
+    public Address at(Dimension<?, ?> dimension, byte[] value) {
         if (dimension.isBucketed()) {
             throw new IllegalArgumentException("Dimension " + dimension +
                     " is a bucketed dimension. You can't query it without a bucket.");
@@ -42,21 +42,21 @@ public class Address {
         return this;
     }
 
-    public Address at(Dimension<?> dimension, BucketType bucketType, byte[] bucket) {
+    public Address at(Dimension<?, ?> dimension, BucketType bucketType, byte[] bucket) {
         buckets.put(dimension, new BucketTypeAndBucket(bucketType, bucket));
         return this;
     }
 
-    public Address at(Dimension<?> dimension, BucketTypeAndBucket bucketAndCoord) {
+    public Address at(Dimension<?, ?> dimension, BucketTypeAndBucket bucketAndCoord) {
         buckets.put(dimension, bucketAndCoord);
         return this;
     }
 
-    public BucketTypeAndBucket get(Dimension<?> dimension) {
+    public BucketTypeAndBucket get(Dimension<?, ?> dimension) {
         return buckets.get(dimension);
     }
 
-    public Map<Dimension<?>, BucketTypeAndBucket> getBuckets() {
+    public Map<Dimension<?, ?>, BucketTypeAndBucket> getBuckets() {
         return buckets;
     }
 

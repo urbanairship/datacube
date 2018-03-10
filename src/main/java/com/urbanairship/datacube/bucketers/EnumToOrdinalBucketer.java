@@ -4,7 +4,6 @@ Copyright 2012 Urban Airship and Contributors
 
 package com.urbanairship.datacube.bucketers;
 
-import com.urbanairship.datacube.BucketType;
 import com.urbanairship.datacube.CSerializable;
 import com.urbanairship.datacube.Util;
 import com.urbanairship.datacube.serializables.BytesSerializable;
@@ -28,7 +27,7 @@ public class EnumToOrdinalBucketer<T extends Enum<?>> extends AbstractIdentityBu
     }
 
     @Override
-    public T deserialize(byte[] coord, BucketType bucketType) {
+    public T deserialize(byte[] coord) {
         return EnumSerializable.<T>deserialize(tClass, coord);
     }
 }

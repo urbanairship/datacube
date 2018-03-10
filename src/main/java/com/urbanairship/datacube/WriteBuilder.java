@@ -12,14 +12,14 @@ import com.google.common.collect.SetMultimap;
 import java.util.Map;
 
 public class WriteBuilder {
-    private final Map<Dimension<?>, SetMultimap<BucketType, byte[]>> buckets;
+    private final Map<Dimension<?,?>, SetMultimap<BucketType, byte[]>> buckets;
 
     public WriteBuilder() {
         buckets = Maps.newHashMap();
     }
 
-    public <O> WriteBuilder at(Dimension<O> dimension, O coord) {
-        Bucketer<O> bucketer = dimension.getBucketer();
+    public <O> WriteBuilder at(Dimension<O, ?> dimension, O coord) {
+        Bucketer<O,?> bucketer = dimension.getBucketer();
 
         SetMultimap<BucketType, CSerializable> bucketsAndCoords = bucketer.bucketForWrite(coord);
         buckets.put(dimension, serializeCoords(bucketsAndCoords));
@@ -27,7 +27,7 @@ public class WriteBuilder {
         return this;
     }
 
-    Map<Dimension<?>, SetMultimap<BucketType, byte[]>> getBuckets() {
+    Map<Dimension<?,?>, SetMultimap<BucketType, byte[]>> getBuckets() {
         return buckets;
     }
 

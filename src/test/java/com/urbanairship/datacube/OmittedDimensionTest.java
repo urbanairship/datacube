@@ -17,9 +17,9 @@ import static org.junit.Assert.assertEquals;
 
 public class OmittedDimensionTest {
 
-    public static final Dimension<Long> X = new Dimension<Long>("X", new BigEndianLongBucketer(), false, 8);
-    public static final Dimension<Long> Y = new Dimension<Long>("Y", new BigEndianLongBucketer(), false, 8);
-    public static final Dimension<Long> Z = new Dimension<Long>("Z", new BigEndianLongBucketer(), false, 8);
+    public static final Dimension<Long, Long> X = new Dimension<Long, Long>("X", new BigEndianLongBucketer(), false, 8);
+    public static final Dimension<Long, Long> Y = new Dimension<Long, Long>("Y", new BigEndianLongBucketer(), false, 8);
+    public static final Dimension<Long, Long> Z = new Dimension<Long, Long>("Z", new BigEndianLongBucketer(), false, 8);
 
     @Test
     public void testAddress() throws Exception {
@@ -27,7 +27,7 @@ public class OmittedDimensionTest {
         IdService idService = new CachingIdService(4, new MapIdService(), "test");
         DbHarness<LongOp> dbHarness = new MapDbHarness<LongOp>(backingMap, LongOp.DESERIALIZER, CommitType.OVERWRITE, idService);
 
-        List<Dimension<?>> dims = ImmutableList.<Dimension<?>>of(X, Y, Z);
+        List<Dimension<?,?>> dims = ImmutableList.of(X, Y, Z);
         List<Rollup> rollups = ImmutableList.of(new Rollup(X, Y), new Rollup(Y, Z));
 
         DataCube<LongOp> cube = new DataCube<LongOp>(dims, rollups);

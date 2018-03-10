@@ -25,8 +25,8 @@ public class DbHarnessTests {
     public static void basicTest(DbHarness<LongOp> dbHarness) throws Exception {
         HourDayMonthBucketer hourDayMonthBucketer = new HourDayMonthBucketer();
 
-        Dimension<DateTime> time = new Dimension<DateTime>("time", hourDayMonthBucketer, false, 8);
-        Dimension<String> zipcode = new Dimension<String>("zipcode", new StringToBytesBucketer(),
+        Dimension<DateTime,DateTime> time = new Dimension<>("time", hourDayMonthBucketer, false, 8);
+        Dimension<String,String> zipcode = new Dimension<>("zipcode", new StringToBytesBucketer(),
                 true, 5);
 
         DataCubeIo<LongOp> cubeIo;
@@ -37,7 +37,7 @@ public class DbHarnessTests {
         Rollup hourRollup = new Rollup(time, HourDayMonthBucketer.hours);
         Rollup dayRollup = new Rollup(time, HourDayMonthBucketer.days);
 
-        List<Dimension<?>> dimensions = ImmutableList.<Dimension<?>>of(time, zipcode);
+        List<Dimension<?,?>> dimensions = ImmutableList.<Dimension<?,?>>of(time, zipcode);
         List<Rollup> rollups = ImmutableList.of(hourAndZipRollup, dayAndZipRollup, hourRollup,
                 dayRollup);
 
@@ -84,8 +84,8 @@ public class DbHarnessTests {
     public static void multiGetTest(DbHarness<LongOp> dbHarness) throws Exception {
         HourDayMonthBucketer hourDayMonthBucketer = new HourDayMonthBucketer();
 
-        Dimension<DateTime> time = new Dimension<DateTime>("time", hourDayMonthBucketer, false, 8);
-        Dimension<String> zipcode = new Dimension<String>("zipcode", new StringToBytesBucketer(),
+        Dimension<DateTime, DateTime> time = new Dimension<>("time", hourDayMonthBucketer, false, 8);
+        Dimension<String, String> zipcode = new Dimension<>("zipcode", new StringToBytesBucketer(),
                 true, 5);
 
         DataCubeIo<LongOp> cubeIo;
@@ -96,7 +96,7 @@ public class DbHarnessTests {
         Rollup hourRollup = new Rollup(time, HourDayMonthBucketer.hours);
         Rollup dayRollup = new Rollup(time, HourDayMonthBucketer.days);
 
-        List<Dimension<?>> dimensions = ImmutableList.<Dimension<?>>of(time, zipcode);
+        List<Dimension<?,?>> dimensions = ImmutableList.<Dimension<?,?>>of(time, zipcode);
         List<Rollup> rollups = ImmutableList.of(hourAndZipRollup, dayAndZipRollup, hourRollup,
                 dayRollup);
 

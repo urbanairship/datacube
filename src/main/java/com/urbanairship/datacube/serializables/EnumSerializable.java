@@ -4,7 +4,6 @@ Copyright 2012 Urban Airship and Contributors
 
 package com.urbanairship.datacube.serializables;
 
-import com.google.common.base.Preconditions;
 import com.urbanairship.datacube.CSerializable;
 import com.urbanairship.datacube.Util;
 
@@ -46,7 +45,7 @@ public class EnumSerializable<T extends Enum> implements CSerializable {
         T[] enumConstants = clazz.getEnumConstants();
         int i = Util.bytesToInt(bytes);
         if(i > enumConstants.length) {
-            throw new EnumDeserializationException("deserialized unknown enum ordinal, " + i + " for enum " + clazz.getSimpleName());
+            throw new EnumDeserializationException("Deserialized unknown enum ordinal, " + i + " for enum " + clazz.getSimpleName());
         }
         return enumConstants[i];
     }
