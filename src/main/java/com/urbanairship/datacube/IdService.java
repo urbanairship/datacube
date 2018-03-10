@@ -37,7 +37,8 @@ public interface IdService {
      * @param dimensionNum dimension index-- e.g. this is an id for the fifth dimension of our rollup. Helps avoid
      *                     collisions
      * @param input        The input bytes for which we're establishing an id.
-     * @param numIdBytes   The number of bytes to reserve in the destination table for the value
+     * @param numIdBytes   How short the resulting identifier should be. This has obvious implications on how many
+     *                     mappings you can maintain.
      *
      * @return the short identifier to use in place of the {@param input}
      *
@@ -46,6 +47,20 @@ public interface IdService {
      */
     byte[] getOrCreateId(int dimensionNum, byte[] input, int numIdBytes) throws IOException, InterruptedException;
 
+    /**
+     * create an id for the value if it doesn't exist
+     *
+     * @param dimensionNum dimension index-- e.g. this is an id for the fifth dimension of our rollup. Helps avoid
+     *                     collisions
+     * @param input        The input bytes for which we're establishing an id.
+     * @param numIdBytes   How short the resulting identifier should be. This has obvious implications on how many
+     *                     mappings you can maintain.
+     *
+     * @return the short identifier to use in place of the {@param input}, if it exists.
+     *
+     * @throws IOException
+     * @throws InterruptedException
+     */
     Optional<byte[]> getId(int dimensionNum, byte[] input, int numIdBytes) throws IOException, InterruptedException;
 
     /**

@@ -25,8 +25,6 @@ import java.util.function.BiFunction;
  * </pre>
  *
  * There are no unique/unambiguous delimiters between components of the rowkey.
- *
- * However we omit trailing wildcard dimensions.
  */
 public class OffsetBasedAddressFormat implements AddressFormatter {
     private static final byte[] WILDCARD_FIELD = new byte[]{0};
@@ -55,8 +53,12 @@ public class OffsetBasedAddressFormat implements AddressFormatter {
         this.addressSupplier = addressSupplier;
     }
 
-
-    public Optional<byte[]> toKey(Address address, boolean readOnly) throws IOException, InterruptedException {
+    /**
+     * Get a byte array encoding the buckets of this cell in the Cube. For internal use only.
+     * If  doNotCreateIds is true, then absent will be returned if any dimension fails to map. Callers
+     * should consider this evidence that the key does not exist in the backing store.
+     */
+    public Optional<byte[]> toKey(Address address, boolean doNotCreateIds) throws IOException, InterruptedException {
         boolean sawOnlyWildcardsSoFar = true;
         List<byte[]> reversedKeyElems = Lists.newArrayListWithCapacity(dimensions.size());
 
@@ -66,7 +68,7 @@ public class OffsetBasedAddressFormat implements AddressFormatter {
             Dimension<?> dimension = dimensions.get(i);
             BucketTypeAndBucket bucketAndCoord = address.get(dimension);
 
-            if (bucketAndCoord == null) {
+            if (bucketAndCoord == null || bucketAndCoord.bucketType == BucketType.WILDCARD) {
                 // We omit empty dimensions at the end of the key.
                 if (sawOnlyWildcardsSoFar) {
                     continue;
@@ -79,7 +81,7 @@ public class OffsetBasedAddressFormat implements AddressFormatter {
             } else {
                 sawOnlyWildcardsSoFar = false;
 
-                byte[] bucket = getBucket(readOnly, dimension, bucketAndCoord);
+                byte[] bucket = getBucket(doNotCreateIds, dimension, bucketAndCoord);
 
                 if (bucket == null) {
                     return Optional.empty();
@@ -115,8 +117,8 @@ public class OffsetBasedAddressFormat implements AddressFormatter {
         // Add a place holder for the hash byte if it's required
         if (useAddressPrefixByteHash) {
             bb = ByteBuffer.allocate(totalKeySize + 1);
-            byte hashByte = Util.hashByteArray(bb.array(), 1, totalKeySize + 1);
-            bb.put(hashByte);
+            // add a placeholder which we'll overwrite once we have an array from which we can compute the hash.
+            bb.put((byte) 0x01);
         } else {
             bb = ByteBuffer.allocate(totalKeySize);
         }
@@ -125,11 +127,23 @@ public class OffsetBasedAddressFormat implements AddressFormatter {
             bb.put(keyElement);
         }
 
+        byte[] array = bb.array();
+
+        if (useAddressPrefixByteHash) {
+            byte hashByte = getHashByte(array);
+            bb.put(0, hashByte);
+        }
+
         if (bb.remaining() != 0) {
             throw new AssertionError("Key length calculation was somehow wrong, " +
                     bb.remaining() + " bytes remaining");
         }
-        return Optional.of(bb.array());
+
+        return Optional.of(array);
+    }
+
+    private byte getHashByte(byte[] bytes) {
+        return Util.hashByteArray(bytes, 1, bytes.length);
     }
 
     private byte[] getBucket(boolean readOnly, Dimension<?> dimension, BucketTypeAndBucket bucketAndCoord) throws IOException, InterruptedException {
@@ -172,9 +186,11 @@ public class OffsetBasedAddressFormat implements AddressFormatter {
 
         if (useAddressPrefixByteHash) {
             // then read the first int and throw it out.
-            bb.getInt();
+            byte hashByte = bb.get();
             remainingBytes -= Ints.BYTES;
+            Preconditions.checkState(hashByte == getHashByte(bytes));
         }
+
 
         Address address = addressSupplier.apply(useAddressPrefixByteHash, dimensions);
 
@@ -196,6 +212,11 @@ public class OffsetBasedAddressFormat implements AddressFormatter {
                 // then we need to consume dimension bytes, but do nothing else.
                 bb.get(bucket);
                 remainingBytes -= bucket.length;
+                if (remainingBytes <= 0) {
+                    // we might exit early if it turns out that we have nothing but wildcards remaining, which are omitted
+                    // from the serialized format.
+                    return Optional.of(address);
+                }
                 // nothing to add for the address for the dimension.
                 continue;
             }

@@ -17,9 +17,9 @@ import static org.junit.Assert.assertEquals;
 
 public class OmittedDimensionTest {
 
-    public static final Dimension<Long> X = new Dimension<Long>("X", new BigEndianLongBucketer(), false, 8, true);
-    public static final Dimension<Long> Y = new Dimension<Long>("Y", new BigEndianLongBucketer(), false, 8, false);
-    public static final Dimension<Long> Z = new Dimension<Long>("Z", new BigEndianLongBucketer(), false, 8, true);
+    public static final Dimension<Long> X = new Dimension<Long>("X", new BigEndianLongBucketer(), false, 8);
+    public static final Dimension<Long> Y = new Dimension<Long>("Y", new BigEndianLongBucketer(), false, 8);
+    public static final Dimension<Long> Z = new Dimension<Long>("Z", new BigEndianLongBucketer(), false, 8);
 
     @Test
     public void testAddress() throws Exception {

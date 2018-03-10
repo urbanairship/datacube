@@ -22,14 +22,6 @@ public class Dimension<F> {
     private final int numFieldBytes;
     private final int bucketPrefixSize;
     private final boolean isBucketed;
-    private final boolean nullable;
-
-    /**
-     * See {@link Dimension#Dimension(String, Bucketer, boolean, int, boolean)}
-     */
-    public Dimension(String name, Bucketer<F> bucketer, boolean doIdSubstitution, int fieldBytes) {
-        this(name, bucketer, doIdSubstitution, fieldBytes, false);
-    }
 
     /**
      * For dimensions where a single input bucket affects multiple buckets within that dimension.
@@ -41,15 +33,12 @@ public class Dimension<F> {
      *                         you'd need ceil(log2(1000)/8)=2 bytes (1000 values can be enumerated in 10 bits, which
      *                         requires 2 full bytes). If you set doIdSubstitution to true, then this defines the number
      *                         of bytes we should use to store ids in the main datacube row.
-     * @param nullable         false if input values are required to specify a value for this dimension,
-     *                         otherwise true
      */
-    public Dimension(String name, Bucketer<F> bucketer, boolean doIdSubstitution, int fieldBytes, boolean nullable) {
+    public Dimension(String name, Bucketer<F> bucketer, boolean doIdSubstitution, int fieldBytes) {
         this.name = name;
         this.bucketer = bucketer;
         this.doIdSubstitution = doIdSubstitution;
         this.numFieldBytes = fieldBytes;
-        this.nullable = nullable;
 
         // Make sure all bucket unique id prefixes have the same length
         Integer previousLen = null;
@@ -95,10 +84,6 @@ public class Dimension<F> {
 
     public boolean getDoIdSubstitution() {
         return doIdSubstitution;
-    }
-
-    public boolean isNullable() {
-        return nullable;
     }
 
 

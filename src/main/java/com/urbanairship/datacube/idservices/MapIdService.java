@@ -28,7 +28,7 @@ public class MapIdService implements IdService {
     private static final Logger log = LoggerFactory.getLogger(MapIdService.class);
 
     private final Map<Integer, BiMap<BoxedByteArray, Long>> idMap = Maps.newHashMap();
-    private final BiMap<Integer, Long> nextIds = HashBiMap.create();
+    private final Map<Integer, Long> nextIds = Maps.newHashMap();
 
     @Override
     public byte[] getOrCreateId(int dimensionNum, byte[] bytes, int numBytes) {
@@ -103,7 +103,7 @@ public class MapIdService implements IdService {
     public Optional<byte[]> getValueForId(int dimensionNum, byte[] id) throws IOException, InterruptedException {
         return Optional.ofNullable(idMap.computeIfAbsent(dimensionNum, HashBiMap::create)
                 .inverse()
-                .get(Util.bytesToLong(id)))
+                .get(Util.bytesToLongPad(id)))
                 .map(BoxedByteArray::getBytes);
     }
 }

@@ -143,11 +143,7 @@ public class DataCube<T extends Op> {
                     outputAddress.at(dim, new BucketTypeAndBucket(bucketType, coord));
                 }
 
-                boolean shouldWrite = true;
-
-                if (shouldWrite) {
-                    outputMap.put(outputAddress, op);
-                }
+                outputMap.put(outputAddress, op);
             }
         }
 

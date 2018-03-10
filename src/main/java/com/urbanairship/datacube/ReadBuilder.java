@@ -4,15 +4,20 @@ Copyright 2012 Urban Airship and Contributors
 
 package com.urbanairship.datacube;
 
+import java.util.List;
+
 /**
  * Use this to specify the location of a cell to read from a datacube.
  */
 public class ReadBuilder {
     private final Address address;
-    boolean built = false;
 
     public ReadBuilder(DataCube<?> cube) {
         address = Address.create(cube);
+    }
+
+    public ReadBuilder(boolean usePartitionByte, List<Dimension<?>> dimensions) {
+        address = new Address(usePartitionByte, dimensions);
     }
 
     public <O> ReadBuilder at(Dimension<?> dimension, O coordinate) {
@@ -31,10 +36,6 @@ public class ReadBuilder {
     }
 
     public Address build() {
-        if (built) {
-            throw new RuntimeException("Already built");
-        }
-        built = true;
         return address;
     }
 }
