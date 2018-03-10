@@ -3,7 +3,6 @@ package com.urbanairship.datacube;
 
 import com.codahale.metrics.Histogram;
 import com.codahale.metrics.Timer;
-import com.google.common.base.Optional;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.urbanairship.datacube.metrics.Metrics;
 import org.apache.log4j.LogManager;
@@ -13,6 +12,7 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
@@ -34,8 +34,8 @@ public class ThreadedIdServiceLookup implements Closeable {
      * This utility class provides threaded Address => Row Key lookups for a list of addresses
      * against an IdService implementation
      *
-     * @param idService id service that lookups will be executed against
-     * @param threads concurrency level
+     * @param idService    id service that lookups will be executed against
+     * @param threads      concurrency level
      * @param metricsScope name used for metrics and threads
      */
     public ThreadedIdServiceLookup(IdService idService, int threads, String metricsScope) {

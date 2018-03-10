@@ -1,3 +1,13 @@
+5.0.0
+=====
+Bump to java 1.8.
+Move from gauava to java optionals
+Format every file according to intellij auto format.
+Remove commented out code
+Remove the "hacklog"
+Remove unnecessary public and static declarations from enums and interfaces.
+Remove unused parameters and classes
+
 4.1.1
 =====
 Use a single thread pool for async id service lookups

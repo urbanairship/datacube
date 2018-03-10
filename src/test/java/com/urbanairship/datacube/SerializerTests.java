@@ -4,14 +4,19 @@ Copyright 2012 Urban Airship and Contributors
 
 package com.urbanairship.datacube;
 
-import com.urbanairship.datacube.serializables.*;
+import com.urbanairship.datacube.serializables.BooleanSerializable;
+import com.urbanairship.datacube.serializables.BytesSerializable;
+import com.urbanairship.datacube.serializables.EnumSerializable;
+import com.urbanairship.datacube.serializables.IntSerializable;
+import com.urbanairship.datacube.serializables.LongSerializable;
+import com.urbanairship.datacube.serializables.StringSerializable;
 import org.junit.Assert;
 import org.junit.Test;
 
 import java.nio.ByteBuffer;
 
 /**
-* Test to make sure the serializers do what we expect them to do.
+ * Test to make sure the serializers do what we expect them to do.
  */
 public class SerializerTests {
     public static final byte[] FALSE_CASE = new byte[]{0};
@@ -46,34 +51,35 @@ public class SerializerTests {
     }
 
     private enum TestEnum {ZEROTH, FIRST, SECOND}
+
     @Test
     public void testEnumSerializable() throws Exception {
         Assert.assertArrayEquals(Util.intToBytes(0),
                 EnumSerializable.staticSerialize(TestEnum.ZEROTH, 4));
 
-        Assert.assertArrayEquals(new byte[] {0, 0, 0, 1},
+        Assert.assertArrayEquals(new byte[]{0, 0, 0, 1},
                 EnumSerializable.staticSerialize(TestEnum.FIRST, 4));
-        Assert.assertArrayEquals(new byte[] {0, 0, 0, 0, 1},
+        Assert.assertArrayEquals(new byte[]{0, 0, 0, 0, 1},
                 EnumSerializable.staticSerialize(TestEnum.FIRST, 5));
-        Assert.assertArrayEquals(new byte[] {2},
+        Assert.assertArrayEquals(new byte[]{2},
                 EnumSerializable.staticSerialize(TestEnum.SECOND, 1));
-        Assert.assertArrayEquals(new byte[] {0, 0, 0, 0, 0, 0, 0, 0, 2},
+        Assert.assertArrayEquals(new byte[]{0, 0, 0, 0, 0, 0, 0, 0, 2},
                 EnumSerializable.staticSerialize(TestEnum.SECOND, 9));
 
-        Assert.assertArrayEquals(new byte[] {0, 0, 2},
+        Assert.assertArrayEquals(new byte[]{0, 0, 2},
                 new EnumSerializable(TestEnum.SECOND, 3).serialize());
 
     }
 
     @Test
     public void testIntSerializable() throws Exception {
-        Assert.assertArrayEquals(new byte[] {0, 0, 0, 0},
+        Assert.assertArrayEquals(new byte[]{0, 0, 0, 0},
                 IntSerializable.staticSerialize(0));
-        Assert.assertArrayEquals(new byte[] {(byte)0xFF, -1, -1, -1},
+        Assert.assertArrayEquals(new byte[]{(byte) 0xFF, -1, -1, -1},
                 IntSerializable.staticSerialize(-1));
-        Assert.assertArrayEquals(new byte[] {0x7F, (byte)0xFF, (byte)0xFF, (byte)0xFF},
+        Assert.assertArrayEquals(new byte[]{0x7F, (byte) 0xFF, (byte) 0xFF, (byte) 0xFF},
                 IntSerializable.staticSerialize(Integer.MAX_VALUE));
-        Assert.assertArrayEquals(new byte[] {(byte)0x80, 0, 0, 0},
+        Assert.assertArrayEquals(new byte[]{(byte) 0x80, 0, 0, 0},
                 IntSerializable.staticSerialize(Integer.MIN_VALUE));
     }
 }

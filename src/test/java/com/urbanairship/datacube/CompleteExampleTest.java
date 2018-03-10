@@ -27,13 +27,15 @@ import java.util.concurrent.ConcurrentMap;
 
 
 /**
-* An example of using all the DataCube features at the same time.
-*/
+ * An example of using all the DataCube features at the same time.
+ */
 public class CompleteExampleTest {
     enum DeviceType {IPHONE, IPAD, HTC_MYTOUCH, SAMSUNG_GALAXY}
+
     enum City {PORTLAND, SALEM, SANFRANCISCO, SACRAMENTO, OLYMPIA, SEATTLE}
 
     enum OsManufacturer {ANDROID, APPLE}
+
     enum UsState {OREGON, CALIFORNIA, WASHINGTON}
 
     /**
@@ -55,11 +57,11 @@ public class CompleteExampleTest {
 
             @Override
             public SetMultimap<BucketType, CSerializable> bucketForWrite(City city) {
-                ImmutableSetMultimap.Builder<BucketType,CSerializable> mapBuilder =
+                ImmutableSetMultimap.Builder<BucketType, CSerializable> mapBuilder =
                         ImmutableSetMultimap.builder();
 
                 // One bucket type is the state where the user is currently located.
-                switch(city) {
+                switch (city) {
                     case PORTLAND:
                     case SALEM:
                         // These cities are in Oregon
@@ -87,10 +89,10 @@ public class CompleteExampleTest {
 
             @Override
             public CSerializable bucketForRead(Object coordinateField, BucketType bucketType) {
-                if(coordinateField instanceof City) {
-                    return new EnumSerializable((City)coordinateField, 1);
-                } else if(coordinateField instanceof UsState) {
-                    return new EnumSerializable((UsState)coordinateField, 1);
+                if (coordinateField instanceof City) {
+                    return new EnumSerializable((City) coordinateField, 1);
+                } else if (coordinateField instanceof UsState) {
+                    return new EnumSerializable((UsState) coordinateField, 1);
                 } else {
                     throw new RuntimeException("Unrecognized object of type " +
                             coordinateField.getClass().getName());
@@ -101,22 +103,24 @@ public class CompleteExampleTest {
             public List<BucketType> getBucketTypes() {
                 return ImmutableList.of(usState, usCity);
             }
-        };
+        }
+
+        ;
 
         /**
          * Bucketize mobile devices into two bucket types: (1) the literal device type (e.g.
          * ipad, mytouch) and (2) the OS manufacturer (apple, android)
          */
         public static class DeviceBucketer implements Bucketer<DeviceType> {
-            static BucketType deviceName = new BucketType("device_name", new byte[] {1});
-            static BucketType osType = new BucketType("os", new byte[] {2});
+            static BucketType deviceName = new BucketType("device_name", new byte[]{1});
+            static BucketType osType = new BucketType("os", new byte[]{2});
 
             @Override
             public SetMultimap<BucketType, CSerializable> bucketForWrite(DeviceType deviceType) {
-                ImmutableSetMultimap.Builder<BucketType,CSerializable> mapBuilder =
+                ImmutableSetMultimap.Builder<BucketType, CSerializable> mapBuilder =
                         ImmutableSetMultimap.builder();
 
-                switch(deviceType) {
+                switch (deviceType) {
                     case HTC_MYTOUCH:
                     case SAMSUNG_GALAXY:
                         mapBuilder.put(osType, new EnumSerializable(OsManufacturer.ANDROID, 1));
@@ -133,10 +137,10 @@ public class CompleteExampleTest {
 
             @Override
             public CSerializable bucketForRead(Object coordinateField, BucketType bucketType) {
-                if(coordinateField instanceof DeviceType) {
-                    return new EnumSerializable((DeviceType)coordinateField, 1);
-                } else if(coordinateField instanceof OsManufacturer) {
-                    return new EnumSerializable((OsManufacturer)coordinateField, 1);
+                if (coordinateField instanceof DeviceType) {
+                    return new EnumSerializable((DeviceType) coordinateField, 1);
+                } else if (coordinateField instanceof OsManufacturer) {
+                    return new EnumSerializable((OsManufacturer) coordinateField, 1);
                 } else {
                     throw new RuntimeException("Unexpected coordinate class " +
                             coordinateField.getClass());
@@ -178,86 +182,62 @@ public class CompleteExampleTest {
                 deviceTypeDayRollup, allRollup, stateMonthOsRollup);
 
         DataCube<LongOp> dataCube = new DataCube<LongOp>(dimensions, rollups);
-        ConcurrentMap<BoxedByteArray,byte[]> backingMap = Maps.newConcurrentMap();
-        IdService idService = new CachingIdService(4, new MapIdService(),"test");
+        ConcurrentMap<BoxedByteArray, byte[]> backingMap = Maps.newConcurrentMap();
+        IdService idService = new CachingIdService(4, new MapIdService(), "test");
         DbHarness<LongOp> dbHarness = new MapDbHarness<LongOp>(backingMap,
                 LongOp.DESERIALIZER, CommitType.READ_COMBINE_CAS, idService);
         DataCubeIo<LongOp> dataCubeIo = new DataCubeIo<LongOp>(dataCube, dbHarness, 1,
                 Long.MAX_VALUE, SyncLevel.FULL_SYNC);
 
         public void addEvent(DeviceType deviceType, City city, DateTime when) throws IOException, InterruptedException {
-            dataCubeIo.writeSync(new LongOp(1), new WriteBuilder(dataCube)
+            dataCubeIo.writeSync(new LongOp(1), new WriteBuilder()
                     .at(time, when)
                     .at(device, deviceType)
                     .at(location, city));
         }
 
-        public long getStateCount(UsState usState) throws IOException, InterruptedException  {
-            Optional<LongOp> opt = dataCubeIo.get(new ReadBuilder(dataCube)
+        public long getStateCount(UsState usState) throws IOException, InterruptedException {
+            java.util.Optional<LongOp> opt = dataCubeIo.get(new ReadBuilder(dataCube)
                     .at(location, LocationBucketer.usState, usState));
-            if(!opt.isPresent()) {
-                return 0;
-            } else {
-                return opt.get().getLong();
-            }
+            return opt.map(LongOp::getLong).orElse(0L);
         }
 
-        public long getCityManufacturerCount(City city, OsManufacturer manufacturer) throws IOException, InterruptedException  {
-            Optional<LongOp> opt = dataCubeIo.get(new ReadBuilder(dataCube)
+        public long getCityManufacturerCount(City city, OsManufacturer manufacturer) throws IOException, InterruptedException {
+            java.util.Optional<LongOp> opt = dataCubeIo.get(new ReadBuilder(dataCube)
                     .at(device, DeviceBucketer.osType, OsManufacturer.APPLE)
                     .at(location, LocationBucketer.usCity, City.PORTLAND));
 
-            if(!opt.isPresent()) {
-                return 0L;
-            } else {
-                return opt.get().getLong();
-            }
+            return opt.map(LongOp::getLong).orElse(0L);
         }
 
-        public long getDeviceDayCount(DeviceType deviceType, DateTime day) throws IOException, InterruptedException  {
-            Optional<LongOp> opt = dataCubeIo.get(new ReadBuilder(dataCube)
+        public long getDeviceDayCount(DeviceType deviceType, DateTime day) throws IOException, InterruptedException {
+            java.util.Optional<LongOp> opt = dataCubeIo.get(new ReadBuilder(dataCube)
                     .at(device, DeviceBucketer.deviceName, deviceType)
                     .at(time, HourDayMonthBucketer.days, day));
 
-            if(!opt.isPresent()) {
-                return 0L;
-            } else {
-                return opt.get().getLong();
-            }
+            return opt.map(LongOp::getLong).orElse(0L);
         }
 
-        public long getHourCount(DateTime hour) throws IOException, InterruptedException  {
-            Optional<LongOp> opt = dataCubeIo.get(new ReadBuilder(dataCube)
+        public long getHourCount(DateTime hour) throws IOException, InterruptedException {
+            java.util.Optional<LongOp> opt = dataCubeIo.get(new ReadBuilder(dataCube)
                     .at(time, HourDayMonthBucketer.hours, hour));
 
-            if(!opt.isPresent()) {
-                return 0L;
-            } else {
-                return opt.get().getLong();
-            }
+            return opt.map(LongOp::getLong).orElse(0L);
         }
 
-        public long getAllEventsCount() throws IOException, InterruptedException  {
-            Optional<LongOp> opt = dataCubeIo.get(new ReadBuilder(dataCube));
-            if(!opt.isPresent()) {
-                return 0L;
-            } else {
-                return opt.get().getLong();
-            }
+        public long getAllEventsCount() throws IOException, InterruptedException {
+            java.util.Optional<LongOp> opt = dataCubeIo.get(new ReadBuilder(dataCube));
+            return opt.map(LongOp::getLong).orElse(0L);
         }
 
         public long getStateMonthOsCount(UsState state, DateTime month, OsManufacturer os)
-                throws IOException, InterruptedException  {
-            Optional<LongOp> opt = dataCubeIo.get(new ReadBuilder(dataCube)
+                throws IOException, InterruptedException {
+            java.util.Optional<LongOp> opt = dataCubeIo.get(new ReadBuilder(dataCube)
                     .at(time, HourDayMonthBucketer.months, month)
                     .at(location, LocationBucketer.usState, state)
                     .at(device, DeviceBucketer.osType, os));
 
-            if(!opt.isPresent()) {
-                return 0L;
-            } else {
-                return opt.get().getLong();
-            }
+            return opt.map(LongOp::getLong).orElse(0L);
         }
     }
 

@@ -51,16 +51,16 @@ public class ErrorHandlingTest extends EmbeddedClusterTestAbstract {
         DataCubeIo<LongOp> dataCubeIo = new DataCubeIo<LongOp>(cube, dbHarness, 1, Long.MAX_VALUE, 
                 SyncLevel.BATCH_ASYNC);
         
-        dataCubeIo.writeAsync(new LongOp(1), new WriteBuilder(cube)
+        dataCubeIo.writeAsync(new LongOp(1), new WriteBuilder()
             .at(zipcode, "97212"));
 
-        dataCubeIo.writeAsync(new LongOp(1), new WriteBuilder(cube)
+        dataCubeIo.writeAsync(new LongOp(1), new WriteBuilder()
             .at(zipcode, "97212"));
 
         dataCubeIo.flush();
 
         try {
-            dataCubeIo.writeAsync(new LongOp(1), new WriteBuilder(cube)
+            dataCubeIo.writeAsync(new LongOp(1), new WriteBuilder()
                 .at(zipcode, "97212"));
             Assert.fail("Cube should not have accepted more writes after an error!");
         } catch (AsyncException e) {

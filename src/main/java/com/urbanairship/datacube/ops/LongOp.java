@@ -13,23 +13,23 @@ import com.urbanairship.datacube.Util;
  */
 public class LongOp implements Op {
     private final long val;
-    public static final LongOpDeserializer DESERIALIZER = new LongOpDeserializer(); 
-    
+    public static final LongOpDeserializer DESERIALIZER = new LongOpDeserializer();
+
     public LongOp(long val) {
         this.val = val;
     }
 
     @Override
     public Op add(Op otherOp) {
-        if(!(otherOp instanceof LongOp)) {
+        if (!(otherOp instanceof LongOp)) {
             throw new RuntimeException();
         }
-        return new LongOp(val + ((LongOp)otherOp).val);
+        return new LongOp(val + ((LongOp) otherOp).val);
     }
-    
+
     @Override
     public Op subtract(Op otherOp) {
-        return new LongOp(this.val - ((LongOp)otherOp).val);
+        return new LongOp(this.val - ((LongOp) otherOp).val);
     }
 
     /**
@@ -71,11 +71,11 @@ public class LongOp implements Op {
             return new LongOp(Util.bytesToLong(bytes));
         }
     }
-    
+
     public String toString() {
         return Long.toString(val);
     }
-    
+
     public long getLong() {
         return val;
     }
