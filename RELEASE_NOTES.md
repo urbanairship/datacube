@@ -6,7 +6,7 @@
 =====
 Cleanup:
 -------
-- Bump to java 1.8. (could be breaking)
+- Bump to java 1.8.
 - Move from gauava to java optionals.
 - Format every file according to intellij auto format.
 - Remove commented out code.
