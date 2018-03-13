@@ -24,7 +24,7 @@ Additional Feature
 
 Restrictions
 ------------
-Updates the Bucketer interface so that bo the read and the write are parametrized. This prevents some
+Updates the Bucketer interface so that both the read and the write are parametrized. This prevents some
 errors where you attempt to read with the wrong typed object. This could break some outlandish implementations 
 which, for example, map a single enum to a set of different enum types, and expect to be able to pass
 any of the mapped enum types to the reader methods.
