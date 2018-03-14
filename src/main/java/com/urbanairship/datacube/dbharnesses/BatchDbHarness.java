@@ -40,7 +40,7 @@ public interface BatchDbHarness {
          *                ignore this parameter. An exponential backoff would wait {@code Math.pow(base_period,
          *                attempt)} before the next attempt, &c.
          *
-         * @return false if we have exhausted our retries, true otherwise.
+         * @return {@code true} if we have exhausted our retries, {@code false} otherwise.
          *
          * @throws InterruptedException
          */
