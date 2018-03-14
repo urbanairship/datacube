@@ -15,6 +15,7 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.urbanairship.datacube.Address;
 import com.urbanairship.datacube.Batch;
+import com.urbanairship.datacube.BoxedByteArray;
 import com.urbanairship.datacube.DbHarness;
 import com.urbanairship.datacube.Deserializer;
 import com.urbanairship.datacube.IdService;
@@ -303,19 +304,19 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
      * @throws IOException
      * @throws InterruptedException
      */
-    public Map<byte[], byte[]> increment(Map<byte[], T> writes) throws IOException, InterruptedException {
-        ImmutableMap.Builder<byte[], byte[]> successes = ImmutableMap.builder();
+    public Map<BoxedByteArray, byte[]> increment(Map<BoxedByteArray, T> writes) throws IOException, InterruptedException {
+        ImmutableMap.Builder<BoxedByteArray, byte[]> successes = ImmutableMap.builder();
 
         List<Row> increments = new ArrayList<>();
 
-        List<Map.Entry<byte[], byte[]>> entries = writes.entrySet().stream()
-                .map(e -> new AbstractMap.SimpleEntry<byte[], byte[]>(e.getKey(), e.getValue().serialize()))
+        List<Map.Entry<BoxedByteArray, byte[]>> entries = writes.entrySet().stream()
+                .map(e -> new AbstractMap.SimpleEntry<BoxedByteArray, byte[]>(e.getKey(), e.getValue().serialize()))
                 .collect(Collectors.toList());
 
 
-        for (Map.Entry<byte[], byte[]> entry : entries) {
+        for (Map.Entry<BoxedByteArray, byte[]> entry : entries) {
             long amount = Bytes.toLong(entry.getValue());
-            Increment increment = new Increment(entry.getKey());
+            Increment increment = new Increment(entry.getKey().bytes);
             increment.addColumn(cf, QUALIFIER, amount);
             incrementSize.update(amount);
             increments.add(increment);
@@ -325,7 +326,7 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
 
         for (int i = 0; i < objects.length; ++i) {
             if (objects[i] != null) {
-                successes.put(entries.get(i).getKey(), entries.get(i).getValue());
+                successes.put(entries.get(i));
             }
         }
 
@@ -391,27 +392,26 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
 
         long nanoTimeBeforeBatch = System.nanoTime();
 
-
         try {
             if (commitType.equals(CommitType.INCREMENT) && configuration.batchSize > 1) {
                 Iterable<List<Map.Entry<Address, T>>> partition = Iterables.partition(batchMap.entrySet(), configuration.batchSize);
-                Map<byte[], T> increments = new HashMap<>();
-                Map<byte[], Address> backwards = new HashMap<>();
+                Map<BoxedByteArray, T> increments = new HashMap<>();
+                Map<BoxedByteArray, Address> backwards = new HashMap<>();
                 for (List<Map.Entry<Address, T>> entries : partition) {
                     final long nanoTimeBeforeWrite = System.nanoTime();
                     for (Map.Entry<Address, T> entry : entries) {
                         final Address address = entry.getKey();
                         final T op = entry.getValue();
-                        final byte[] rowKey = ArrayUtils.addAll(uniqueCubeName, address.toWriteKey(idService));
+                        final BoxedByteArray rowKey = new BoxedByteArray(ArrayUtils.addAll(uniqueCubeName, address.toWriteKey(idService)));
                         increments.put(rowKey, op);
                         backwards.put(rowKey, address);
                     }
 
-                    Map<byte[], byte[]> successes = increment(increments);
-                    successfulRows.putAll(successes);
+                    Map<BoxedByteArray, byte[]> successes = increment(increments);
 
-                    for (Map.Entry<byte[], byte[]> entry : successfulRows.entrySet()) {
+                    for (Map.Entry<BoxedByteArray, byte[]> entry : successes.entrySet()) {
                         successfulAddresses.add(backwards.get(entry.getKey()));
+                        successfulRows.put(entry.getKey().bytes, entry.getValue());
                     }
 
                     long writeDurationNanos = System.nanoTime() - nanoTimeBeforeWrite;
