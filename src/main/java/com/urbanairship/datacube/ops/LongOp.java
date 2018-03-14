@@ -10,6 +10,8 @@ import com.urbanairship.datacube.Util;
 
 /**
  * Cube oplog mutation type for storing a long counter.
+ *
+ * Basically our custom impl of {@link java.util.concurrent.atomic.LongAdder}
  */
 public class LongOp implements Op {
     private final long val;
