@@ -298,7 +298,7 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
     }
 
     /**
-     * @param writes map from rowkey to the operation (which had better bet bytes compatible with long
+     * @param writes map from rowkey to the operation (which had better be bytes compatible with long)
      *
      * @return A map from bytes to the amounts successfully added to the database.
      *
