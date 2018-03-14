@@ -9,6 +9,7 @@ import com.codahale.metrics.Gauge;
 import com.codahale.metrics.Histogram;
 import com.codahale.metrics.Timer;
 import com.google.common.base.Function;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
@@ -64,6 +65,7 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
         }
     };
     private final static int ID_SERVICE_LOOKUP_THREADS = 100;
+    public static final int SIZE = 50;
 
     private final HTablePool pool;
     private final Deserializer<T> deserializer;
@@ -331,26 +333,30 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
         try {
             if (commitType.equals(CommitType.BATCH_INCREMENT)) {
                 HbaseBatchIncrementer hbaseBatchIncrementer = new HbaseBatchIncrementer(cf, metricsScope, pool, tableName);
+                Iterable<List<Map.Entry<Address, T>>> partition = Iterables.partition(batchMap.entrySet(), SIZE);
                 Map<byte[], Long> rows = new HashMap<>();
                 Map<byte[], Address> backwards = new HashMap<>();
-                for (Map.Entry<Address, T> entry : batchMap.entrySet()) {
-                    final Address address = entry.getKey();
-                    final T op = entry.getValue();
-                    final byte[] rowKey = ArrayUtils.addAll(uniqueCubeName, address.toWriteKey(idService));
-                    byte[] serialize = op.serialize();
-                    long value = Bytes.toLong(serialize);
-                    rows.put(rowKey, value);
-                    backwards.put(rowKey, address);
-                    successfulRows.put(rowKey, serialize);
-                }
+                for (List<Map.Entry<Address, T>> entries : partition) {
+                    for (Map.Entry<Address, T> entry : entries) {
+                        final Address address = entry.getKey();
+                        final T op = entry.getValue();
+                        final byte[] rowKey = ArrayUtils.addAll(uniqueCubeName, address.toWriteKey(idService));
+                        byte[] serialize = op.serialize();
+                        long value = Bytes.toLong(serialize);
+                        rows.put(rowKey, value);
+                        backwards.put(rowKey, address);
+                        successfulRows.put(rowKey, serialize);
+                    }
 
-                Map<byte[], Long> failures = hbaseBatchIncrementer.apply(rows);
-                for (Map.Entry<byte[], Long> entry : failures.entrySet()) {
-                    successfulRows.remove(entry.getKey());
-                }
+                    Map<byte[], Long> failures = hbaseBatchIncrementer.apply(rows);
+                    for (Map.Entry<byte[], Long> entry : failures.entrySet()) {
+                        successfulRows.remove(entry.getKey());
+                    }
 
-                for (Map.Entry<byte[], byte[]> entry : successfulRows.entrySet()) {
-                    successfulAddresses.add(backwards.get(entry.getKey()));
+                    for (Map.Entry<byte[], byte[]> entry : successfulRows.entrySet()) {
+                        successfulAddresses.add(backwards.get(entry.getKey()));
+                    }
+
                 }
             } else
                 for (Map.Entry<Address, T> entry : batchMap.entrySet()) {

@@ -15,7 +15,7 @@ public interface BatchDbHarness {
      * Issue a single request incrementing every provided row in the operation.
      *
      * @param batch   A map from Address to increment operations, defining all the updates you'd like to accomplish
-     * @param sleeper Defines how you'd like to address write failures, either due to IOExceptions submitting the
+     * @param retryPolicy Defines how you'd like to address write failures, either due to IOExceptions submitting the
      *                whole batch to the underlying data store, or due to failure to increment a given row.
      *
      *                The method can still throw an IOException due to failure to retrieve the mapped id from the
@@ -29,7 +29,7 @@ public interface BatchDbHarness {
      * @throws InterruptedException We had an error talking to the underlying database. Some of the batch operations may
      *                              have executed, depending on the guarantees of the underlying database.
      */
-    void increment(Map<Address, LongOp> batch, RetryPolicy sleeper) throws InterruptedException, IOException;
+    void increment(Map<Address, LongOp> batch, RetryPolicy retryPolicy) throws InterruptedException, IOException;
 
 
     interface RetryPolicy {

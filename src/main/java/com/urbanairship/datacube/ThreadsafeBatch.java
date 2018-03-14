@@ -135,7 +135,7 @@ public class ThreadsafeBatch<T> {
     }
 
 
-    public synchronized boolean isFull() {
+    public boolean isFull() {
         // the first one is oldest.
         return getPending() > maxSize || (updates.peek() != null && System.currentTimeMillis() - updates.peek().birthday > maxAge);
     }
