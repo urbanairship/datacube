@@ -6,12 +6,16 @@ package com.urbanairship.datacube;
 
 import com.urbanairship.datacube.DbHarness.CommitType;
 import com.urbanairship.datacube.dbharnesses.HBaseDbHarness;
+import com.urbanairship.datacube.dbharnesses.HbaseDbHarnessConfiguration;
 import com.urbanairship.datacube.idservices.HBaseIdService;
 import com.urbanairship.datacube.idservices.MapIdService;
 import com.urbanairship.datacube.ops.LongOp;
+import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.apache.hadoop.hbase.client.HTablePool;
 import org.junit.BeforeClass;
 import org.junit.Test;
+
+import static org.mockito.Mockito.mock;
 
 public class HBaseTest extends EmbeddedClusterTestAbstract {
     public static final byte[] CUBE_DATA_TABLE = "cube_data" .getBytes();
@@ -39,6 +43,42 @@ public class HBaseTest extends EmbeddedClusterTestAbstract {
         DbHarnessTests.basicTest(hbaseDbHarness);
     }
 
+    @Test
+    public void largeBatchSizeTest() throws Exception {
+        IdService idService = new MapIdService();
+
+        HTablePool pool = new HTablePool(getTestUtil().getConfiguration(), Integer.MAX_VALUE);
+
+        HbaseDbHarnessConfiguration config = HbaseDbHarnessConfiguration.newBuilder()
+                .setBatchSize(10)
+                .setUniqueCubeName("hbaseForCubeDataTest".getBytes())
+                .setTableName(CUBE_DATA_TABLE)
+                .setCf(CF)
+                .setCommitType(CommitType.INCREMENT)
+                .build();
+
+        DbHarness<LongOp> hbaseDbHarness = new HBaseDbHarness<LongOp>(config, pool, LongOp.DESERIALIZER, idService, (avoid) -> null);
+
+        DbHarnessTests.asyncBatchWritesTest(hbaseDbHarness, 10);
+    }
+
+    @Test
+    public void mockedHbaseTest() throws Exception {
+        IdService idService = new MapIdService();
+        HTablePool pool = mock(HTablePool.class);
+
+        HbaseDbHarnessConfiguration config = HbaseDbHarnessConfiguration.newBuilder()
+                .setBatchSize(10)
+                .setUniqueCubeName("hbaseForCubeDataTest".getBytes())
+                .setTableName(CUBE_DATA_TABLE)
+                .setCf(CF)
+                .setCommitType(CommitType.INCREMENT)
+                .build();
+
+        DbHarness<LongOp> hbaseDbHarness = new HBaseDbHarness<LongOp>(config, pool, LongOp.DESERIALIZER, idService, (avoid) -> null);
+
+        DbHarnessTests.asyncBatchWritesTest(hbaseDbHarness, 10);
+    }
     @Test
     public void hbaseForCubeDataTestMulti() throws Exception {
         IdService idService = new MapIdService();

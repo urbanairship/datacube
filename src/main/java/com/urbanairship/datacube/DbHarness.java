@@ -54,6 +54,16 @@ public interface DbHarness<T extends Op> {
     List<Optional<T>> multiGet(List<Address> addresses) throws IOException, InterruptedException;
 
     /**
+     * A hook for shutting down any internal threads during orderly shutdown. The default implementation simply calls
+     * {@link #flush}
+     *
+     * @throws Exception
+     */
+    default void shutdown() throws Exception {
+        flush();
+    }
+
+    /**
      * When it's time to write a batch to the database, there are a couple of ways it can
      * be done.
      *
