@@ -9,6 +9,7 @@ import com.codahale.metrics.Gauge;
 import com.codahale.metrics.Histogram;
 import com.codahale.metrics.Timer;
 import com.google.common.base.Function;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
@@ -36,6 +37,7 @@ import javax.annotation.Nullable;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -63,6 +65,7 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
         }
     };
     private final static int ID_SERVICE_LOOKUP_THREADS = 100;
+    public static final int SIZE = 50;
 
     private final HTablePool pool;
     private final Deserializer<T> deserializer;
@@ -326,40 +329,69 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
 
         long nanoTimeBeforeBatch = System.nanoTime();
 
+
         try {
-            for (Map.Entry<Address, T> entry : batchMap.entrySet()) {
-                final Address address = entry.getKey();
-                final T op = entry.getValue();
-                final byte[] rowKey = ArrayUtils.addAll(uniqueCubeName, address.toWriteKey(idService));
-                final long nanoTimeBeforeWrite = System.nanoTime();
+            if (commitType.equals(CommitType.BATCH_INCREMENT)) {
+                HbaseBatchIncrementer hbaseBatchIncrementer = new HbaseBatchIncrementer(cf, metricsScope, pool, tableName);
+                Iterable<List<Map.Entry<Address, T>>> partition = Iterables.partition(batchMap.entrySet(), SIZE);
+                Map<byte[], Long> rows = new HashMap<>();
+                Map<byte[], Address> backwards = new HashMap<>();
+                for (List<Map.Entry<Address, T>> entries : partition) {
+                    for (Map.Entry<Address, T> entry : entries) {
+                        final Address address = entry.getKey();
+                        final T op = entry.getValue();
+                        final byte[] rowKey = ArrayUtils.addAll(uniqueCubeName, address.toWriteKey(idService));
+                        byte[] serialize = op.serialize();
+                        long value = Bytes.toLong(serialize);
+                        rows.put(rowKey, value);
+                        backwards.put(rowKey, address);
+                        successfulRows.put(rowKey, serialize);
+                    }
 
-                byte[] dbBytes;
-                switch (commitType) {
-                    case INCREMENT:
-                        long postIncr = increment(rowKey, op);
-                        dbBytes = Bytes.toBytes(postIncr);
-                        break;
-                    case READ_COMBINE_CAS:
-                        dbBytes = readCombineCas(rowKey, op);
-                        break;
-                    case OVERWRITE:
-                        overwrite(rowKey, op);
-                        dbBytes = op.serialize();
-                        break;
-                    default:
-                        throw new RuntimeException("Unsupported commit type " + commitType);
+                    Map<byte[], Long> failures = hbaseBatchIncrementer.apply(rows);
+                    for (Map.Entry<byte[], Long> entry : failures.entrySet()) {
+                        successfulRows.remove(entry.getKey());
+                    }
+
+                    for (Map.Entry<byte[], byte[]> entry : successfulRows.entrySet()) {
+                        successfulAddresses.add(backwards.get(entry.getKey()));
+                    }
+
                 }
+            } else
+                for (Map.Entry<Address, T> entry : batchMap.entrySet()) {
+                    final Address address = entry.getKey();
+                    final T op = entry.getValue();
+                    final byte[] rowKey = ArrayUtils.addAll(uniqueCubeName, address.toWriteKey(idService));
+                    final long nanoTimeBeforeWrite = System.nanoTime();
 
-                long writeDurationNanos = System.nanoTime() - nanoTimeBeforeWrite;
-                singleWriteTimer.update(writeDurationNanos, TimeUnit.NANOSECONDS);
+                    byte[] dbBytes;
+                    switch (commitType) {
+                        case INCREMENT:
+                            long postIncr = increment(rowKey, op);
+                            dbBytes = Bytes.toBytes(postIncr);
+                            break;
+                        case READ_COMBINE_CAS:
+                            dbBytes = readCombineCas(rowKey, op);
+                            break;
+                        case OVERWRITE:
+                            overwrite(rowKey, op);
+                            dbBytes = op.serialize();
+                            break;
+                        default:
+                            throw new RuntimeException("Unsupported commit type " + commitType);
+                    }
 
-                if (log.isDebugEnabled()) {
-                    log.debug("Succesfully wrote cube:" + Arrays.toString(uniqueCubeName) +
-                            " address:" + address);
+                    long writeDurationNanos = System.nanoTime() - nanoTimeBeforeWrite;
+                    singleWriteTimer.update(writeDurationNanos, TimeUnit.NANOSECONDS);
+
+                    if (log.isDebugEnabled()) {
+                        log.debug("Succesfully wrote cube:" + Arrays.toString(uniqueCubeName) +
+                                " address:" + address);
+                    }
+                    successfulAddresses.add(address);
+                    successfulRows.put(rowKey, dbBytes);
                 }
-                successfulAddresses.add(address);
-                successfulRows.put(rowKey, dbBytes);
-            }
 
             long batchDurationNanos = System.nanoTime() - nanoTimeBeforeBatch;
             flushSuccessTimer.update(batchDurationNanos, TimeUnit.NANOSECONDS);

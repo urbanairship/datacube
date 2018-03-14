@@ -5,11 +5,14 @@ Copyright 2012 Urban Airship and Contributors
 package com.urbanairship.datacube;
 
 import com.google.common.collect.HashMultimap;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.SetMultimap;
 
 import java.util.Map;
+import java.util.Set;
 
 public class WriteBuilder {
     private final Map<Dimension<?>, SetMultimap<BucketType, byte[]>> buckets;

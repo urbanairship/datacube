@@ -74,7 +74,7 @@ public interface DbHarness<T extends Op> {
     enum CommitType {
         READ_COMBINE_CAS,
         INCREMENT,
-        OVERWRITE
+        BATCH_INCREMENT, OVERWRITE
     }
 
     /**
