@@ -7,9 +7,6 @@ import java.io.IOException;
 import java.util.Map;
 
 
-/**
- * Synchronously executes the operations with the minimum number of database requests possible.
- */
 public interface BatchDbHarness {
     /**
      * Issue a single request incrementing every provided row in the operation.

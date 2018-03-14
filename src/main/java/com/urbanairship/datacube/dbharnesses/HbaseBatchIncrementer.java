@@ -38,7 +38,6 @@ public class HbaseBatchIncrementer implements BatchDbHarness.BlockingIO<Map<byte
         List<Map.Entry<byte[], Long>> entries = ImmutableList.copyOf(writes.entrySet());
 
         for (Map.Entry<byte[], Long> entry : entries) {
-            // .... this is what the `increment` method below does. It doesn't seem super safe to me.
             long amount = entry.getValue();
             Increment increment = new Increment(entry.getKey());
             increment.addColumn(cf, QUALIFIER, amount);
