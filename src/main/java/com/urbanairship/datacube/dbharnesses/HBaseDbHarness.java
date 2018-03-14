@@ -13,6 +13,7 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
+import com.google.common.primitives.UnsignedBytes;
 import com.urbanairship.datacube.Address;
 import com.urbanairship.datacube.Batch;
 import com.urbanairship.datacube.BoxedByteArray;
@@ -388,7 +389,7 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
         Map<Address, T> batchMap = batch.getMap();
 
         List<Address> successfulAddresses = Lists.newArrayListWithExpectedSize(batchMap.size());
-        Map<byte[], byte[]> successfulRows = Maps.newHashMap();
+        Map<byte[], byte[]> successfulRows = Maps.newTreeMap(UnsignedBytes.lexicographicalComparator());
 
         long nanoTimeBeforeBatch = System.nanoTime();
 
