@@ -199,6 +199,7 @@ public class DbHarnessTests {
         for (int i = 0; i < writes; ++i) {
             // Do an increment of 10 for the same zipcode in a different hour of the same day
             DateTime hour = now.withHourOfDay((now.getHourOfDay() + i) % 24);
+            System.out.println(hour);
             cubeIo.writeAsync(new LongOp(10), new WriteBuilder()
                     .at(time, hour)
                     .at(zipcode, "97201"));

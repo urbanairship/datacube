@@ -300,7 +300,7 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
     /**
      * @param writes map from rowkey to the operation (which had better be bytes compatible with long)
      *
-     * @return A map from bytes to the amounts successfully added to the database.
+     * @return A map from bytes to the new values written to the database.
      *
      * @throws IOException
      * @throws InterruptedException
@@ -327,7 +327,9 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
 
         for (int i = 0; i < objects.length; ++i) {
             if (objects[i] != null) {
-                successes.put(entries.get(i));
+                Result result = (Result) objects[i];
+                byte[] value = result.getValue(cf, QUALIFIER);
+                successes.put(entries.get(i).getKey(), value);
             }
         }
 

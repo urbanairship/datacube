@@ -59,26 +59,9 @@ public class HBaseTest extends EmbeddedClusterTestAbstract {
 
         DbHarness<LongOp> hbaseDbHarness = new HBaseDbHarness<LongOp>(config, pool, LongOp.DESERIALIZER, idService, (avoid) -> null);
 
-        DbHarnessTests.asyncBatchWritesTest(hbaseDbHarness, 10);
+        DbHarnessTests.asyncBatchWritesTest(hbaseDbHarness, 30);
     }
 
-    @Test
-    public void mockedHbaseTest() throws Exception {
-        IdService idService = new MapIdService();
-        HTablePool pool = mock(HTablePool.class);
-
-        HbaseDbHarnessConfiguration config = HbaseDbHarnessConfiguration.newBuilder()
-                .setBatchSize(10)
-                .setUniqueCubeName("hbaseForCubeDataTest".getBytes())
-                .setTableName(CUBE_DATA_TABLE)
-                .setCf(CF)
-                .setCommitType(CommitType.INCREMENT)
-                .build();
-
-        DbHarness<LongOp> hbaseDbHarness = new HBaseDbHarness<LongOp>(config, pool, LongOp.DESERIALIZER, idService, (avoid) -> null);
-
-        DbHarnessTests.asyncBatchWritesTest(hbaseDbHarness, 10);
-    }
     @Test
     public void hbaseForCubeDataTestMulti() throws Exception {
         IdService idService = new MapIdService();
