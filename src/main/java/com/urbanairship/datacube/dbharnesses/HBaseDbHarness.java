@@ -94,13 +94,14 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
     private final Timer batchWritesTimer;
     private final Histogram batchesPerFlushHisto;
     private final HbaseDbHarnessConfiguration configuration;
+    private final Histogram incrementFailuresPerFlush;
 
     private final Counter casRetriesExhausted;
     private final Timer iOExceptionsRetrySleepDuration;
     private final Function<Map<byte[], byte[]>, Void> onFlush;
     private final Set<Batch<T>> batchesInFlight = Sets.newHashSet();
     private final String metricsScope;
-    private ThreadedIdServiceLookup idServiceLookup;
+    private final ThreadedIdServiceLookup idServiceLookup;
 
     public HBaseDbHarness(HTablePool pool, byte[] uniqueCubeName, byte[] tableName,
                           byte[] cf, Deserializer<T> deserializer, IdService idService, CommitType commitType)
@@ -157,6 +158,7 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
         batchWritesTimer = Metrics.timer(HBaseDbHarness.class, "batchWrites", metricsScope);
         batchesPerFlushHisto = Metrics.histogram(HBaseDbHarness.class, "batchesPerFlush", metricsScope);
         incrementSize = Metrics.histogram(HBaseDbHarness.class, "incrementSize", metricsScope);
+        incrementFailuresPerFlush = Metrics.histogram(HBaseDbHarness.class, "failuresPerFlush", metricsScope);
         casTries = Metrics.histogram(HBaseDbHarness.class, "casTries", metricsScope);
         casRetriesExhausted = Metrics.counter(HBaseDbHarness.class, "casRetriesExhausted", metricsScope);
         iOExceptionsRetrySleepDuration = Metrics.timer(HBaseDbHarness.class, "retrySleepDuration", metricsScope);
@@ -427,6 +429,7 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
                 if (successfulAddresses.size() < batchMap.size()) {
                     // the implementation prior to the addition of the batch increment code assumes any failed increment
                     // operation results in an io exception. This matches that expectation.
+                    incrementFailuresPerFlush.update(batchMap.size() - successfulAddresses.size());
                     throw new IOException("Some writes failed; queueing retry");
                 }
             } else {
