@@ -12,6 +12,7 @@ import org.apache.hadoop.hbase.client.HTableInterface;
 import org.apache.hadoop.hbase.client.HTablePool;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.client.Row;
+import org.apache.hadoop.hbase.util.Bytes;
 import org.junit.Test;
 
 import java.util.List;
@@ -40,16 +41,18 @@ public class MockHbaseHbaseDbHarnessTest {
                 .thenAnswer(a -> {
                     List<Row> arguments = (List<Row>) a.getArguments()[0];
                     int size = arguments.size();
-                    if (size < 3) {
-                        return arguments;
-                    }
                     Object[] objects = new Object[size];
 
                     for (int i = 0; i < size; ++i) {
-                        if (i % 2 == 0) {
+                        if (i % 2 == 1) {
                             objects[i] = null;
                         }
-                        objects[i] = new Object();
+                        objects[i] = new Result(new KeyValue[]{new KeyValue(
+                                arguments.get(i).getRow(),
+                                CF,
+                                HBaseDbHarness.QUALIFIER,
+                                Longs.toByteArray(10L)
+                        )});
                     }
                     return objects;
                 });

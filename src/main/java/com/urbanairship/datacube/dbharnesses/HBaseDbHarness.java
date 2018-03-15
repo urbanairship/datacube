@@ -90,6 +90,8 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
     private final Histogram casTries;
     private final Timer multiGetTotalLatency;
     private final Timer multiGetCubeLatency;
+    private final Timer batchWritesTimer;
+    private final Histogram batchesPerFlushHisto;
     private final HbaseDbHarnessConfiguration configuration;
 
     private final Counter casRetriesExhausted;
@@ -151,6 +153,8 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
         flushSuccessTimer = Metrics.timer(HBaseDbHarness.class, "successfulBatchFlush", metricsScope);
         flushFailTimer = Metrics.timer(HBaseDbHarness.class, "failedBatchFlush", metricsScope);
         singleWriteTimer = Metrics.timer(HBaseDbHarness.class, "singleWrites", metricsScope);
+        batchWritesTimer = Metrics.timer(HBaseDbHarness.class, "batchWrites", metricsScope);
+        batchesPerFlushHisto = Metrics.histogram(HBaseDbHarness.class, "batchesPerFlush", metricsScope);
         incrementSize = Metrics.histogram(HBaseDbHarness.class, "incrementSize", metricsScope);
         casTries = Metrics.histogram(HBaseDbHarness.class, "casTries", metricsScope);
         casRetriesExhausted = Metrics.counter(HBaseDbHarness.class, "casRetriesExhausted", metricsScope);
@@ -396,10 +400,12 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
 
         try {
             if (commitType.equals(CommitType.INCREMENT) && configuration.batchSize > 1) {
-                Iterable<List<Map.Entry<Address, T>>> partition = Iterables.partition(batchMap.entrySet(), configuration.batchSize);
+                Iterable<List<Map.Entry<Address, T>>> partitions = Iterables.partition(batchMap.entrySet(), configuration.batchSize);
+                int batchesPerFlush = 0;
                 Map<BoxedByteArray, T> increments = new HashMap<>();
                 Map<BoxedByteArray, Address> backwards = new HashMap<>();
-                for (List<Map.Entry<Address, T>> entries : partition) {
+                for (List<Map.Entry<Address, T>> entries : partitions) {
+                    batchesPerFlush++;
                     final long nanoTimeBeforeWrite = System.nanoTime();
                     for (Map.Entry<Address, T> entry : entries) {
                         final Address address = entry.getKey();
@@ -417,7 +423,14 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
                     }
 
                     long writeDurationNanos = System.nanoTime() - nanoTimeBeforeWrite;
-                    singleWriteTimer.update(writeDurationNanos, TimeUnit.NANOSECONDS);
+                    batchWritesTimer.update(writeDurationNanos, TimeUnit.NANOSECONDS);
+                }
+                batchesPerFlushHisto.update(batchesPerFlush);
+
+                if (successfulAddresses.size() < batchMap.size()) {
+                    // the implementation prior to the addition of the batch increment code assumes any failed increment
+                    // operation results in an io exception. This matches that expectation.
+                    throw new IOException("Some writes failed; queueing retry");
                 }
             } else {
                 for (Map.Entry<Address, T> entry : batchMap.entrySet()) {
