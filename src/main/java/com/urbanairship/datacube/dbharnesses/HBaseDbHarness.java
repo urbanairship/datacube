@@ -429,8 +429,9 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
                 if (successfulAddresses.size() < batchMap.size()) {
                     // the implementation prior to the addition of the batch increment code assumes any failed increment
                     // operation results in an io exception. This matches that expectation.
-                    incrementFailuresPerFlush.update(batchMap.size() - successfulAddresses.size());
-                    throw new IOException("Some writes failed; queueing retry");
+                    int failures = batchMap.size() - successfulAddresses.size();
+                    incrementFailuresPerFlush.update(failures);
+                    throw new IOException(String.format("Some writes failed (%s of %s attempted); queueing retry", failures, batchMap.size()));
                 }
             } else {
                 for (Map.Entry<Address, T> entry : batchMap.entrySet()) {
