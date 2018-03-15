@@ -59,7 +59,7 @@ public interface DbHarness<T extends Op> {
      *
      * @throws Exception
      */
-    default void shutdown() throws Exception {
+    default void shutdown() throws IOException, InterruptedException {
         flush();
     }
 

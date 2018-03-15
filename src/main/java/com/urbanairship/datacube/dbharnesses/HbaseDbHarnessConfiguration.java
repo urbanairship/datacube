@@ -50,6 +50,9 @@ public class HbaseDbHarnessConfiguration {
     public final int batchSize;
     public static final int DEFAULT_BATCH_SIZE = 10;
 
+    public final int idServiceLookupThreads;
+    public final static int DEFAULT_ID_SERVICE_LOOKUP_THREADS = 100;
+
     private HbaseDbHarnessConfiguration(Builder builder) {
         uniqueCubeName = Preconditions.checkNotNull(builder.uniqueCubeName);
         tableName = Preconditions.checkNotNull(builder.tableName);
@@ -60,6 +63,7 @@ public class HbaseDbHarnessConfiguration {
         numCasTries = builder.numCasTries;
         metricsScope = builder.metricsScope;
         batchSize = builder.batchSize;
+        idServiceLookupThreads = builder.idServiceLookupThreads;
     }
 
     public static Builder newBuilder() {
@@ -76,6 +80,7 @@ public class HbaseDbHarnessConfiguration {
         private int numCasTries = DEFAULT_NUM_CAS_TRIES;
         private String metricsScope;
         private int batchSize = DEFAULT_BATCH_SIZE;
+        private int idServiceLookupThreads = DEFAULT_ID_SERVICE_LOOKUP_THREADS;
 
         private Builder() {
         }
@@ -122,6 +127,11 @@ public class HbaseDbHarnessConfiguration {
 
         public Builder setBatchSize(int batchSize) {
             this.batchSize = batchSize;
+            return this;
+        }
+
+        public Builder setIdServiceLookupThreads(int idServiceLookupThreads) {
+            this.idServiceLookupThreads = idServiceLookupThreads;
             return this;
         }
 

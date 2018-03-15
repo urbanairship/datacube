@@ -72,7 +72,6 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
             return null;
         }
     };
-    private final static int ID_SERVICE_LOOKUP_THREADS = 100;
 
     private final HTablePool pool;
     private final Deserializer<T> deserializer;
@@ -163,7 +162,7 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
         BlockingQueue<Runnable> workQueue = new LinkedBlockingQueue<Runnable>(numFlushThreads);
         this.flushExecutor = new ThreadPoolExecutor(numFlushThreads, numFlushThreads, 1,
                 TimeUnit.MINUTES, workQueue, new NamedThreadFactory("HBase DB flusher " + cubeName));
-        this.idServiceLookup = new ThreadedIdServiceLookup(idService, ID_SERVICE_LOOKUP_THREADS, metricsScope);
+        this.idServiceLookup = new ThreadedIdServiceLookup(idService, configuration.idServiceLookupThreads, metricsScope);
 
         Metrics.gauge(HBaseDbHarness.class, "asyncFlushQueueDepth", metricsScope, new Gauge<Integer>() {
             @Override
@@ -568,11 +567,13 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
     }
 
 
-    public void shutdown() throws InterruptedException {
+    @Override
+    public void shutdown() throws InterruptedException, IOException {
         /**
          * Flush, await for all inflight queues to finish, and then shutdown.
          */
         flush();
         flushExecutor.shutdown();
+        idServiceLookup.close();
     }
 }
