@@ -10,19 +10,19 @@ import com.urbanairship.datacube.dbharnesses.HbaseDbHarnessConfiguration;
 import com.urbanairship.datacube.idservices.HBaseIdService;
 import com.urbanairship.datacube.idservices.MapIdService;
 import com.urbanairship.datacube.ops.LongOp;
-import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.apache.hadoop.hbase.client.HTablePool;
+import org.apache.hadoop.hbase.util.Bytes;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import static org.mockito.Mockito.mock;
+import java.util.stream.Collectors;
 
 public class HBaseTest extends EmbeddedClusterTestAbstract {
-    public static final byte[] CUBE_DATA_TABLE = "cube_data" .getBytes();
-    public static final byte[] IDSERVICE_LOOKUP_TABLE = "idservice_data" .getBytes();
-    public static final byte[] IDSERVICE_COUNTER_TABLE = "idservice_counter" .getBytes();
+    public static final byte[] CUBE_DATA_TABLE = "cube_data".getBytes();
+    public static final byte[] IDSERVICE_LOOKUP_TABLE = "idservice_data".getBytes();
+    public static final byte[] IDSERVICE_COUNTER_TABLE = "idservice_counter".getBytes();
 
-    public static final byte[] CF = "c" .getBytes();
+    public static final byte[] CF = "c".getBytes();
 
     @BeforeClass
     public static void setupCluster() throws Exception {
@@ -37,7 +37,7 @@ public class HBaseTest extends EmbeddedClusterTestAbstract {
 
         HTablePool pool = new HTablePool(getTestUtil().getConfiguration(), Integer.MAX_VALUE);
         DbHarness<LongOp> hbaseDbHarness = new HBaseDbHarness<LongOp>(pool,
-                "hbaseForCubeDataTest" .getBytes(), CUBE_DATA_TABLE, CF, LongOp.DESERIALIZER, idService,
+                "hbaseForCubeDataTest".getBytes(), CUBE_DATA_TABLE, CF, LongOp.DESERIALIZER, idService,
                 CommitType.INCREMENT);
 
         DbHarnessTests.basicTest(hbaseDbHarness);
@@ -57,7 +57,7 @@ public class HBaseTest extends EmbeddedClusterTestAbstract {
                 .setCommitType(CommitType.INCREMENT)
                 .build();
 
-        DbHarness<LongOp> hbaseDbHarness = new HBaseDbHarness<LongOp>(config, pool, LongOp.DESERIALIZER, idService, (avoid) -> null);
+        DbHarness<LongOp> hbaseDbHarness = new HBaseDbHarness<LongOp>(config, pool, LongOp.DESERIALIZER, idService, (results) -> null);
 
         DbHarnessTests.asyncBatchWritesTest(hbaseDbHarness, 30);
     }
@@ -68,7 +68,7 @@ public class HBaseTest extends EmbeddedClusterTestAbstract {
 
         HTablePool pool = new HTablePool(getTestUtil().getConfiguration(), Integer.MAX_VALUE);
         DbHarness<LongOp> hbaseDbHarness = new HBaseDbHarness<LongOp>(pool,
-                "hbaseForCubeDataTest" .getBytes(), CUBE_DATA_TABLE, CF, LongOp.DESERIALIZER, idService,
+                "hbaseForCubeDataTest".getBytes(), CUBE_DATA_TABLE, CF, LongOp.DESERIALIZER, idService,
                 CommitType.INCREMENT);
 
         DbHarnessTests.multiGetTest(hbaseDbHarness);
@@ -79,7 +79,7 @@ public class HBaseTest extends EmbeddedClusterTestAbstract {
     public void basicIdServiceTest() throws Exception {
         IdService idService = new HBaseIdService(getTestUtil().getConfiguration(),
                 IDSERVICE_LOOKUP_TABLE, IDSERVICE_COUNTER_TABLE, CF,
-                "basicIdServiceTest" .getBytes());
+                "basicIdServiceTest".getBytes());
 
         IdServiceTests.basicTest(idService);
     }
@@ -88,7 +88,7 @@ public class HBaseTest extends EmbeddedClusterTestAbstract {
     public void exhaustionIdServiceTest() throws Exception {
         IdService idService = new HBaseIdService(getTestUtil().getConfiguration(),
                 IDSERVICE_LOOKUP_TABLE, IDSERVICE_COUNTER_TABLE, CF,
-                "exhaustionIdServiceTest" .getBytes());
+                "exhaustionIdServiceTest".getBytes());
         IdServiceTests.testExhaustion(idService, 1, 1);
     }
 }

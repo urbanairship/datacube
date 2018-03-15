@@ -199,16 +199,15 @@ public class DbHarnessTests {
         for (int i = 0; i < writes; ++i) {
             // Do an increment of 10 for the same zipcode in a different hour of the same day
             DateTime hour = now.withHourOfDay((now.getHourOfDay() + i) % 24);
-            System.out.println(hour);
             cubeIo.writeAsync(new LongOp(10), new WriteBuilder()
                     .at(time, hour)
-                    .at(zipcode, "97201"));
+                    .at(zipcode, "97001"));
             ohOneExpected.merge(hour, 10L, Long::sum);
 
             // Do an increment of 10 for the same zipcode in a different hour of the same day
             cubeIo.writeAsync(new LongOp(5), new WriteBuilder()
                     .at(time, hour)
-                    .at(zipcode, "97202"));
+                    .at(zipcode, "97002"));
             ohTwoExpected.merge(hour, 5L, Long::sum);
         }
 
@@ -217,17 +216,17 @@ public class DbHarnessTests {
         // Read back the value that we wrote for the current hour, should be 5
         Optional<LongOp> thisHourCount = cubeIo.get(new ReadBuilder(cube)
                 .at(time, HourDayMonthBucketer.hours, now)
-                .at(zipcode, "97201"));
+                .at(zipcode, "97001"));
 
         // Read back the value we wrote for the other hour, should be 10
         Optional<LongOp> differentHourCount = cubeIo.get(new ReadBuilder(cube)
                 .at(time, HourDayMonthBucketer.hours, differentHour)
-                .at(zipcode, "97201"));
+                .at(zipcode, "97001"));
 
         // The total for today should be the sum of the two increments
         Optional<LongOp> todayCount = cubeIo.get(new ReadBuilder(cube)
                 .at(time, HourDayMonthBucketer.days, now)
-                .at(zipcode, "97201"));
+                .at(zipcode, "97001"));
 
         Assert.assertTrue(differentHourCount.isPresent());
         Assert.assertEquals(ohOneExpected.get(differentHour).longValue(), differentHourCount.get().getLong());
