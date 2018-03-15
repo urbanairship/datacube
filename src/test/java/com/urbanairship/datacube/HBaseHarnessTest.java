@@ -1,6 +1,5 @@
 package com.urbanairship.datacube;
 
-import com.google.common.base.Function;
 import com.google.common.collect.ImmutableList;
 import com.urbanairship.datacube.bucketers.HourDayMonthBucketer;
 import com.urbanairship.datacube.bucketers.StringToBytesBucketer;
@@ -20,6 +19,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 
 public class HBaseHarnessTest extends EmbeddedClusterTestAbstract {
     public static final byte[] DATA_CUBE_TABLE = "data_cube" .getBytes();
@@ -54,7 +54,7 @@ public class HBaseHarnessTest extends EmbeddedClusterTestAbstract {
         HTablePool pool = new HTablePool(getTestUtil().getConfiguration(), Integer.MAX_VALUE);
         DbHarness<LongOp> hbaseDbHarness = new HBaseDbHarness<LongOp>(pool,
                 "dh" .getBytes(), DATA_CUBE_TABLE, CF, LongOp.DESERIALIZER, idService,
-                DbHarness.CommitType.INCREMENT, new TestCallback(s), 1, 1, 1, "none");
+                DbHarness.CommitType.INCREMENT, new TestCallback(s), 1, 1, 1, "none", 1);
         // Do an increment of 5 for a certain time and zipcode
         DataCubeIo<LongOp> dataCubeIo = new DataCubeIo<LongOp>(dataCube, hbaseDbHarness, 1, 100000, SyncLevel.BATCH_SYNC);
 

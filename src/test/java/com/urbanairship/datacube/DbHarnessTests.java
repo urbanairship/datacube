@@ -13,7 +13,9 @@ import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.junit.Assert;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 public class DbHarnessTests {
@@ -162,5 +164,76 @@ public class DbHarnessTests {
 
         missingCount = optionals.get(5);
         Assert.assertFalse(missingCount.isPresent());
+    }
+
+    public static void asyncBatchWritesTest(DbHarness<LongOp> dbHarness, int writes) throws Exception {
+        HourDayMonthBucketer hourDayMonthBucketer = new HourDayMonthBucketer();
+
+        Dimension<DateTime> time = new Dimension<DateTime>("time", hourDayMonthBucketer, false, 8);
+        Dimension<String> zipcode = new Dimension<String>("zipcode", new StringToBytesBucketer(),
+                true, 5);
+
+        DataCubeIo<LongOp> cubeIo;
+        DataCube<LongOp> cube;
+
+        Rollup hourAndZipRollup = new Rollup(zipcode, time, HourDayMonthBucketer.hours);
+        Rollup dayAndZipRollup = new Rollup(zipcode, time, HourDayMonthBucketer.days);
+        Rollup hourRollup = new Rollup(time, HourDayMonthBucketer.hours);
+        Rollup dayRollup = new Rollup(time, HourDayMonthBucketer.days);
+
+        List<Dimension<?>> dimensions = ImmutableList.<Dimension<?>>of(time, zipcode);
+        List<Rollup> rollups = ImmutableList.of(hourAndZipRollup, dayAndZipRollup, hourRollup,
+                dayRollup);
+
+        cube = new DataCube<LongOp>(dimensions, rollups);
+
+        cubeIo = new DataCubeIo<LongOp>(cube, dbHarness, 1, Long.MAX_VALUE, SyncLevel.FULL_SYNC);
+
+        DateTime now = new DateTime(DateTimeZone.UTC);
+        DateTime differentHour = now.withHourOfDay((now.getHourOfDay() + 1) % 24);
+
+        Map<DateTime, Long> ohOneExpected = new HashMap<>();
+        Map<DateTime, Long> ohTwoExpected = new HashMap<>();
+
+
+        for (int i = 0; i < writes; ++i) {
+            // Do an increment of 10 for the same zipcode in a different hour of the same day
+            DateTime hour = now.withHourOfDay((now.getHourOfDay() + i) % 24);
+            cubeIo.writeAsync(new LongOp(10), new WriteBuilder()
+                    .at(time, hour)
+                    .at(zipcode, "97001"));
+            ohOneExpected.merge(hour, 10L, Long::sum);
+
+            // Do an increment of 10 for the same zipcode in a different hour of the same day
+            cubeIo.writeAsync(new LongOp(5), new WriteBuilder()
+                    .at(time, hour)
+                    .at(zipcode, "97002"));
+            ohTwoExpected.merge(hour, 5L, Long::sum);
+        }
+
+        dbHarness.flush();
+
+        // Read back the value that we wrote for the current hour, should be 5
+        Optional<LongOp> thisHourCount = cubeIo.get(new ReadBuilder(cube)
+                .at(time, HourDayMonthBucketer.hours, now)
+                .at(zipcode, "97001"));
+
+        // Read back the value we wrote for the other hour, should be 10
+        Optional<LongOp> differentHourCount = cubeIo.get(new ReadBuilder(cube)
+                .at(time, HourDayMonthBucketer.hours, differentHour)
+                .at(zipcode, "97001"));
+
+        // The total for today should be the sum of the two increments
+        Optional<LongOp> todayCount = cubeIo.get(new ReadBuilder(cube)
+                .at(time, HourDayMonthBucketer.days, now)
+                .at(zipcode, "97001"));
+
+        Assert.assertTrue(differentHourCount.isPresent());
+        Assert.assertEquals(ohOneExpected.get(differentHour).longValue(), differentHourCount.get().getLong());
+        Assert.assertTrue(thisHourCount.isPresent());
+        Assert.assertEquals(ohOneExpected.get(now).longValue(), thisHourCount.get().getLong());
+        Assert.assertTrue(todayCount.isPresent());
+        Assert.assertEquals(ohOneExpected.values().stream().mapToLong(Long::longValue).sum() , todayCount.get().getLong());
+        dbHarness.shutdown();
     }
 }
