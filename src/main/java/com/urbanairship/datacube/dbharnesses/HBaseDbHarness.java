@@ -8,6 +8,7 @@ import com.codahale.metrics.Counter;
 import com.codahale.metrics.Gauge;
 import com.codahale.metrics.Histogram;
 import com.codahale.metrics.Timer;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
@@ -312,14 +313,10 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
         ImmutableMap.Builder<BoxedByteArray, byte[]> successes = ImmutableMap.builder();
 
         List<Row> increments = new ArrayList<>();
+        List<Map.Entry<BoxedByteArray, T>> entries = ImmutableList.copyOf(writes.entrySet());
 
-        List<Map.Entry<BoxedByteArray, byte[]>> entries = writes.entrySet().stream()
-                .map(e -> new AbstractMap.SimpleEntry<BoxedByteArray, byte[]>(e.getKey(), e.getValue().serialize()))
-                .collect(Collectors.toList());
-
-
-        for (Map.Entry<BoxedByteArray, byte[]> entry : entries) {
-            long amount = Bytes.toLong(entry.getValue());
+        for (Map.Entry<BoxedByteArray, T> entry : entries) {
+            long amount = Bytes.toLong(entry.getValue().serialize());
             Increment increment = new Increment(entry.getKey().bytes);
             increment.addColumn(cf, QUALIFIER, amount);
             incrementSize.update(amount);
