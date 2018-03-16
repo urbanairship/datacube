@@ -8,6 +8,7 @@
 - Remove unnecessary public and static declarations from enums and interfaces.
 - Remove unused parameters and classes
 - Add a batch increment operation, give the db harness a shutdown method.
+- New constructor for HBaseIdService
 
 4.1.1
 =====
