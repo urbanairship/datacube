@@ -63,7 +63,12 @@ public class HBaseIdService implements IdService {
 
     public HBaseIdService(Configuration configuration, byte[] lookupTable,
                           byte[] counterTable, byte[] cf, byte[] uniqueCubeName) {
-        pool = new HTablePool(configuration, Integer.MAX_VALUE);
+        this(new HTablePool(configuration, Integer.MAX_VALUE), lookupTable, counterTable, cf, uniqueCubeName);
+    }
+
+    public HBaseIdService(HTablePool pool, byte[] lookupTable,
+                          byte[] counterTable, byte[] cf, byte[] uniqueCubeName) {
+        this.pool = pool;
         this.lookupTable = lookupTable;
         this.counterTable = counterTable;
         this.uniqueCubeName = uniqueCubeName;
