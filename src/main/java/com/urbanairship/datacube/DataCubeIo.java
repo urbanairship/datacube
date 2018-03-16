@@ -86,11 +86,6 @@ public class DataCubeIo<T extends Op> {
     private Batch<T> batchInProgress = new Batch<T>();
     private long batchFlushDeadlineMs;
 
-    public DataCubeIo(DataCube<T> cube, DbHarness<T> db, int batchSize, long maxBatchAgeMs,
-                      SyncLevel syncLevel) {
-        this(cube, db, batchSize, maxBatchAgeMs, syncLevel, null);
-    }
-
     /**
      * @param batchSize     if after doing a write the number of rows to be written to the database
      *                      exceeds this number, a flush will be done.
