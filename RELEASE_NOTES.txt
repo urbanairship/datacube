@@ -1,6 +1,7 @@
 5.0.1
 =====
 New constructor for HBaseIdService
+Remove DataCubeIo constructor missing metrics scope
 
 5.0.0
 =====
