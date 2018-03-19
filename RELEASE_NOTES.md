@@ -1,7 +1,13 @@
+5.1.0
+=====
+- Add per-rollup metrics to DataCubeIo
+- Due to possible high cardinality, DataCubeIo constructors now require a boolean
+  controlling whether those metrics are maintained
+
 5.0.1
 =====
-New constructor for HBaseIdService
-Remove DataCubeIo constructor missing metrics scope
+- New constructor for HBaseIdService
+- Remove DataCubeIo constructor missing metrics scope
 
 5.0.0
 =====
