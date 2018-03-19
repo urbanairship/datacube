@@ -1,7 +1,12 @@
 package com.urbanairship.datacube;
 
-import java.util.List;
-
+import com.google.common.collect.ImmutableList;
+import com.urbanairship.datacube.DbHarness.CommitType;
+import com.urbanairship.datacube.bucketers.StringToBytesBucketer;
+import com.urbanairship.datacube.dbharnesses.HBaseDbHarness;
+import com.urbanairship.datacube.idservices.CachingIdService;
+import com.urbanairship.datacube.idservices.MapIdService;
+import com.urbanairship.datacube.ops.LongOp;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.TableNotFoundException;
 import org.apache.hadoop.hbase.client.HTablePool;
@@ -10,13 +15,7 @@ import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.collect.ImmutableList;
-import com.urbanairship.datacube.DbHarness.CommitType;
-import com.urbanairship.datacube.bucketers.StringToBytesBucketer;
-import com.urbanairship.datacube.dbharnesses.HBaseDbHarness;
-import com.urbanairship.datacube.idservices.CachingIdService;
-import com.urbanairship.datacube.idservices.MapIdService;
-import com.urbanairship.datacube.ops.LongOp;
+import java.util.List;
 
 /**
  * Make sure database errors are handled
@@ -34,7 +33,7 @@ public class ErrorHandlingTest extends EmbeddedClusterTestAbstract {
         
         DbHarness<LongOp> dbHarness = new HBaseDbHarness<LongOp>(pool, "XY".getBytes(), 
                 "nonexistentTable".getBytes(), "nonexistentCf".getBytes(), LongOp.DESERIALIZER, 
-                idService, CommitType.INCREMENT, 5, 2, 2, null);
+                idService, CommitType.INCREMENT, 5, 2, 2, "scope");
         
         DataCube<LongOp> cube;
         
@@ -49,7 +48,7 @@ public class ErrorHandlingTest extends EmbeddedClusterTestAbstract {
         cube = new DataCube<LongOp>(dimensions, rollups);
 
         DataCubeIo<LongOp> dataCubeIo = new DataCubeIo<LongOp>(cube, dbHarness, 1, Long.MAX_VALUE, 
-                SyncLevel.BATCH_ASYNC);
+                SyncLevel.BATCH_ASYNC, "scope", true);
         
         dataCubeIo.writeAsync(new LongOp(1), new WriteBuilder()
             .at(zipcode, "97212"));

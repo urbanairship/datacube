@@ -56,7 +56,8 @@ public class HBaseHarnessTest extends EmbeddedClusterTestAbstract {
                 "dh" .getBytes(), DATA_CUBE_TABLE, CF, LongOp.DESERIALIZER, idService,
                 DbHarness.CommitType.INCREMENT, new TestCallback(s), 1, 1, 1, "none", 1);
         // Do an increment of 5 for a certain time and zipcode
-        DataCubeIo<LongOp> dataCubeIo = new DataCubeIo<LongOp>(dataCube, hbaseDbHarness, 1, 100000, SyncLevel.BATCH_SYNC);
+        DataCubeIo<LongOp> dataCubeIo = new DataCubeIo<LongOp>(dataCube, hbaseDbHarness, 1, 100000,
+                SyncLevel.BATCH_SYNC, "scope", true);
 
         dataCubeIo.writeSync(new LongOp(5), new WriteBuilder()
                 .at(time, DateTime.now(DateTimeZone.UTC))
@@ -95,7 +96,8 @@ public class HBaseHarnessTest extends EmbeddedClusterTestAbstract {
                 "dh" .getBytes(), DATA_CUBE_TABLE, CF, LongOp.DESERIALIZER, idService,
                 DbHarness.CommitType.INCREMENT, 1, 1, 1, "none");
 
-        DataCubeIo<LongOp> dataCubeIo = new DataCubeIo<LongOp>(dataCube, hbaseDbHarness, 1, 100000, SyncLevel.BATCH_SYNC);
+        DataCubeIo<LongOp> dataCubeIo = new DataCubeIo<LongOp>(dataCube, hbaseDbHarness, 1, 100000,
+                SyncLevel.BATCH_SYNC, "scope", true);
 
         dataCubeIo.writeSync(new LongOp(5), new WriteBuilder()
                 .at(time, DateTime.now(DateTimeZone.UTC))

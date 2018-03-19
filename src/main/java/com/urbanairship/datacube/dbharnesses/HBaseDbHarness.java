@@ -40,7 +40,6 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 import java.io.IOException;
-import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -58,7 +57,6 @@ import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
-import java.util.stream.Collectors;
 
 public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
 
@@ -103,29 +101,32 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
     private final String metricsScope;
     private final ThreadedIdServiceLookup idServiceLookup;
 
-    public HBaseDbHarness(HTablePool pool, byte[] uniqueCubeName, byte[] tableName,
-                          byte[] cf, Deserializer<T> deserializer, IdService idService, CommitType commitType)
-            throws IOException {
-        this(pool, uniqueCubeName, tableName, cf, deserializer, idService, commitType, NOP, 5, 5, 10, null, 1);
+    public HBaseDbHarness(HTablePool pool, byte[] uniqueCubeName, byte[] tableName, byte[] cf, Deserializer<T> deserializer,
+                          IdService idService, CommitType commitType, String metricsScope) {
+
+        this(pool, uniqueCubeName, tableName, cf, deserializer, idService, commitType, NOP, 5, 5, 10, metricsScope, 1);
     }
 
-    public HBaseDbHarness(HTablePool pool, byte[] uniqueCubeName, byte[] tableName,
-                          byte[] cf, Deserializer<T> deserializer, IdService idService, CommitType commitType,
-                          int numFlushThreads, int numIoeTries, int numCasTries, String metricsScope)
-            throws IOException {
-        this(pool, uniqueCubeName, tableName, cf, deserializer, idService, commitType, NOP,
-                numFlushThreads, numIoeTries, numCasTries, metricsScope, 1);
+    public HBaseDbHarness(HTablePool pool, byte[] uniqueCubeName, byte[] tableName, byte[] cf, Deserializer<T> deserializer,
+                          IdService idService, CommitType commitType, int numFlushThreads, int numIoeTries, int numCasTries,
+                          String metricsScope) {
+
+        this(pool, uniqueCubeName, tableName, cf, deserializer, idService, commitType, NOP, numFlushThreads, numIoeTries,
+                numCasTries, metricsScope, 1);
     }
 
-    public HBaseDbHarness(HbaseDbHarnessConfiguration configuration, HTablePool hTablePool, Deserializer<T> deserializer, IdService idService, Function<Map<byte[], byte[]>, Void> onFlush) throws IOException {
-        this(hTablePool, configuration.uniqueCubeName, configuration.tableName, configuration.cf, deserializer, idService, configuration.commitType, onFlush, configuration.numFlushThreads, configuration.numIoeTries, configuration.numCasTries, configuration.metricsScope, configuration.batchSize);
+    public HBaseDbHarness(HbaseDbHarnessConfiguration configuration, HTablePool hTablePool, Deserializer<T> deserializer,
+                          IdService idService, Function<Map<byte[], byte[]>, Void> onFlush) {
+
+        this(hTablePool, configuration.uniqueCubeName, configuration.tableName, configuration.cf, deserializer, idService,
+                configuration.commitType, onFlush, configuration.numFlushThreads, configuration.numIoeTries,
+                configuration.numCasTries, configuration.metricsScope, configuration.batchSize);
     }
 
     public HBaseDbHarness(HTablePool pool, byte[] uniqueCubeName, byte[] tableName,
                           byte[] cf, Deserializer<T> deserializer, IdService idService, CommitType commitType,
                           Function<Map<byte[], byte[]>, Void> onFlush, int numFlushThreads, int numIoeTries, int numCasTries,
-                          String metricsScope, int batchSize) throws IOException {
-
+                          String metricsScope, int batchSize) {
         HbaseDbHarnessConfiguration hbaseDbHarnessConfiguration = HbaseDbHarnessConfiguration.newBuilder()
                 .setUniqueCubeName(uniqueCubeName)
                 .setTableName(tableName)

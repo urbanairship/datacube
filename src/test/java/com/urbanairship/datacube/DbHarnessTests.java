@@ -45,7 +45,7 @@ public class DbHarnessTests {
 
         cube = new DataCube<LongOp>(dimensions, rollups);
 
-        cubeIo = new DataCubeIo<LongOp>(cube, dbHarness, 1, Long.MAX_VALUE, SyncLevel.FULL_SYNC);
+        cubeIo = new DataCubeIo<LongOp>(cube, dbHarness, 1, Long.MAX_VALUE, SyncLevel.FULL_SYNC, "scope", true);
 
         DateTime now = new DateTime(DateTimeZone.UTC);
 
@@ -104,7 +104,7 @@ public class DbHarnessTests {
 
         cube = new DataCube<LongOp>(dimensions, rollups);
 
-        cubeIo = new DataCubeIo<LongOp>(cube, dbHarness, 1, Long.MAX_VALUE, SyncLevel.FULL_SYNC);
+        cubeIo = new DataCubeIo<LongOp>(cube, dbHarness, 1, Long.MAX_VALUE, SyncLevel.FULL_SYNC, "scope", true);
 
         DateTime now = new DateTime(DateTimeZone.UTC);
 
@@ -187,7 +187,7 @@ public class DbHarnessTests {
 
         cube = new DataCube<LongOp>(dimensions, rollups);
 
-        cubeIo = new DataCubeIo<LongOp>(cube, dbHarness, 1, Long.MAX_VALUE, SyncLevel.FULL_SYNC);
+        cubeIo = new DataCubeIo<LongOp>(cube, dbHarness, 1, Long.MAX_VALUE, SyncLevel.FULL_SYNC, "scope", true);
 
         DateTime now = new DateTime(DateTimeZone.UTC);
         DateTime differentHour = now.withHourOfDay((now.getHourOfDay() + 1) % 24);

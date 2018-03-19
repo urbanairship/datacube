@@ -34,7 +34,7 @@ public class DataCube<T extends Op> {
     private final List<Dimension<?>> dims;
     private final List<Rollup> rollups;
     private final Multimap<Dimension<?>, BucketType> bucketsOfInterest;
-    private final Set<Set<DimensionAndBucketType>> validAddressSet;
+    private final Map<Set<DimensionAndBucketType>, Rollup> validAddressSet;
     private final boolean useAddressPrefixByteHash;
 
     /**
@@ -59,7 +59,7 @@ public class DataCube<T extends Op> {
     public DataCube(List<Dimension<?>> dims, List<Rollup> rollups, PREFIX_MODE prefixMode) {
         this.dims = dims;
         this.rollups = rollups;
-        this.validAddressSet = Sets.newHashSet();
+        this.validAddressSet = Maps.newHashMap();
         if (PREFIX_MODE.MOD_ADDRESS_PREFIX == prefixMode) {
             this.useAddressPrefixByteHash = true;
         } else {
@@ -82,7 +82,7 @@ public class DataCube<T extends Op> {
 
                 bucketsOfInterest.put(dimAndBucketType.dimension, dimAndBucketType.bucketType);
             }
-            validAddressSet.add(new HashSet<DimensionAndBucketType>(rollup.getComponents()));
+            validAddressSet.put(new HashSet<>(rollup.getComponents()), rollup);
         }
     }
 
@@ -128,7 +128,7 @@ public class DataCube<T extends Op> {
             Set<List<byte[]>> crossProduct = Sets.cartesianProduct(coordSets);
 
             for (List<byte[]> crossProductTuple : crossProduct) {
-                Address outputAddress = new Address(this);
+                Address outputAddress = new Address(this, rollup);
 
                 // Start out with all dimensions wildcard, overwrite with other values later
                 for (Dimension<?> dimension : dims) {
@@ -182,7 +182,9 @@ public class DataCube<T extends Op> {
         }
 
         // Make sure that the requested address exists in this cube (is touched by some rollup)
-        if (validAddressSet.contains(dimsAndBucketsSpecified)) {
+        final Rollup sourceRollup = validAddressSet.get(dimsAndBucketsSpecified);
+        if (sourceRollup != null) {
+            addr.setSourceRollup(sourceRollup);
             return;
         }
 

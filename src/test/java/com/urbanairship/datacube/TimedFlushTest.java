@@ -38,7 +38,7 @@ public class TimedFlushTest {
         DataCube<LongOp> cube = new DataCube<LongOp>(ImmutableList.<Dimension<?>>of(colorDimension),
                 ImmutableList.of(colorRollup));
         DataCubeIo<LongOp> cubeIo = new DataCubeIo<LongOp>(cube, dbHarness, Integer.MAX_VALUE,
-                TimeUnit.SECONDS.toMillis(1), SyncLevel.BATCH_SYNC);
+                TimeUnit.SECONDS.toMillis(1), SyncLevel.BATCH_SYNC, "scope", true);
 
         // Immediately after the first write, the write should be hanging out in the batch and not yet 
         // written to the backing dbHarness.

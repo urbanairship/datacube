@@ -5,6 +5,7 @@ Copyright 2012 Urban Airship and Contributors
 package com.urbanairship.datacube;
 
 import java.util.List;
+import java.util.Objects;
 
 /**
  * Describes a high-level dimension of the hypercube. For example, "time", "location",
@@ -107,7 +108,6 @@ public class Dimension<F> {
         return nullable;
     }
 
-
     int getBucketPrefixSize() {
         return bucketPrefixSize;
     }
@@ -116,4 +116,22 @@ public class Dimension<F> {
         return isBucketed;
     }
 
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof Dimension)) return false;
+        Dimension<?> dimension = (Dimension<?>) o;
+        return doIdSubstitution == dimension.doIdSubstitution &&
+                numFieldBytes == dimension.numFieldBytes &&
+                bucketPrefixSize == dimension.bucketPrefixSize &&
+                isBucketed == dimension.isBucketed &&
+                nullable == dimension.nullable &&
+                Objects.equals(name, dimension.name) &&
+                Objects.equals(bucketer, dimension.bucketer);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(name, bucketer, doIdSubstitution, numFieldBytes, bucketPrefixSize, isBucketed, nullable);
+    }
 }

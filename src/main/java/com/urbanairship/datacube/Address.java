@@ -25,11 +25,22 @@ public class Address {
     private final Map<Dimension<?>, BucketTypeAndBucket> buckets = Maps.newHashMap();
     private final DataCube<?> cube;
 
+    // This isn't known on the read side until after construction. In a well-formed
+    // cube, any given address can only be associated with a single rollup, since
+    // otherwise the cube would be double-updated at that address.
+    private transient Optional<Rollup> sourceRollup;
+
     private static final byte[] WILDCARD_FIELD = new byte[]{0};
     private static final byte[] NON_WILDCARD_FIELD = new byte[]{1};
 
     public Address(DataCube<?> cube) {
         this.cube = cube;
+        this.sourceRollup = Optional.empty();
+    }
+
+    public Address(DataCube<?> cube, Rollup sourceRollup) {
+        this.cube = cube;
+        this.sourceRollup = Optional.of(sourceRollup);
     }
 
     public void at(Dimension<?> dimension, byte[] value) {
@@ -46,6 +57,14 @@ public class Address {
 
     public void at(Dimension<?> dimension, BucketTypeAndBucket bucketAndCoord) {
         buckets.put(dimension, bucketAndCoord);
+    }
+
+    public void setSourceRollup(Rollup sourceRollup) {
+        this.sourceRollup = Optional.of(sourceRollup);
+    }
+
+    public Optional<Rollup> getSourceRollup() {
+        return sourceRollup;
     }
 
     public BucketTypeAndBucket get(Dimension<?> dimension) {
@@ -188,11 +207,9 @@ public class Address {
         return sb.toString();
     }
 
-    /**
-     * Eclipse auto-generated
-     */
     @Override
     public int hashCode() {
+        // We intentionally omit the rollup here, since it's only used for metrics
         final int prime = 31;
         int result = 1;
         result = prime * result + ((buckets == null) ? 0 : buckets.hashCode());
@@ -200,11 +217,9 @@ public class Address {
         return result;
     }
 
-    /**
-     * Eclipse auto-generated
-     */
     @Override
     public boolean equals(Object obj) {
+        // We intentionally omit the rollup here, since it's only used for metrics
         if (this == obj)
             return true;
         if (obj == null)
