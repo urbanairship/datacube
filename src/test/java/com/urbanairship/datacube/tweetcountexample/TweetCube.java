@@ -101,7 +101,7 @@ public class TweetCube {
 		 * The DataCubeIo object connects the DataCube logic layer and the 
 		 * DbHarness IO layer. This is the object we'll use to do reads and writes below.
 		 */
-        dataCubeIo = new DataCubeIo<LongOp>(dataCube, dbHarness, 0, 1000L, syncLevel, null);
+        dataCubeIo = new DataCubeIo<LongOp>(dataCube, dbHarness, 0, 1000L, syncLevel, "scope", true);
     }
 
     /**

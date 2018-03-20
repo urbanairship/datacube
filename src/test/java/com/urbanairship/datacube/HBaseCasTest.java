@@ -57,7 +57,7 @@ public class HBaseCasTest extends EmbeddedClusterTestAbstract {
 
         final DataCube<BytesOp> dataCube = new DataCube<BytesOp>(dimensions, rollups);
         final DataCubeIo<BytesOp> dataCubeIo = new DataCubeIo<BytesOp>(dataCube, dbHarness, 5, Long.MAX_VALUE,
-                SyncLevel.BATCH_SYNC);
+                SyncLevel.BATCH_SYNC, "scope", true);
 
         final int numThreads = 10;
         final int updatesPerThread = 10;

@@ -8,7 +8,9 @@ import com.google.common.collect.ImmutableSet;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 
 /**
@@ -19,16 +21,19 @@ import java.util.Set;
  */
 public class Rollup {
     private final List<DimensionAndBucketType> components;
+    private final String metricName;
 
     public Rollup(Dimension<?>... dims) {
-        this.components = new ArrayList<DimensionAndBucketType>(dims.length);
+        this.components = new ArrayList<>(dims.length);
         for (Dimension<?> dim : dims) {
             this.components.add(new DimensionAndBucketType(dim, BucketType.IDENTITY));
         }
+        this.metricName = makeMetricName();
     }
 
     public Rollup(Set<DimensionAndBucketType> components) {
-        this.components = new ArrayList<DimensionAndBucketType>(components); // defensive copy
+        this.components = new ArrayList<>(components); // defensive copy
+        this.metricName = makeMetricName();
     }
 
     /**
@@ -82,11 +87,41 @@ public class Rollup {
         return components;
     }
 
+    public String getMetricName() {
+        return metricName;
+    }
+
+    private String makeMetricName() {
+        return components.stream()
+                .map(dimAndBucket -> {
+                    if (dimAndBucket.bucketType == BucketType.IDENTITY || dimAndBucket.bucketType == BucketType.WILDCARD) {
+                        return dimAndBucket.dimension.getName();
+                    } else {
+                        return dimAndBucket.dimension.getName() + "_" + dimAndBucket.bucketType.getNameInErrMsgs();
+                    }
+                })
+                .collect(Collectors.joining("-"));
+    }
+
     public String toString() {
         StringBuilder sb = new StringBuilder();
         sb.append("(Rollup over ");
         sb.append(components);
         sb.append(")");
         return sb.toString();
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof Rollup)) return false;
+        Rollup rollup = (Rollup) o;
+        return Objects.equals(components, rollup.components) &&
+                Objects.equals(metricName, rollup.metricName);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(components, metricName);
     }
 }

@@ -4,9 +4,16 @@ Copyright 2012 Urban Airship and Contributors
 
 package com.urbanairship.datacube;
 
-import java.util.Iterator;
-import java.util.List;
-
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Multimap;
+import com.urbanairship.datacube.DbHarness.CommitType;
+import com.urbanairship.datacube.backfill.BackfillUtil;
+import com.urbanairship.datacube.backfill.HBaseBackfillMerger;
+import com.urbanairship.datacube.backfill.HBaseSnapshotter;
+import com.urbanairship.datacube.bucketers.StringToBytesBucketer;
+import com.urbanairship.datacube.dbharnesses.HBaseDbHarness;
+import com.urbanairship.datacube.idservices.HBaseIdService;
+import com.urbanairship.datacube.ops.LongOp;
 import org.apache.commons.lang.ArrayUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
@@ -24,16 +31,8 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Multimap;
-import com.urbanairship.datacube.DbHarness.CommitType;
-import com.urbanairship.datacube.backfill.BackfillUtil;
-import com.urbanairship.datacube.backfill.HBaseBackfillMerger;
-import com.urbanairship.datacube.backfill.HBaseSnapshotter;
-import com.urbanairship.datacube.bucketers.StringToBytesBucketer;
-import com.urbanairship.datacube.dbharnesses.HBaseDbHarness;
-import com.urbanairship.datacube.idservices.HBaseIdService;
-import com.urbanairship.datacube.ops.LongOp;
+import java.util.Iterator;
+import java.util.List;
 
 public class HBaseBackfillerTest extends EmbeddedClusterTestAbstract {
     public static final byte[] CUBE_DATA_TABLE = "cube_data".getBytes();
@@ -73,7 +72,7 @@ public class HBaseBackfillerTest extends EmbeddedClusterTestAbstract {
                 IDSERVICE_COUNTER_TABLE, CF, ArrayUtils.EMPTY_BYTE_ARRAY);
         DbHarness<LongOp> hbaseDbHarness = new HBaseDbHarness<LongOp>(pool, 
                 ArrayUtils.EMPTY_BYTE_ARRAY, CUBE_DATA_TABLE, CF, LongOp.DESERIALIZER, 
-                idService, CommitType.INCREMENT);
+                idService, CommitType.INCREMENT, "scope");
         
         // Get some cube data into the source table, doesn't really matter what.
         DbHarnessTests.basicTest(hbaseDbHarness);
@@ -109,7 +108,7 @@ public class HBaseBackfillerTest extends EmbeddedClusterTestAbstract {
                 IDSERVICE_COUNTER_TABLE, CF, ArrayUtils.EMPTY_BYTE_ARRAY);
         DbHarness<LongOp> hbaseDbHarness = new HBaseDbHarness<LongOp>(pool, 
                 ArrayUtils.EMPTY_BYTE_ARRAY, CUBE_DATA_TABLE, CF, LongOp.DESERIALIZER, 
-                idService, CommitType.INCREMENT);
+                idService, CommitType.INCREMENT, "scope");
         
         // Get some cube data into the source table, doesn't really matter what.
         DbHarnessTests.basicTest(hbaseDbHarness);
@@ -139,7 +138,7 @@ public class HBaseBackfillerTest extends EmbeddedClusterTestAbstract {
                 IDSERVICE_COUNTER_TABLE, CF, ArrayUtils.EMPTY_BYTE_ARRAY);
         DbHarness<LongOp> hbaseDbHarness = new HBaseDbHarness<LongOp>(pool, 
                 ArrayUtils.EMPTY_BYTE_ARRAY, CUBE_DATA_TABLE, CF, LongOp.DESERIALIZER, 
-                idService, CommitType.INCREMENT);
+                idService, CommitType.INCREMENT, "scope");
         
         Dimension<String> onlyDimension = new Dimension<String>("mydimension", 
                 new StringToBytesBucketer(), true, 2);
@@ -149,7 +148,7 @@ public class HBaseBackfillerTest extends EmbeddedClusterTestAbstract {
         List<Rollup> rollups = ImmutableList.of(rollup);
         DataCube<LongOp> cube = new DataCube<LongOp>(dims, rollups);
         DataCubeIo<LongOp> cubeIo = new DataCubeIo<LongOp>(cube, hbaseDbHarness, 1,
-                Long.MAX_VALUE, SyncLevel.FULL_SYNC);
+                Long.MAX_VALUE, SyncLevel.FULL_SYNC, "scope", true);
         
         // Before doing any snapshotting/backfilling, there's one value "5" in the cube.
         cubeIo.writeSync(new LongOp(5), new WriteBuilder().at(onlyDimension, "coord1"));

@@ -4,7 +4,6 @@ Copyright 2012 Urban Airship and Contributors
 
 package com.urbanairship.datacube;
 
-import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSetMultimap;
 import com.google.common.collect.Maps;
@@ -187,7 +186,7 @@ public class CompleteExampleTest {
         DbHarness<LongOp> dbHarness = new MapDbHarness<LongOp>(backingMap,
                 LongOp.DESERIALIZER, CommitType.READ_COMBINE_CAS, idService);
         DataCubeIo<LongOp> dataCubeIo = new DataCubeIo<LongOp>(dataCube, dbHarness, 1,
-                Long.MAX_VALUE, SyncLevel.FULL_SYNC);
+                Long.MAX_VALUE, SyncLevel.FULL_SYNC, "scope", false);
 
         public void addEvent(DeviceType deviceType, City city, DateTime when) throws IOException, InterruptedException {
             dataCubeIo.writeSync(new LongOp(1), new WriteBuilder()

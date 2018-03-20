@@ -4,9 +4,14 @@ Copyright 2012 Urban Airship and Contributors
 
 package com.urbanairship.datacube;
 
-import java.io.IOException;
-import java.util.List;
-
+import com.google.common.collect.ImmutableList;
+import com.urbanairship.datacube.DbHarness.CommitType;
+import com.urbanairship.datacube.backfill.HBaseBackfill;
+import com.urbanairship.datacube.backfill.HBaseBackfillCallback;
+import com.urbanairship.datacube.bucketers.HourDayMonthBucketer;
+import com.urbanairship.datacube.dbharnesses.HBaseDbHarness;
+import com.urbanairship.datacube.idservices.HBaseIdService;
+import com.urbanairship.datacube.ops.LongOp;
 import org.apache.commons.lang.ArrayUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.client.HTablePool;
@@ -16,15 +21,8 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import com.google.common.base.Optional;
-import com.google.common.collect.ImmutableList;
-import com.urbanairship.datacube.DbHarness.CommitType;
-import com.urbanairship.datacube.backfill.HBaseBackfill;
-import com.urbanairship.datacube.backfill.HBaseBackfillCallback;
-import com.urbanairship.datacube.bucketers.HourDayMonthBucketer;
-import com.urbanairship.datacube.dbharnesses.HBaseDbHarness;
-import com.urbanairship.datacube.idservices.HBaseIdService;
-import com.urbanairship.datacube.ops.LongOp;
+import java.io.IOException;
+import java.util.List;
 
 public class BackfillExampleTest extends EmbeddedClusterTestAbstract {
     private static final DateTime midnight = new DateTime(DateTimeZone.UTC).minusDays(1).
@@ -74,9 +72,9 @@ public class BackfillExampleTest extends EmbeddedClusterTestAbstract {
             HTablePool pool = new HTablePool(getTestUtil().getConfiguration(), Integer.MAX_VALUE);
             DbHarness<LongOp> hbaseDbHarness = new HBaseDbHarness<LongOp>(pool,
                     ArrayUtils.EMPTY_BYTE_ARRAY, table, cf, LongOp.DESERIALIZER, idService, 
-                    CommitType.INCREMENT);
+                    CommitType.INCREMENT, "scope");
             dataCubeIo = new DataCubeIo<LongOp>(dataCube, hbaseDbHarness, 1, Long.MAX_VALUE,
-                    SyncLevel.FULL_SYNC);
+                    SyncLevel.FULL_SYNC, "scope", true);
         }
 
         public void put(Event event) throws Exception {

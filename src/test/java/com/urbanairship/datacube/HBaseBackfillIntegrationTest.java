@@ -239,7 +239,7 @@ public class HBaseBackfillIntegrationTest extends EmbeddedClusterTestAbstract {
             throws Exception {
         HTablePool pool = new HTablePool(getTestUtil().getConfiguration(), Integer.MAX_VALUE);
         DbHarness<LongOp> dbHarness = new HBaseDbHarness<LongOp>(pool, ArrayUtils.EMPTY_BYTE_ARRAY,
-                table, CF, LongOp.DESERIALIZER, idService, CommitType.INCREMENT);
-        return new DataCubeIo<LongOp>(cube, dbHarness, 1, Long.MAX_VALUE, SyncLevel.FULL_SYNC);
+                table, CF, LongOp.DESERIALIZER, idService, CommitType.INCREMENT, "scope");
+        return new DataCubeIo<LongOp>(cube, dbHarness, 1, Long.MAX_VALUE, SyncLevel.FULL_SYNC, "scope", true);
     }
 }

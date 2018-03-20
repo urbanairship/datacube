@@ -32,7 +32,7 @@ public class OmittedDimensionTest {
 
         DataCube<LongOp> cube = new DataCube<LongOp>(dims, rollups);
 
-        DataCubeIo<LongOp> cubeIo = new DataCubeIo<LongOp>(cube, dbHarness, 1, Long.MAX_VALUE, SyncLevel.FULL_SYNC);
+        DataCubeIo<LongOp> cubeIo = new DataCubeIo<LongOp>(cube, dbHarness, 1, Long.MAX_VALUE, SyncLevel.FULL_SYNC, "scope", true);
 
         cubeIo.writeSync(new LongOp(1), new WriteBuilder().at(X, 1L).at(Y, 1L));
         assertEquals(1L, cubeIo.get(new ReadBuilder(cube).at(X, 1L).at(Y, 1L)).get().getLong());
