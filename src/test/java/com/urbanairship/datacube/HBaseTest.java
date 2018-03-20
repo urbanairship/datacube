@@ -11,11 +11,8 @@ import com.urbanairship.datacube.idservices.HBaseIdService;
 import com.urbanairship.datacube.idservices.MapIdService;
 import com.urbanairship.datacube.ops.LongOp;
 import org.apache.hadoop.hbase.client.HTablePool;
-import org.apache.hadoop.hbase.util.Bytes;
 import org.junit.BeforeClass;
 import org.junit.Test;
-
-import java.util.stream.Collectors;
 
 public class HBaseTest extends EmbeddedClusterTestAbstract {
     public static final byte[] CUBE_DATA_TABLE = "cube_data".getBytes();
@@ -38,7 +35,7 @@ public class HBaseTest extends EmbeddedClusterTestAbstract {
         HTablePool pool = new HTablePool(getTestUtil().getConfiguration(), Integer.MAX_VALUE);
         DbHarness<LongOp> hbaseDbHarness = new HBaseDbHarness<LongOp>(pool,
                 "hbaseForCubeDataTest".getBytes(), CUBE_DATA_TABLE, CF, LongOp.DESERIALIZER, idService,
-                CommitType.INCREMENT);
+                CommitType.INCREMENT, "scope");
 
         DbHarnessTests.basicTest(hbaseDbHarness);
     }
@@ -69,7 +66,7 @@ public class HBaseTest extends EmbeddedClusterTestAbstract {
         HTablePool pool = new HTablePool(getTestUtil().getConfiguration(), Integer.MAX_VALUE);
         DbHarness<LongOp> hbaseDbHarness = new HBaseDbHarness<LongOp>(pool,
                 "hbaseForCubeDataTest".getBytes(), CUBE_DATA_TABLE, CF, LongOp.DESERIALIZER, idService,
-                CommitType.INCREMENT);
+                CommitType.INCREMENT, "scope");
 
         DbHarnessTests.multiGetTest(hbaseDbHarness);
     }

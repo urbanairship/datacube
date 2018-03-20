@@ -47,11 +47,11 @@ public class HBaseOverwriteTest extends EmbeddedClusterTestAbstract {
 
         HTablePool pool = new HTablePool(getTestUtil().getConfiguration(), Integer.MAX_VALUE);
         DbHarness<BytesOp> dbHarness = new HBaseDbHarness<BytesOp>(pool, ArrayUtils.EMPTY_BYTE_ARRAY,
-                tableName, cfName, new BytesOpDeserializer(), idService, CommitType.OVERWRITE);
+                tableName, cfName, new BytesOpDeserializer(), idService, CommitType.OVERWRITE, "scope");
 
         final DataCube<BytesOp> dataCube = new DataCube<BytesOp>(dimensions, rollups);
         final DataCubeIo<BytesOp> dataCubeIo = new DataCubeIo<BytesOp>(dataCube, dbHarness, 5,
-                Long.MAX_VALUE, SyncLevel.FULL_SYNC);
+                Long.MAX_VALUE, SyncLevel.FULL_SYNC, "scope", true);
 
         // Write the value "1" at address "100"
         dataCubeIo.writeSync(new BytesOp(1L), new WriteBuilder().at(dimension, 100L));
@@ -78,7 +78,7 @@ public class HBaseOverwriteTest extends EmbeddedClusterTestAbstract {
 
         HTablePool pool = new HTablePool(getTestUtil().getConfiguration(), Integer.MAX_VALUE);
         DbHarness<BytesOp> dbHarness = new HBaseDbHarness<BytesOp>(pool, ArrayUtils.EMPTY_BYTE_ARRAY,
-                tableName, cfName, new BytesOpDeserializer(), idService, CommitType.INCREMENT);
+                tableName, cfName, new BytesOpDeserializer(), idService, CommitType.INCREMENT, "scope");
 
         final DataCube<BytesOp> dataCube = new DataCube<BytesOp>(dimensions, rollups);
 

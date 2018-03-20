@@ -4,7 +4,6 @@ Copyright 2012 Urban Airship and Contributors
 
 package com.urbanairship.datacube;
 
-import java.util.Optional;
 import com.google.common.collect.ImmutableList;
 import com.urbanairship.datacube.DbHarness.CommitType;
 import com.urbanairship.datacube.bucketers.BigEndianLongBucketer;
@@ -18,6 +17,7 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Test flushing of batches at {@link SyncLevel#BATCH_ASYNC} and {@link SyncLevel#BATCH_SYNC}.
@@ -54,11 +54,11 @@ public class HBaseFlushExecutorTest extends EmbeddedClusterTestAbstract {
 
         HTablePool pool = new HTablePool(getTestUtil().getConfiguration(), Integer.MAX_VALUE);
         DbHarness<BytesOp> dbHarness = new HBaseDbHarness<BytesOp>(pool, ArrayUtils.EMPTY_BYTE_ARRAY,
-                tableName, cfName, new BytesOpDeserializer(), idService, CommitType.READ_COMBINE_CAS);
+                tableName, cfName, new BytesOpDeserializer(), idService, CommitType.READ_COMBINE_CAS, "scope");
 
         final DataCube<BytesOp> dataCube = new DataCube<BytesOp>(dimensions, rollups);
         final DataCubeIo<BytesOp> dataCubeIo = new DataCubeIo<BytesOp>(dataCube, dbHarness, 10,
-                Long.MAX_VALUE, syncLevel);
+                Long.MAX_VALUE, syncLevel, "scope", true);
 
         for (int i = 0; i < 1000; i++) {
             WriteBuilder at = new WriteBuilder().at(dimension, (long) i);

@@ -4,18 +4,25 @@ Copyright 2012 Urban Airship and Contributors
 
 package com.urbanairship.datacube;
 
+import com.codahale.metrics.Counter;
 import com.codahale.metrics.Gauge;
+import com.codahale.metrics.Histogram;
 import com.codahale.metrics.Meter;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.urbanairship.datacube.dbharnesses.AfterExecute;
 import com.urbanairship.datacube.dbharnesses.FullQueueException;
 import com.urbanairship.datacube.metrics.Metrics;
+import com.urbanairship.datacube.ops.IntOp;
+import com.urbanairship.datacube.ops.LongOp;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -25,38 +32,38 @@ import java.util.concurrent.TimeUnit;
 /**
  * A DataCube does no IO, it merely returns batches that can be executed. This class wraps
  * around a DataCube and does IO against a storage backend.
- *
+ * <p>
  * Thread safe. Writes can block for a long time if another thread is flushing to the database.
- *
+ * <p>
  * <h3>HOW INTERNAL ASYNC BATCH FLUSHING WORKS (for datacube developers, not clients):</h3>
- *
+ * <p>
  * Batches accumulate here, in DataSyncIo objects. When they pass their size or age threshold, they
  * are sent to the underlying DbHarness to be saved to the database. This is where it gets weird,
  * since the DbHarness layer is completely asynchronous and non-blocking.
- *
+ * <p>
  * When a Batch is sent to the DbHarness to be saved, either we get back a Future, or we get a
  * FullQueueException which means that the DbHarness cannot currently accept more batches for saving.
- *
+ * <p>
  * If we get back a Future, then one of two things will happen:
- *
+ * <p>
  * <ul>
  * <li>If the client requested a blocking write using writeSync(), we block and wait for the Future
  * to complete.</li>
  * <li>If the client requested a non-blocking write using writeAsync(), we will return new Future
  * that will wait for the DbHarness flush Future to complete.
  * </ul>
- *
+ * <p>
  * <h3>Error handling</h3>
- *
+ * <p>
  * If batch flushing encounters an exception during a writeSync(), the exception will be thrown to
  * the caller. If batch flushing encounters an exception during a writeAsync(), we can't throw the
  * exception back to the caller since the writeAsync() call has already returned. We make sure the
  * caller handles the error by doing two things.
- *
+ * <p>
  * First, we rethrow the exception from the Future returned by writeAsync(), which the caller will see
  * as an ExecutionException thrown by Future.get(). This alone is not sufficient though, because the
  * caller may never call Future.get().
- *
+ * <p>
  * Second, when an asynchronous batch flush has an exception, the exception is saved in
  * {@link #asyncException}. When {@link #asyncException} is non-null, all future calls to writeAsync()
  * will throw AsyncException and refuse to write. This prevents clients blithely throwing away data
@@ -77,19 +84,22 @@ public class DataCubeIo<T extends Op> {
     // This executor will wait for DB writes to complete then check if they had an error.
     private final ThreadPoolExecutor asyncErrorMonitorExecutor;
 
+    private final String metricsScope;
     private final Meter writesMeter;
     private final Meter asyncQueueBackoffMeter;
     private final Meter runBatchMeter;
     private final Meter ageFlushes;
     private final Meter sizeFlushes;
 
+    private final boolean perRollupMetrics;
+    private final Counter writeAddrWithoutRollup;
+    private final ConcurrentMap<Rollup, Counter> rollupReadNotFound = Maps.newConcurrentMap();
+    private final ConcurrentMap<Rollup, Counter> rollupWriteIndividual = Maps.newConcurrentMap();
+    private final ConcurrentMap<Rollup, Histogram> rollupReadSize = Maps.newConcurrentMap();
+    private final ConcurrentMap<Rollup, Histogram> rollupWriteSize = Maps.newConcurrentMap();
+
     private Batch<T> batchInProgress = new Batch<T>();
     private long batchFlushDeadlineMs;
-
-    public DataCubeIo(DataCube<T> cube, DbHarness<T> db, int batchSize, long maxBatchAgeMs,
-                      SyncLevel syncLevel) {
-        this(cube, db, batchSize, maxBatchAgeMs, syncLevel, null);
-    }
 
     /**
      * @param batchSize     if after doing a write the number of rows to be written to the database
@@ -99,18 +109,21 @@ public class DataCubeIo<T extends Op> {
      *                      the batch will not be flushed until the *next* write arrives after the timeout.
      */
     public DataCubeIo(DataCube<T> cube, DbHarness<T> db, int batchSize, long maxBatchAgeMs,
-                      SyncLevel syncLevel, String metricsScope) {
+                      SyncLevel syncLevel, String metricsScope, boolean perRollupMetrics) {
         this.cube = cube;
         this.db = db;
         this.batchSize = batchSize;
         this.maxBatchAgeMs = maxBatchAgeMs;
         this.syncLevel = syncLevel;
 
+        this.perRollupMetrics = perRollupMetrics;
+        this.metricsScope = metricsScope;
         writesMeter = Metrics.meter(DataCubeIo.class, "writes", metricsScope);
         asyncQueueBackoffMeter = Metrics.meter(DataCubeIo.class, "backoffMeter", metricsScope);
         runBatchMeter = Metrics.meter(DataCubeIo.class, "runBatchMeter", metricsScope);
         ageFlushes = Metrics.meter(DataCubeIo.class, "flushesDueToAge", metricsScope);
         sizeFlushes = Metrics.meter(DataCubeIo.class, "flushesDueToSize", metricsScope);
+        writeAddrWithoutRollup = Metrics.counter(DataCubeIo.class, "writeAddrWithoutRollup", metricsScope);
 
         this.asyncErrorMonitorExecutor = new ThreadPoolExecutor(Integer.MAX_VALUE,
                 Integer.MAX_VALUE, 1, TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>(),
@@ -148,6 +161,16 @@ public class DataCubeIo<T extends Op> {
 
     public Optional<Future<?>> writeAsync(Batch<T> newBatch) throws AsyncException, InterruptedException {
         Batch<T> batchToFlush = null;
+
+        if (perRollupMetrics) {
+            newBatch.getMap().keySet().forEach(addr -> {
+                if (addr.getSourceRollup().isPresent()) {
+                    updateRollupCounter(rollupWriteIndividual, addr.getSourceRollup().get(), "rollupIndividualWrite");
+                } else {
+                    writeAddrWithoutRollup.inc();
+                }
+            });
+        }
 
         switch (syncLevel) {
             case FULL_SYNC:
@@ -205,6 +228,14 @@ public class DataCubeIo<T extends Op> {
         while (true) {
             try {
                 runBatchMeter.mark();
+                if (perRollupMetrics) {
+                    batch.getMap().forEach((addr, op) -> {
+                        if (addr.getSourceRollup().isPresent()) {
+                            updateRollupHistogram(rollupWriteSize, addr.getSourceRollup().get(), "rollupWriteSize", op);
+                        }
+                    });
+                }
+
                 return db.runBatchAsync(batch, flushErrorHandler);
             } catch (FullQueueException e) {
                 asyncQueueBackoffMeter.mark();
@@ -220,11 +251,11 @@ public class DataCubeIo<T extends Op> {
      * If the {@link SyncLevel} is {@link SyncLevel#FULL_SYNC} or {@link SyncLevel#BATCH_SYNC}, then
      * no asynchronous IO is happening. You can use this function to write instead of
      * {@link #writeAsync(Op, WriteBuilder)} without catching AsyncException or InterruptedException.
-     *
+     * <p>
      * IMPORTANT: the name of this function does not imply that the write is immediately flushed to
      * the database. This is only true if {@link SyncLevel#FULL_SYNC} is set. Otherwise your write
      * is probably just staged in a batch for writing later.
-     *
+     * <p>
      * You can only use this function if this DataCubeIo was constructed with
      * {@link SyncLevel#FULL_SYNC} or {@link SyncLevel#BATCH_SYNC}.
      */
@@ -268,7 +299,17 @@ public class DataCubeIo<T extends Op> {
      */
     public Optional<T> get(Address addr) throws IOException, InterruptedException {
         cube.checkValidReadOrThrow(addr);
-        return db.get(addr);
+
+        final Optional<T> result = db.get(addr);
+        if (perRollupMetrics && addr.getSourceRollup().isPresent()) {
+            if (result.isPresent()) {
+                updateRollupHistogram(rollupReadSize, addr.getSourceRollup().get(), "rollupReadSize", result.get());
+            } else {
+                updateRollupCounter(rollupReadNotFound, addr.getSourceRollup().get(), "rollupReadNotFound");
+            }
+        }
+
+        return result;
     }
 
     public Optional<T> get(ReadBuilder readBuilder) throws IOException, InterruptedException {
@@ -282,7 +323,26 @@ public class DataCubeIo<T extends Op> {
             cube.checkValidReadOrThrow(address);
             addresses.add(address);
         }
-        return db.multiGet(addresses);
+
+        final List<Optional<T>> results = db.multiGet(addresses);
+        if (perRollupMetrics) {
+            for (int i = 0; i < results.size(); i++) {
+                final Optional<T> result = results.get(i);
+                final Address addr = addresses.get(i);
+                if (!addr.getSourceRollup().isPresent()) {
+                    //Should never happen, but be paranoid
+                    continue;
+                }
+
+                if (result.isPresent()) {
+                    updateRollupHistogram(rollupReadSize, addr.getSourceRollup().get(), "rollupReadSize", result.get());
+                } else {
+                    updateRollupCounter(rollupReadNotFound, addr.getSourceRollup().get(), "rollupReadNotFound");
+                }
+            }
+        }
+
+        return results;
     }
 
     public void flush() throws InterruptedException {
@@ -304,4 +364,33 @@ public class DataCubeIo<T extends Op> {
             }
         }
     };
+
+    private void updateRollupCounter(Map<Rollup, Counter> counters, Rollup rollup, String metric) {
+        if (!perRollupMetrics) {
+            return;
+        }
+
+        final Counter counter = counters.computeIfAbsent(rollup, ru ->
+                Metrics.counter(DataCubeIo.class, metricsScope + "_" + metric, rollup.getMetricName()));
+        counter.inc();
+    }
+
+    private void updateRollupHistogram(Map<Rollup, Histogram> histograms, Rollup rollup, String metric, T op) {
+        if (!perRollupMetrics) {
+            return;
+        }
+
+        final long opNumericValue;
+        if (op instanceof LongOp) {
+            opNumericValue = ((LongOp) op).getLong();
+        } else if (op instanceof IntOp) {
+            opNumericValue = ((IntOp) op).getInt();
+        } else {
+            return;
+        }
+
+        final Histogram histogram = histograms.computeIfAbsent(rollup, ru ->
+                Metrics.histogram(DataCubeIo.class, metricsScope + "_" + metric, rollup.getMetricName()));
+        histogram.update(opNumericValue);
+    }
 }
