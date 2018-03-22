@@ -94,6 +94,7 @@ public class DataCubeIo<T extends Op> {
     private final boolean perRollupMetrics;
     private final Counter writeAddrWithoutRollup;
     private final ConcurrentMap<Rollup, Counter> rollupReadNotFound = Maps.newConcurrentMap();
+    private final ConcurrentMap<Rollup, Counter> rollupReadCount = Maps.newConcurrentMap();
     private final ConcurrentMap<Rollup, Counter> rollupWriteIndividual = Maps.newConcurrentMap();
     private final ConcurrentMap<Rollup, Histogram> rollupReadSize = Maps.newConcurrentMap();
     private final ConcurrentMap<Rollup, Histogram> rollupWriteSize = Maps.newConcurrentMap();
@@ -128,6 +129,12 @@ public class DataCubeIo<T extends Op> {
         this.asyncErrorMonitorExecutor = new ThreadPoolExecutor(Integer.MAX_VALUE,
                 Integer.MAX_VALUE, 1, TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>(),
                 new NamedThreadFactory("DataCubeIo async DB watcher"));
+
+        if (perRollupMetrics) {
+            cube.getRollups().forEach(rollup -> rollupReadCount.put(rollup, Metrics.counter(
+                    DataCubeIo.class, metricsScope + "_rollupReadCount", rollup.getMetricName()
+            )));
+        }
 
         Metrics.gauge(DataCubeIo.class, "errorMonitorActiveCount", metricsScope, new Gauge<Integer>() {
             @Override
@@ -302,6 +309,7 @@ public class DataCubeIo<T extends Op> {
 
         final Optional<T> result = db.get(addr);
         if (perRollupMetrics && addr.getSourceRollup().isPresent()) {
+            updateRollupCounter(rollupReadCount, addr.getSourceRollup().get(), "rollupReadCount");
             if (result.isPresent()) {
                 updateRollupHistogram(rollupReadSize, addr.getSourceRollup().get(), "rollupReadSize", result.get());
             } else {
@@ -334,6 +342,7 @@ public class DataCubeIo<T extends Op> {
                     continue;
                 }
 
+                updateRollupCounter(rollupReadCount, addr.getSourceRollup().get(), "rollupReadCount");
                 if (result.isPresent()) {
                     updateRollupHistogram(rollupReadSize, addr.getSourceRollup().get(), "rollupReadSize", result.get());
                 } else {
