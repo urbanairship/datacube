@@ -5,6 +5,7 @@ Copyright 2012 Urban Airship and Contributors
 package com.urbanairship.datacube;
 
 import com.google.common.collect.HashMultimap;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.SetMultimap;
@@ -58,7 +59,7 @@ public class DataCube<T extends Op> {
      */
     public DataCube(List<Dimension<?>> dims, List<Rollup> rollups, PREFIX_MODE prefixMode) {
         this.dims = dims;
-        this.rollups = rollups;
+        this.rollups = ImmutableList.copyOf(rollups);
         this.validAddressSet = Maps.newHashMap();
         if (PREFIX_MODE.MOD_ADDRESS_PREFIX == prefixMode) {
             this.useAddressPrefixByteHash = true;
@@ -208,5 +209,9 @@ public class DataCube<T extends Op> {
 
     Multimap<Dimension<?>, BucketType> getBucketsOfInterest() {
         return bucketsOfInterest;
+    }
+
+    public List<Rollup> getRollups() {
+        return rollups;
     }
 }
