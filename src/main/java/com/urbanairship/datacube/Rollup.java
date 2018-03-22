@@ -92,7 +92,8 @@ public class Rollup {
     }
 
     private String makeMetricName() {
-        return components.stream()
+        return components
+                .stream()
                 .map(dimAndBucket -> {
                     if (dimAndBucket.bucketType == BucketType.IDENTITY || dimAndBucket.bucketType == BucketType.WILDCARD) {
                         return dimAndBucket.dimension.getName();
@@ -100,6 +101,7 @@ public class Rollup {
                         return dimAndBucket.dimension.getName() + "_" + dimAndBucket.bucketType.getNameInErrMsgs();
                     }
                 })
+                .sorted()
                 .collect(Collectors.joining("-"));
     }
 
