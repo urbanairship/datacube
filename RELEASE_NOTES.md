@@ -1,3 +1,8 @@
+5.1.1
+=====
+- Move writes meter to writeAsync(Batch batch), which is always called, as opposed to writeAsync(WriteBuilder, Op),
+  which clients may choose not to call.
+
 5.1.0
 =====
 - Add per-rollup metrics to DataCubeIo

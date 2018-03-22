@@ -152,14 +152,14 @@ public class DataCubeIo<T extends Op> {
             throw asyncException;
         }
 
-        writesMeter.mark();
-
         Batch<T> newBatch = cube.getWrites(at, op);
 
         return writeAsync(newBatch);
     }
 
     public Optional<Future<?>> writeAsync(Batch<T> newBatch) throws AsyncException, InterruptedException {
+        writesMeter.mark();
+
         Batch<T> batchToFlush = null;
 
         if (perRollupMetrics) {
