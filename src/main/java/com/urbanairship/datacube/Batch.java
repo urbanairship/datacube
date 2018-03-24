@@ -4,6 +4,7 @@ Copyright 2012 Urban Airship and Contributors
 
 package com.urbanairship.datacube;
 
+import com.google.common.base.Objects;
 import com.google.common.collect.Maps;
 
 import java.util.Map;

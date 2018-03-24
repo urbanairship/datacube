@@ -14,6 +14,7 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
+import com.google.common.io.BaseEncoding;
 import com.google.common.primitives.UnsignedBytes;
 import com.urbanairship.datacube.Address;
 import com.urbanairship.datacube.Batch;
@@ -33,10 +34,13 @@ import org.apache.hadoop.hbase.client.HTablePool;
 import org.apache.hadoop.hbase.client.Increment;
 import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.client.Result;
+import org.apache.hadoop.hbase.client.RetriesExhaustedWithDetailsException;
 import org.apache.hadoop.hbase.client.Row;
 import org.apache.hadoop.hbase.util.Bytes;
+import org.apache.log4j.NDC;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 
 import javax.annotation.Nullable;
 import java.io.IOException;
@@ -400,40 +404,7 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
 
         try {
             if (commitType.equals(CommitType.INCREMENT) && configuration.batchSize > 1) {
-                Iterable<List<Map.Entry<Address, T>>> partitions = Iterables.partition(batchMap.entrySet(), configuration.batchSize);
-                int batchesPerFlush = 0;
-                Map<BoxedByteArray, T> increments = new HashMap<>();
-                Map<BoxedByteArray, Address> backwards = new HashMap<>();
-                for (List<Map.Entry<Address, T>> entries : partitions) {
-                    batchesPerFlush++;
-                    final long nanoTimeBeforeWrite = System.nanoTime();
-                    for (Map.Entry<Address, T> entry : entries) {
-                        final Address address = entry.getKey();
-                        final T op = entry.getValue();
-                        final BoxedByteArray rowKey = new BoxedByteArray(ArrayUtils.addAll(uniqueCubeName, address.toWriteKey(idService)));
-                        increments.put(rowKey, op);
-                        backwards.put(rowKey, address);
-                    }
-
-                    Map<BoxedByteArray, byte[]> successes = increment(increments);
-
-                    for (Map.Entry<BoxedByteArray, byte[]> entry : successes.entrySet()) {
-                        successfulAddresses.add(backwards.get(entry.getKey()));
-                        successfulRows.put(entry.getKey().bytes, entry.getValue());
-                    }
-
-                    long writeDurationNanos = System.nanoTime() - nanoTimeBeforeWrite;
-                    batchWritesTimer.update(writeDurationNanos, TimeUnit.NANOSECONDS);
-                }
-                batchesPerFlushHisto.update(batchesPerFlush);
-
-                if (successfulAddresses.size() < batchMap.size()) {
-                    // the implementation prior to the addition of the batch increment code assumes any failed increment
-                    // operation results in an io exception. This matches that expectation.
-                    int failures = batchMap.size() - successfulAddresses.size();
-                    incrementFailuresPerFlush.update(failures);
-                    throw new IOException(String.format("Some writes failed (%s of %s attempted); queueing retry", failures, batchMap.size()));
-                }
+                flushBatchedIncrement(batchMap, successfulAddresses, successfulRows);
             } else {
                 for (Map.Entry<Address, T> entry : batchMap.entrySet()) {
                     final Address address = entry.getKey();
@@ -477,6 +448,17 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
             // of the pending writes, they should be removed from the batch so they are not retried later.
             // The operations that didn't get into the DB should be left in the batch to be retried later.
             log.warn("IOException when flushing batch to HBase", ioe);
+
+            if (ioe instanceof RetriesExhaustedWithDetailsException) {
+                RetriesExhaustedWithDetailsException details = (RetriesExhaustedWithDetailsException) ioe;
+                MDC.put("mayHaveClusterIssues", String.valueOf(details.mayHaveClusterIssues()));
+                for(int i = 0; i < details.getNumExceptions(); ++i){
+                    MDC.put("host name port", details.getHostnamePort(i));
+                    MDC.put("row", BaseEncoding.base64().encode(details.getRow(i).getRow()));
+                    log.error(String.format("error %s", i), details.getCause(i));
+                }
+                MDC.clear();
+            }
             for (Address address : successfulAddresses) {
                 batch.getMap().remove(address);
             }
@@ -491,6 +473,43 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
             } catch (Exception e) {
                 log.error("Unhandled exception in onFlush callback.", e);
             }
+        }
+    }
+
+    public void flushBatchedIncrement(Map<Address, T> batchMap, List<Address> successfulAddresses, Map<byte[], byte[]> successfulRows) throws IOException, InterruptedException {
+        Iterable<List<Map.Entry<Address, T>>> partitions = Iterables.partition(batchMap.entrySet(), configuration.batchSize);
+        int batchesPerFlush = 0;
+        Map<BoxedByteArray, Address> backwards = new HashMap<>();
+        for (List<Map.Entry<Address, T>> entries : partitions) {
+            Map<BoxedByteArray, T> increments = new HashMap<>();
+            batchesPerFlush++;
+            final long nanoTimeBeforeWrite = System.nanoTime();
+            for (Map.Entry<Address, T> entry : entries) {
+                final Address address = entry.getKey();
+                final T op = entry.getValue();
+                final BoxedByteArray rowKey = new BoxedByteArray(ArrayUtils.addAll(uniqueCubeName, address.toWriteKey(idService)));
+                increments.put(rowKey, op);
+                backwards.put(rowKey, address);
+            }
+
+            Map<BoxedByteArray, byte[]> successes = this.increment(increments);
+
+            for (Map.Entry<BoxedByteArray, byte[]> entry : successes.entrySet()) {
+                successfulAddresses.add(backwards.get(entry.getKey()));
+                successfulRows.put(entry.getKey().bytes, entry.getValue());
+            }
+
+            long writeDurationNanos = System.nanoTime() - nanoTimeBeforeWrite;
+            batchWritesTimer.update(writeDurationNanos, TimeUnit.NANOSECONDS);
+        }
+        batchesPerFlushHisto.update(batchesPerFlush);
+
+        if (successfulAddresses.size() < batchMap.size()) {
+            // the implementation prior to the addition of the batch increment code assumes any failed increment
+            // operation results in an io exception. This matches that expectation.
+            int failures = batchMap.size() - successfulAddresses.size();
+            incrementFailuresPerFlush.update(failures);
+            throw new IOException(String.format("Some writes failed (%s of %s attempted); queueing retry", failures, batchMap.size()));
         }
     }
 
