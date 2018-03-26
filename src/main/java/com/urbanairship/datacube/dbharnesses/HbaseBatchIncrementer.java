@@ -24,7 +24,7 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Package private class incrementing all the batch increment operations accomplished by the datacube
+ * Package private class implementing all the batch increment operations accomplished by the hbase dbharness
  *
  * @param <T>
  */
