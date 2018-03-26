@@ -196,9 +196,6 @@ public class MockHbaseHbaseDbHarnessTest {
 
         int batches = size / batcheSize;
 
-
-        log.info("Ran " + count);
-
         return count * (batches) + 1;
     }
 
