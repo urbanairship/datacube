@@ -22,15 +22,18 @@ import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
 import org.joda.time.DateTime;
 import org.junit.Test;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
 import java.util.stream.Collectors;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyList;
 import static org.mockito.Mockito.doAnswer;
@@ -54,6 +57,25 @@ public class MockHbaseHbaseDbHarnessTest {
             .setCommitType(DbHarness.CommitType.INCREMENT)
             .build();
 
+    private HourDayMonthBucketer hourDayMonthBucketer = new HourDayMonthBucketer();
+
+    private Dimension<DateTime> time = new Dimension<DateTime>("time", hourDayMonthBucketer, false, 8);
+    private Dimension<String> zipcode = new Dimension<String>("zipcode", new StringToBytesBucketer(),
+            true, 5);
+
+
+    private Rollup hourAndZipRollup = new Rollup(zipcode, time, HourDayMonthBucketer.hours);
+    private Rollup dayAndZipRollup = new Rollup(zipcode, time, HourDayMonthBucketer.days);
+    private Rollup hourRollup = new Rollup(time, HourDayMonthBucketer.hours);
+    private Rollup dayRollup = new Rollup(time, HourDayMonthBucketer.days);
+
+    private List<Dimension<?>> dimensions = ImmutableList.<Dimension<?>>of(time, zipcode);
+    private List<Rollup> rollups = ImmutableList.of(hourAndZipRollup, dayAndZipRollup, hourRollup,
+            dayRollup);
+
+    private DataCube<LongOp> cube = new DataCube<LongOp>(dimensions, rollups);
+
+    private Map<byte[], byte[]> entries = new TreeMap<>(Bytes.BYTES_COMPARATOR);
 
     @Test
     public void test() throws Exception {
@@ -65,73 +87,32 @@ public class MockHbaseHbaseDbHarnessTest {
         final List<Increment> incrementOperations = new LinkedList<>();
 
         when(pool.getTable(any(byte[].class))).thenReturn(htableInterface);
+
         long value = 10L;
-        doAnswer(a -> {
-            List<Increment> increments = (List<Increment>) a.getArguments()[0];
-            Object[] objects = (Object[]) a.getArguments()[1];
+        doAnswer(new BatchAnswer(incrementOperations)).when(htableInterface).batch(anyList(), any(Object[].class));
 
-            int size = increments.size();
+        DbHarness<LongOp> hbaseDbHarness = new HBaseDbHarness<LongOp>(config, pool, LongOp.DESERIALIZER, idService, (map) -> {
+            entries.putAll(map);
+            return null;
+        });
 
-            List<Row> failedOperations = new ArrayList<>();
-            List<Throwable> throwables = new ArrayList<>();
-            List<String> hosts = new ArrayList<>();
-
-            for (int i = 0; i < size; ++i) {
-                if (i % 2 == 1) {
-                    failedOperations.add(increments.get(i));
-                    throwables.add(new IOException("ughhh " + i));
-                    hosts.add("host: " + i);
-                    objects[i] = null;
-                } else {
-                    incrementOperations.add(increments.get(i));
-
-                    objects[i] = new Result(new KeyValue[]{new KeyValue(
-                            increments.get(i).getRow(),
-                            CF,
-                            HBaseDbHarness.QUALIFIER,
-                            Longs.toByteArray(value)
-                    )});
-                }
-            }
-
-            if (!failedOperations.isEmpty()) {
-                throw new RetriesExhaustedWithDetailsException(throwables, failedOperations, hosts);
-            }
-            return objects;
-        }).when(htableInterface).batch(anyList(), any(Object[].class));
-
-        DbHarness<LongOp> hbaseDbHarness = new HBaseDbHarness<LongOp>(config, pool, LongOp.DESERIALIZER, idService, (avoid) -> null);
-
-        when(htableInterface.get(any(Get.class))).thenReturn(getResult(value), getResult(value), getResult(100L));
-
-        HourDayMonthBucketer hourDayMonthBucketer = new HourDayMonthBucketer();
-
-        Dimension<DateTime> time = new Dimension<DateTime>("time", hourDayMonthBucketer, false, 8);
-        Dimension<String> zipcode = new Dimension<String>("zipcode", new StringToBytesBucketer(),
-                true, 5);
-
-
-        Rollup hourAndZipRollup = new Rollup(zipcode, time, HourDayMonthBucketer.hours);
-        Rollup dayAndZipRollup = new Rollup(zipcode, time, HourDayMonthBucketer.days);
-        Rollup hourRollup = new Rollup(time, HourDayMonthBucketer.hours);
-        Rollup dayRollup = new Rollup(time, HourDayMonthBucketer.days);
-
-        List<Dimension<?>> dimensions = ImmutableList.<Dimension<?>>of(time, zipcode);
-        List<Rollup> rollups = ImmutableList.of(hourAndZipRollup, dayAndZipRollup, hourRollup,
-                dayRollup);
-
-        DataCube<LongOp> cube = new DataCube<LongOp>(dimensions, rollups);
+        when(htableInterface.get(any(Get.class))).thenAnswer(new GetAnswer());
 
         WriteBuilder writeBuilder = new WriteBuilder();
+
+        DateTime now = DateTime.now();
+        DateTime yesterday = now.minusDays(1);
+        String sup = "sup";
+        String ok = "ok";
 
         // now, sup: hour and zip rollup
         // now, sup: day and zip rollup
         // now, sup: hour rollup
         // now, sup: day rollup
-        // => 4 writes
+        // => 4 unique rows
         Batch<LongOp> writes = cube.getWrites(writeBuilder
-                        .at(time, DateTime.now())
-                        .at(zipcode, "sup"),
+                        .at(time, now)
+                        .at(zipcode, sup),
                 new LongOp(10)
         );
 
@@ -139,10 +120,10 @@ public class MockHbaseHbaseDbHarnessTest {
         // yesterday, sup: day and zip rollup
         // yesterday, sup: hour rollup
         // yesterday, sup: day rollup
-        // => 4 writes
+        // => 4 unique rows
         writes.putAll(cube.getWrites(writeBuilder
-                        .at(time, DateTime.now().minusDays(1))
-                        .at(zipcode, "sup"),
+                        .at(time, yesterday)
+                        .at(zipcode, sup),
                 new LongOp(10)
         ));
 
@@ -150,23 +131,21 @@ public class MockHbaseHbaseDbHarnessTest {
         // yesterday, ok: day and zip rollup
         // REPEAT: yesterday, ok: hour rollup
         // REPEAT: yesterday, ok: day rollup
-        // => 2 writes
+        // => 2 unique rows
         writes.putAll(cube.getWrites(writeBuilder
-                        .at(time, DateTime.now().minusDays(1))
-                        .at(zipcode, "ok"),
+                        .at(time, yesterday)
+                        .at(zipcode, ok),
                 new LongOp(10)
         ));
 
-        log.info(writes.getMap().size());
+        log.info(writes.getMap());
 
         List<BoxedByteArray> expected = writes.getMap().keySet()
                 .stream()
                 .map(a -> {
                     try {
                         return a.toWriteKey(idService);
-                    } catch (IOException e) {
-                        throw new RuntimeException(e);
-                    } catch (InterruptedException e) {
+                    } catch (IOException | InterruptedException e) {
                         throw new RuntimeException(e);
                     }
                 })
@@ -181,6 +160,15 @@ public class MockHbaseHbaseDbHarnessTest {
                 throw new RuntimeException(t);
             }
         });
+
+        hbaseDbHarness.flush();
+
+        assertEquals(10L, hbaseDbHarness.get(new ReadBuilder(cube)
+                .at(time, HourDayMonthBucketer.hours, now)
+                .build()).get().getLong());
+        assertEquals(20L, hbaseDbHarness.get(new ReadBuilder(cube)
+                .at(time, HourDayMonthBucketer.hours, yesterday)
+                .build()).get().getLong());
 
         hbaseDbHarness.shutdown();
 
@@ -214,7 +202,59 @@ public class MockHbaseHbaseDbHarnessTest {
         return count * (batches) + 1;
     }
 
-    private Result getResult(long value) {
-        return new Result(ImmutableList.of(new KeyValue(new byte[]{}, new byte[]{}, new byte[]{}, Longs.toByteArray(value))));
+    private class BatchAnswer implements Answer {
+        private final List<Increment> incrementOperations;
+
+        public BatchAnswer(List<Increment> incrementOperations) {
+            this.incrementOperations = incrementOperations;
+        }
+
+        @Override
+        public Object answer(InvocationOnMock a) throws Throwable {
+            List<Increment> increments = (List<Increment>) a.getArguments()[0];
+            Object[] objects = (Object[]) a.getArguments()[1];
+
+            int size = increments.size();
+
+            List<Row> failedOperations = new ArrayList<>();
+            List<Throwable> throwables = new ArrayList<>();
+            List<String> hosts = new ArrayList<>();
+
+            for (int i = 0; i < size; ++i) {
+                if (i % 2 == 1) {
+                    failedOperations.add(increments.get(i));
+                    throwables.add(new IOException("ughhh " + i));
+                    hosts.add("host: " + i);
+                    objects[i] = null;
+                } else {
+                    incrementOperations.add(increments.get(i));
+
+                    objects[i] = new Result(new KeyValue[]{new KeyValue(
+                            increments.get(i).getRow(),
+                            CF,
+                            HBaseDbHarness.QUALIFIER,
+                            Longs.toByteArray(increments.get(i).getFamilyMap().get(CF).get(HBaseDbHarness.QUALIFIER))
+                    )});
+                }
+            }
+
+            if (!failedOperations.isEmpty()) {
+                throw new RetriesExhaustedWithDetailsException(throwables, failedOperations, hosts);
+            }
+            return objects;
+        }
+    }
+
+    private class GetAnswer implements Answer<Result> {
+        @Override
+        public Result answer(InvocationOnMock invocation) throws Throwable {
+            Get get = (Get) invocation.getArguments()[0];
+            return new Result(new KeyValue[]{new KeyValue(
+                    get.getRow(),
+                    config.cf,
+                    HBaseDbHarness.QUALIFIER,
+                    entries.get(get.getRow())
+            )});
+        }
     }
 }
