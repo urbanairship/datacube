@@ -24,11 +24,11 @@ import java.util.Optional;
 public class MapIdService implements IdService {
     private static final Logger log = LoggerFactory.getLogger(MapIdService.class);
 
-    private final Map<Integer, Map<BoxedByteArray, Long>> idMap = Maps.newHashMap();
-    private final Map<Integer, Long> nextIds = Maps.newHashMap();
+    private final Map<Integer, Map<BoxedByteArray, Long>> idMap = Maps.newConcurrentMap();
+    private final Map<Integer, Long> nextIds = Maps.newConcurrentMap();
 
     @Override
-    public byte[] getOrCreateId(int dimensionNum, byte[] bytes, int numBytes) {
+    synchronized public byte[] getOrCreateId(int dimensionNum, byte[] bytes, int numBytes) {
         Validate.validateDimensionNum(dimensionNum);
         Validate.validateNumIdBytes(numBytes);
 
@@ -39,7 +39,7 @@ public class MapIdService implements IdService {
             if (log.isDebugEnabled()) {
                 log.debug("Creating new id map for dimension " + dimensionNum);
             }
-            idMapForDimension = Maps.newHashMap();
+            idMapForDimension = Maps.newConcurrentMap();
             idMap.put(dimensionNum, idMapForDimension);
         }
 
@@ -75,7 +75,7 @@ public class MapIdService implements IdService {
     }
 
     @Override
-    public Optional<byte[]> getId(int dimensionNum, byte[] bytes, int numIdBytes) throws IOException, InterruptedException {
+    synchronized public Optional<byte[]> getId(int dimensionNum, byte[] bytes, int numIdBytes) throws IOException, InterruptedException {
         Validate.validateDimensionNum(dimensionNum);
         Validate.validateNumIdBytes(numIdBytes);
 
