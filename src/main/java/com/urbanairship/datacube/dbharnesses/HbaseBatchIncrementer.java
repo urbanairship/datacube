@@ -3,7 +3,6 @@ package com.urbanairship.datacube.dbharnesses;
 import com.codahale.metrics.Histogram;
 import com.codahale.metrics.Timer;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.urbanairship.datacube.Address;
 import com.urbanairship.datacube.BoxedByteArray;
@@ -64,102 +63,77 @@ class HbaseBatchIncrementer<T extends Op> {
     public void batchIncrement(Map<Address, T> batchMap, List<Address> successfulAddresses, Map<byte[], byte[]> successfulRows) throws IOException, InterruptedException {
         Iterable<List<Map.Entry<Address, T>>> partitions = Iterables.partition(batchMap.entrySet(), configuration.batchSize);
 
-        CubeIncrementResults.Builder cubeIncrementResultsBuilder = CubeIncrementResults.newBuilder();
+        Map<BoxedByteArray, byte[]> successes = new HashMap<>();
 
         int batchesPerFlush = 0;
         Map<BoxedByteArray, Address> backwards = new HashMap<>();
-        for (List<Map.Entry<Address, T>> entries : partitions) {
-            Map<BoxedByteArray, T> increments = new HashMap<>();
-            batchesPerFlush++;
-            final long nanoTimeBeforeWrite = System.nanoTime();
-            for (Map.Entry<Address, T> entry : entries) {
-                final Address address = entry.getKey();
-                final BoxedByteArray rowKey = serializer.apply(address);
+        boolean caughtException = false;
+        try {
+            for (List<Map.Entry<Address, T>> entries : partitions) {
+                Map<BoxedByteArray, T> increments = new HashMap<>();
 
-                increments.put(rowKey, entry.getValue());
-                backwards.put(rowKey, address);
+                batchesPerFlush++;
+
+                final long nanoTimeBeforeWrite = System.nanoTime();
+
+                for (Map.Entry<Address, T> entry : entries) {
+                    final Address address = entry.getKey();
+                    final BoxedByteArray rowKey = serializer.apply(address);
+
+                    increments.put(rowKey, entry.getValue());
+                    backwards.put(rowKey, address);
+                }
+
+                List<Map.Entry<BoxedByteArray, T>> entriesList = ImmutableList.copyOf(increments.entrySet());
+                Object[] objects = new Object[entriesList.size()];
+
+                try {
+                    hbaseIncrement(entriesList, objects);
+                } catch (InterruptedException | IOException e) {
+                    caughtException = true;
+                    throw e;
+                } finally {
+                    successes.putAll(processBatchCallresults(entriesList, objects));
+                    long writeDurationNanos = System.nanoTime() - nanoTimeBeforeWrite;
+                    incrementerMetrics.batchWritesTimer.update(writeDurationNanos, TimeUnit.NANOSECONDS);
+                }
+            }
+        } finally {
+            incrementerMetrics.batchesPerFlush.update(batchesPerFlush);
+
+            for (Map.Entry<BoxedByteArray, byte[]> entry : successes.entrySet()) {
+                successfulAddresses.add(backwards.get(entry.getKey()));
+                successfulRows.put(entry.getKey().bytes, entry.getValue());
             }
 
-            cubeIncrementResultsBuilder.add(this.hbaseIncrement(increments));
+            int failures = batchMap.size() - successfulAddresses.size();
 
-            long writeDurationNanos = System.nanoTime() - nanoTimeBeforeWrite;
-            incrementerMetrics.batchWritesTimer.update(writeDurationNanos, TimeUnit.NANOSECONDS);
+            if (failures > 0 || caughtException) {
+                incrementerMetrics.incrementFailuresPerFlush.update(failures);
 
-            if (cubeIncrementResultsBuilder.ioException != null) {
-                break;
+                if (!caughtException) {
+                    // the implementation prior to the addition of the batch increment code assumes any failed increment
+                    // operation results in an io exception. This matches that expectation.
+                    throw new IOException(String.format("Some writes failed (%s of %s attempted); queueing retry", failures, batchMap.size()));
+                }
             }
-
-            if (cubeIncrementResultsBuilder.interrupt != null) {
-                // still need to report our successes
-                break;
-            }
-        }
-
-        CubeIncrementResults results = cubeIncrementResultsBuilder.build();
-
-        incrementerMetrics.batchesPerFlush.update(batchesPerFlush);
-
-        for (Map.Entry<BoxedByteArray, byte[]> entry : results.successes.entrySet()) {
-            successfulAddresses.add(backwards.get(entry.getKey()));
-            successfulRows.put(entry.getKey().bytes, entry.getValue());
-        }
-
-        int failures = batchMap.size() - successfulAddresses.size();
-
-        if (failures > 0 || results.ioException != null || results.interrupt != null) {
-            incrementerMetrics.incrementFailuresPerFlush.update(failures);
-
-            if (results.ioException != null) {
-                throw results.ioException;
-            }
-
-            if (results.interrupt != null) {
-                throw cubeIncrementResultsBuilder.interrupt;
-            }
-
-            // the implementation prior to the addition of the batch increment code assumes any failed increment
-            // operation results in an io exception. This matches that expectation.
-            throw new IOException(String.format("Some writes failed (%s of %s attempted); queueing retry", failures, batchMap.size()), cubeIncrementResultsBuilder.ioException);
         }
     }
 
-    /**
-     * @param writes map from rowkey to the operation (which had better be bytes compatible with long)
-     *
-     * @return A map from bytes to the new values written to the database.
-     *
-     * @throws IOException
-     * @throws InterruptedException
-     */
-    public CubeIncrementResults hbaseIncrement(Map<BoxedByteArray, T> writes) throws IOException, InterruptedException {
-        List<Row> increments = new ArrayList<>();
-        List<Map.Entry<BoxedByteArray, T>> entries = ImmutableList.copyOf(writes.entrySet());
+    private void hbaseIncrement(List<Map.Entry<BoxedByteArray, T>> entriesList, Object[] objects) throws IOException, InterruptedException {
+        List<Row> rows = new ArrayList<>();
 
-        for (Map.Entry<BoxedByteArray, T> entry : entries) {
+        for (Map.Entry<BoxedByteArray, T> entry : entriesList) {
             long amount = Bytes.toLong(entry.getValue().serialize());
             Increment increment = new Increment(entry.getKey().bytes);
             increment.addColumn(configuration.cf, HBaseDbHarness.QUALIFIER, amount);
             incrementerMetrics.incrementSize.update(amount);
-            increments.add(increment);
+            rows.add(increment);
         }
 
-        return WithHTable.run(pool, configuration.tableName, (HTableInterface hTable) -> {
-            Object[] objects = new Object[entries.size()];
-            CubeIncrementResults.Builder cubeIncrementResultsBuilder = CubeIncrementResults.newBuilder();
-            try {
-                hTable.batch(increments, objects);
-            } catch (InterruptedException e) {
-                cubeIncrementResultsBuilder.setInterrupt(e);
-            } catch (IOException ioe) {
-                cubeIncrementResultsBuilder.setIoException(ioe);
-            }
+        HTableInterface table = pool.getTable(configuration.tableName);
 
-            Map<BoxedByteArray, byte[]> successes = processBatchCallresults(entries, objects);
-
-            cubeIncrementResultsBuilder.setSuccesses(successes);
-
-            return cubeIncrementResultsBuilder.build();
-        });
+        table.batch(rows, objects);
     }
 
     /**
@@ -182,58 +156,6 @@ class HbaseBatchIncrementer<T extends Op> {
         }
         return successes;
     }
-
-    static class CubeIncrementResults {
-        final IOException ioException;
-        final InterruptedException interrupt;
-        final Map<BoxedByteArray, byte[]> successes;
-
-        CubeIncrementResults(IOException ioException, InterruptedException interrupt, Map<BoxedByteArray, byte[]> successes) {
-            this.ioException = ioException;
-            this.interrupt = interrupt;
-            this.successes = successes;
-        }
-
-        public static Builder newBuilder() {
-            return new Builder();
-        }
-
-        public static class Builder {
-            IOException ioException;
-            InterruptedException interrupt;
-            Map<BoxedByteArray, byte[]> successes = new HashMap<>();
-
-            public Builder setIoException(IOException ioException) {
-                this.ioException = ioException;
-                return this;
-            }
-
-            public Builder setInterrupt(InterruptedException interrupt) {
-                this.interrupt = interrupt;
-                return this;
-            }
-
-            public Builder setSuccesses(Map<BoxedByteArray, byte[]> successes) {
-                this.successes = successes;
-                return this;
-            }
-
-            public CubeIncrementResults build() {
-                return new CubeIncrementResults(ioException, interrupt, ImmutableMap.copyOf(successes));
-            }
-
-            public CubeIncrementResults.Builder add(CubeIncrementResults cubeIncrementResults) {
-                setInterrupt(cubeIncrementResults.interrupt);
-                setIoException(cubeIncrementResults.ioException);
-                setSuccesses(ImmutableMap.<BoxedByteArray, byte[]>builder()
-                        .putAll(successes)
-                        .putAll(cubeIncrementResults.successes)
-                        .build());
-                return this;
-            }
-        }
-    }
-
 
     private class IncrementerMetrics {
         private final Histogram incrementSize;
