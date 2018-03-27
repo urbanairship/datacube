@@ -90,27 +90,30 @@ class HbaseBatchIncrementer<T extends Op> {
             }
 
             if (cubeIncrementResultsBuilder.interrupt != null) {
-                // still gotto report our successes
+                // still need to report our successes
                 break;
             }
         }
-        incrementerMetrics.batchesPerFlushHisto.update(batchesPerFlush);
 
-        for (Map.Entry<BoxedByteArray, byte[]> entry : cubeIncrementResultsBuilder.successes.entrySet()) {
+        CubeIncrementResults results = cubeIncrementResultsBuilder.build();
+
+        incrementerMetrics.batchesPerFlush.update(batchesPerFlush);
+
+        for (Map.Entry<BoxedByteArray, byte[]> entry : results.successes.entrySet()) {
             successfulAddresses.add(backwards.get(entry.getKey()));
             successfulRows.put(entry.getKey().bytes, entry.getValue());
         }
 
         int failures = batchMap.size() - successfulAddresses.size();
 
-        if (failures > 0 || cubeIncrementResultsBuilder.ioException != null || cubeIncrementResultsBuilder.interrupt != null) {
+        if (failures > 0 || results.ioException != null || results.interrupt != null) {
             incrementerMetrics.incrementFailuresPerFlush.update(failures);
 
-            if (cubeIncrementResultsBuilder.ioException != null) {
-                throw cubeIncrementResultsBuilder.ioException;
+            if (results.ioException != null) {
+                throw results.ioException;
             }
 
-            if (cubeIncrementResultsBuilder.interrupt != null) {
+            if (results.interrupt != null) {
                 throw cubeIncrementResultsBuilder.interrupt;
             }
 
@@ -235,13 +238,13 @@ class HbaseBatchIncrementer<T extends Op> {
     private class IncrementerMetrics {
         private final Histogram incrementSize;
         private final Histogram incrementFailuresPerFlush;
-        private final Histogram batchesPerFlushHisto;
+        private final Histogram batchesPerFlush;
         private final Timer batchWritesTimer;
 
         public IncrementerMetrics(Class clazz, String metricsScope) {
             incrementSize = Metrics.histogram(clazz, "incrementSize", metricsScope);
             incrementFailuresPerFlush = Metrics.histogram(clazz, "failuresPerFlush", metricsScope);
-            batchesPerFlushHisto = Metrics.histogram(clazz, "batchesPerFlush", metricsScope);
+            batchesPerFlush = Metrics.histogram(clazz, "batchesPerFlush", metricsScope);
             batchWritesTimer = Metrics.timer(clazz, "batchWrites", metricsScope);
         }
     }
