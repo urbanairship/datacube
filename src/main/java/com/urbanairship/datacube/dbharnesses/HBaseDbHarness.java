@@ -8,12 +8,10 @@ import com.codahale.metrics.Counter;
 import com.codahale.metrics.Gauge;
 import com.codahale.metrics.Histogram;
 import com.codahale.metrics.Timer;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
+import com.google.common.io.BaseEncoding;
 import com.google.common.primitives.UnsignedBytes;
 import com.urbanairship.datacube.Address;
 import com.urbanairship.datacube.Batch;
@@ -30,20 +28,18 @@ import org.apache.commons.lang.ArrayUtils;
 import org.apache.commons.lang.math.RandomUtils;
 import org.apache.hadoop.hbase.client.Get;
 import org.apache.hadoop.hbase.client.HTablePool;
-import org.apache.hadoop.hbase.client.Increment;
 import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.client.Result;
-import org.apache.hadoop.hbase.client.Row;
+import org.apache.hadoop.hbase.client.RetriesExhaustedWithDetailsException;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 
 import javax.annotation.Nullable;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -89,10 +85,7 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
     private final Histogram casTries;
     private final Timer multiGetTotalLatency;
     private final Timer multiGetCubeLatency;
-    private final Timer batchWritesTimer;
-    private final Histogram batchesPerFlushHisto;
     private final HbaseDbHarnessConfiguration configuration;
-    private final Histogram incrementFailuresPerFlush;
 
     private final Counter casRetriesExhausted;
     private final Timer iOExceptionsRetrySleepDuration;
@@ -100,6 +93,7 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
     private final Set<Batch<T>> batchesInFlight = Sets.newHashSet();
     private final String metricsScope;
     private final ThreadedIdServiceLookup idServiceLookup;
+    private HbaseBatchIncrementer<T> hbaseBatchIncrementer;
 
     public HBaseDbHarness(HTablePool pool, byte[] uniqueCubeName, byte[] tableName, byte[] cf, Deserializer<T> deserializer,
                           IdService idService, CommitType commitType, String metricsScope) {
@@ -153,13 +147,15 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
         this.metricsScope = metricsScope;
         this.configuration = hbaseDbHarnessConfiguration;
 
+        hbaseBatchIncrementer = new HbaseBatchIncrementer<T>(
+                configuration,
+                pool,
+                address -> new BoxedByteArray(ArrayUtils.addAll(configuration.uniqueCubeName, address.toWriteKey(idService))));
+
         flushSuccessTimer = Metrics.timer(HBaseDbHarness.class, "successfulBatchFlush", metricsScope);
         flushFailTimer = Metrics.timer(HBaseDbHarness.class, "failedBatchFlush", metricsScope);
         singleWriteTimer = Metrics.timer(HBaseDbHarness.class, "singleWrites", metricsScope);
-        batchWritesTimer = Metrics.timer(HBaseDbHarness.class, "batchWrites", metricsScope);
-        batchesPerFlushHisto = Metrics.histogram(HBaseDbHarness.class, "batchesPerFlush", metricsScope);
         incrementSize = Metrics.histogram(HBaseDbHarness.class, "incrementSize", metricsScope);
-        incrementFailuresPerFlush = Metrics.histogram(HBaseDbHarness.class, "failuresPerFlush", metricsScope);
         casTries = Metrics.histogram(HBaseDbHarness.class, "casTries", metricsScope);
         casRetriesExhausted = Metrics.counter(HBaseDbHarness.class, "casRetriesExhausted", metricsScope);
         iOExceptionsRetrySleepDuration = Metrics.timer(HBaseDbHarness.class, "retrySleepDuration", metricsScope);
@@ -304,42 +300,6 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
         return WithHTable.increment(pool, tableName, rowKey, cf, QUALIFIER, amount);
     }
 
-    /**
-     * @param writes map from rowkey to the operation (which had better be bytes compatible with long)
-     *
-     * @return A map from bytes to the new values written to the database.
-     *
-     * @throws IOException
-     * @throws InterruptedException
-     */
-    public Map<BoxedByteArray, byte[]> increment(Map<BoxedByteArray, T> writes) throws IOException, InterruptedException {
-        ImmutableMap.Builder<BoxedByteArray, byte[]> successes = ImmutableMap.builder();
-
-        List<Row> increments = new ArrayList<>();
-        List<Map.Entry<BoxedByteArray, T>> entries = ImmutableList.copyOf(writes.entrySet());
-
-        for (Map.Entry<BoxedByteArray, T> entry : entries) {
-            long amount = Bytes.toLong(entry.getValue().serialize());
-            Increment increment = new Increment(entry.getKey().bytes);
-            increment.addColumn(cf, QUALIFIER, amount);
-            incrementSize.update(amount);
-            increments.add(increment);
-        }
-
-        Object[] objects = WithHTable.batch(pool, tableName, increments);
-
-        for (int i = 0; i < objects.length; ++i) {
-            if (objects[i] != null) {
-                Result result = (Result) objects[i];
-                byte[] value = result.getValue(cf, QUALIFIER);
-                successes.put(entries.get(i).getKey(), value);
-            }
-        }
-
-        return successes.build();
-    }
-
-
     @SuppressWarnings("unchecked")
     private byte[] readCombineCas(byte[] rowKey, T newOp) throws IOException {
         Get get = new Get(rowKey);
@@ -400,40 +360,7 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
 
         try {
             if (commitType.equals(CommitType.INCREMENT) && configuration.batchSize > 1) {
-                Iterable<List<Map.Entry<Address, T>>> partitions = Iterables.partition(batchMap.entrySet(), configuration.batchSize);
-                int batchesPerFlush = 0;
-                Map<BoxedByteArray, T> increments = new HashMap<>();
-                Map<BoxedByteArray, Address> backwards = new HashMap<>();
-                for (List<Map.Entry<Address, T>> entries : partitions) {
-                    batchesPerFlush++;
-                    final long nanoTimeBeforeWrite = System.nanoTime();
-                    for (Map.Entry<Address, T> entry : entries) {
-                        final Address address = entry.getKey();
-                        final T op = entry.getValue();
-                        final BoxedByteArray rowKey = new BoxedByteArray(ArrayUtils.addAll(uniqueCubeName, address.toWriteKey(idService)));
-                        increments.put(rowKey, op);
-                        backwards.put(rowKey, address);
-                    }
-
-                    Map<BoxedByteArray, byte[]> successes = increment(increments);
-
-                    for (Map.Entry<BoxedByteArray, byte[]> entry : successes.entrySet()) {
-                        successfulAddresses.add(backwards.get(entry.getKey()));
-                        successfulRows.put(entry.getKey().bytes, entry.getValue());
-                    }
-
-                    long writeDurationNanos = System.nanoTime() - nanoTimeBeforeWrite;
-                    batchWritesTimer.update(writeDurationNanos, TimeUnit.NANOSECONDS);
-                }
-                batchesPerFlushHisto.update(batchesPerFlush);
-
-                if (successfulAddresses.size() < batchMap.size()) {
-                    // the implementation prior to the addition of the batch increment code assumes any failed increment
-                    // operation results in an io exception. This matches that expectation.
-                    int failures = batchMap.size() - successfulAddresses.size();
-                    incrementFailuresPerFlush.update(failures);
-                    throw new IOException(String.format("Some writes failed (%s of %s attempted); queueing retry", failures, batchMap.size()));
-                }
+                hbaseBatchIncrementer.batchIncrement(batchMap, successfulAddresses, successfulRows);
             } else {
                 for (Map.Entry<Address, T> entry : batchMap.entrySet()) {
                     final Address address = entry.getKey();
@@ -477,6 +404,18 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
             // of the pending writes, they should be removed from the batch so they are not retried later.
             // The operations that didn't get into the DB should be left in the batch to be retried later.
             log.warn("IOException when flushing batch to HBase", ioe);
+
+            if (ioe instanceof RetriesExhaustedWithDetailsException) {
+                RetriesExhaustedWithDetailsException details = (RetriesExhaustedWithDetailsException) ioe;
+                MDC.put("mayHaveClusterIssues", String.valueOf(details.mayHaveClusterIssues()));
+                for (int i = 0; i < details.getNumExceptions(); ++i) {
+                    MDC.put("host name port", details.getHostnamePort(i));
+                    MDC.put("row", BaseEncoding.base64().encode(details.getRow(i).getRow()));
+                    log.error(String.format("error %s", i), details.getCause(i));
+                }
+                MDC.clear();
+            }
+
             for (Address address : successfulAddresses) {
                 batch.getMap().remove(address);
             }

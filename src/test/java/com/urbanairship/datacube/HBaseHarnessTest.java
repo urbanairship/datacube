@@ -13,23 +13,37 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Ignore;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
 import javax.annotation.Nullable;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 
+@RunWith(Parameterized.class)
 public class HBaseHarnessTest extends EmbeddedClusterTestAbstract {
     public static final byte[] DATA_CUBE_TABLE = "data_cube" .getBytes();
 
     public static final byte[] CF = "c" .getBytes();
+    private final int batchSize;
 
 
     @BeforeClass
     public static void setupCluster() throws Exception {
         getTestUtil().createTable(DATA_CUBE_TABLE, CF);
+    }
+
+    @Parameterized.Parameters
+    public static Collection<Object[]> parameters() {
+        return ImmutableList.of(new Object[]{1}, new Object[]{10});
+    }
+
+    public HBaseHarnessTest(int batchSize) {
+        this.batchSize = batchSize;
     }
 
     @Test
@@ -54,7 +68,7 @@ public class HBaseHarnessTest extends EmbeddedClusterTestAbstract {
         HTablePool pool = new HTablePool(getTestUtil().getConfiguration(), Integer.MAX_VALUE);
         DbHarness<LongOp> hbaseDbHarness = new HBaseDbHarness<LongOp>(pool,
                 "dh" .getBytes(), DATA_CUBE_TABLE, CF, LongOp.DESERIALIZER, idService,
-                DbHarness.CommitType.INCREMENT, new TestCallback(s), 1, 1, 1, "none", 1);
+                DbHarness.CommitType.INCREMENT, new TestCallback(s), 1, 1, 1, "none", this.batchSize);
         // Do an increment of 5 for a certain time and zipcode
         DataCubeIo<LongOp> dataCubeIo = new DataCubeIo<LongOp>(dataCube, hbaseDbHarness, 1, 100000,
                 SyncLevel.BATCH_SYNC, "scope", true);
@@ -94,7 +108,7 @@ public class HBaseHarnessTest extends EmbeddedClusterTestAbstract {
         HTablePool pool = new HTablePool(getTestUtil().getConfiguration(), Integer.MAX_VALUE);
         DbHarness<LongOp> hbaseDbHarness = new HBaseDbHarness<LongOp>(pool,
                 "dh" .getBytes(), DATA_CUBE_TABLE, CF, LongOp.DESERIALIZER, idService,
-                DbHarness.CommitType.INCREMENT, 1, 1, 1, "none");
+                DbHarness.CommitType.INCREMENT, (ignored) -> null, 1, 1, 1,"none", this.batchSize);
 
         DataCubeIo<LongOp> dataCubeIo = new DataCubeIo<LongOp>(dataCube, hbaseDbHarness, 1, 100000,
                 SyncLevel.BATCH_SYNC, "scope", true);
