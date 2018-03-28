@@ -1,3 +1,13 @@
+5.1.3
+=====
+- Bug fix the batch increment method
+
+5.1.2
+=====
+- Sort rollups before creating metrics for them, so different jvms create them
+  in the same order
+- precreate metrics (with zero counts) for each rollup
+
 5.1.1
 =====
 - Move writes meter to writeAsync(Batch batch), which is always called, as opposed to writeAsync(WriteBuilder, Op),
