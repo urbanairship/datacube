@@ -3,7 +3,7 @@
 
   <groupId>com.urbanairship</groupId>
   <artifactId>datacube</artifactId>
-  <version>5.1.14-SNAPSHOT</version>
+  <version>5.1.14</version>
   <packaging>jar</packaging>
 
   <name>datacube</name>
@@ -59,7 +59,7 @@
     <connection>scm:git:git://@github.com/urbanairship/datacube.git</connection>
     <developerConnection>scm:git:git@github.com:urbanairship/datacube.git</developerConnection>
     <url>git@github.com:urbanairship/datacube.git</url>
-    <tag>datacube-1.2.0</tag>
+    <tag>5.1.14</tag>
   </scm>
 
   <!-- Sonatype requires this element to use their nexus repo -->
