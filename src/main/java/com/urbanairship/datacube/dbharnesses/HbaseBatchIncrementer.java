@@ -67,7 +67,7 @@ class HbaseBatchIncrementer<T extends Op> {
 
         int batchesPerFlush = 0;
         Map<BoxedByteArray, Address> backwards = new HashMap<>();
-        boolean caughtException = false;
+        Exception caughtException = null;
         try {
             for (List<Map.Entry<Address, T>> entries : partitions) {
                 Map<BoxedByteArray, T> increments = new HashMap<>();
@@ -90,14 +90,15 @@ class HbaseBatchIncrementer<T extends Op> {
                 try {
                     hbaseIncrement(entriesList, objects);
                 } catch (InterruptedException | IOException e) {
-                    caughtException = true;
-                    throw e;
+                    caughtException = e;
                 } finally {
                     successes.putAll(processBatchCallresults(entriesList, objects));
                     long writeDurationNanos = System.nanoTime() - nanoTimeBeforeWrite;
                     incrementerMetrics.batchWritesTimer.update(writeDurationNanos, TimeUnit.NANOSECONDS);
                 }
             }
+        } catch (Exception e) {
+            caughtException = e;
         } finally {
             incrementerMetrics.batchesPerFlush.update(batchesPerFlush);
 
@@ -108,13 +109,13 @@ class HbaseBatchIncrementer<T extends Op> {
 
             int failures = batchMap.size() - successfulAddresses.size();
 
-            if (failures > 0 || caughtException) {
+            if (failures > 0 || (caughtException != null)) {
                 incrementerMetrics.incrementFailuresPerFlush.update(failures);
 
-                if (!caughtException) {
+                if (caughtException != null) {
                     // the implementation prior to the addition of the batch increment code assumes any failed increment
                     // operation results in an io exception. This matches that expectation.
-                    throw new IOException(String.format("Some writes failed (%s of %s attempted); queueing retry", failures, batchMap.size()));
+                    throw new IOException(String.format("Some writes failed (%s of %s attempted); queueing retry", failures, batchMap.size()), caughtException);
                 }
             }
         }
