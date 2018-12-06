@@ -132,9 +132,9 @@ class HbaseBatchIncrementer<T extends Op> {
             rows.add(increment);
         }
 
-        HTableInterface table = pool.getTable(configuration.tableName);
-
-        table.batch(rows, objects);
+        try (HTableInterface table = pool.getTable(configuration.tableName)) {
+            table.batch(rows, objects);
+        }
     }
 
     /**
