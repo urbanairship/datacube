@@ -93,12 +93,14 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
     private final Set<Batch<T>> batchesInFlight = Sets.newHashSet();
     private final String metricsScope;
     private final ThreadedIdServiceLookup idServiceLookup;
+    private final Function<Result, T> resultParser;
     private HbaseBatchIncrementer<T> hbaseBatchIncrementer;
 
     public HBaseDbHarness(HTablePool pool, byte[] uniqueCubeName, byte[] tableName, byte[] cf, Deserializer<T> deserializer,
                           IdService idService, CommitType commitType, String metricsScope) {
 
-        this(pool, uniqueCubeName, tableName, cf, deserializer, idService, commitType, NOP, 5, 5, 10, metricsScope, 1);
+        this(pool, uniqueCubeName, tableName, cf, deserializer, idService, commitType, NOP, 5, 5, 10, metricsScope, 1,
+                new SingleColumnParser<>());
     }
 
     public HBaseDbHarness(HTablePool pool, byte[] uniqueCubeName, byte[] tableName, byte[] cf, Deserializer<T> deserializer,
@@ -106,7 +108,7 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
                           String metricsScope) {
 
         this(pool, uniqueCubeName, tableName, cf, deserializer, idService, commitType, NOP, numFlushThreads, numIoeTries,
-                numCasTries, metricsScope, 1);
+                numCasTries, metricsScope, 1, new SingleColumnParser<>());
     }
 
     public HBaseDbHarness(HbaseDbHarnessConfiguration configuration, HTablePool hTablePool, Deserializer<T> deserializer,
@@ -114,13 +116,24 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
 
         this(hTablePool, configuration.uniqueCubeName, configuration.tableName, configuration.cf, deserializer, idService,
                 configuration.commitType, onFlush, configuration.numFlushThreads, configuration.numIoeTries,
-                configuration.numCasTries, configuration.metricsScope, configuration.batchSize);
+                configuration.numCasTries, configuration.metricsScope, configuration.batchSize,
+                new SingleColumnParser<>());
+    }
+
+    public HBaseDbHarness(HbaseDbHarnessConfiguration configuration, HTablePool hTablePool, Deserializer<T> deserializer,
+                          IdService idService, Function<Map<byte[], byte[]>, Void> onFlush, Function<Deserializer<T>,
+                          Function<Result, T>> resultParser) {
+
+        this(hTablePool, configuration.uniqueCubeName, configuration.tableName, configuration.cf, deserializer, idService,
+                configuration.commitType, onFlush, configuration.numFlushThreads, configuration.numIoeTries,
+                configuration.numCasTries, configuration.metricsScope, configuration.batchSize, resultParser);
     }
 
     public HBaseDbHarness(HTablePool pool, byte[] uniqueCubeName, byte[] tableName,
                           byte[] cf, Deserializer<T> deserializer, IdService idService, CommitType commitType,
                           Function<Map<byte[], byte[]>, Void> onFlush, int numFlushThreads, int numIoeTries, int numCasTries,
-                          String metricsScope, int batchSize) {
+                          String metricsScope, int batchSize,
+                          Function<Deserializer<T>, Function<Result, T>> resultParserFactory) {
         HbaseDbHarnessConfiguration hbaseDbHarnessConfiguration = HbaseDbHarnessConfiguration.newBuilder()
                 .setUniqueCubeName(uniqueCubeName)
                 .setTableName(tableName)
@@ -146,6 +159,7 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
         this.onFlush = onFlush;
         this.metricsScope = metricsScope;
         this.configuration = hbaseDbHarnessConfiguration;
+        this.resultParser = resultParserFactory.apply(deserializer);
 
         hbaseBatchIncrementer = new HbaseBatchIncrementer<T>(
                 configuration,
@@ -204,7 +218,7 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
             }
             return Optional.empty();
         } else {
-            T deserialized = deserializer.fromBytes(result.value());
+            T deserialized = resultParser.apply(result);
             if (log.isDebugEnabled()) {
                 log.debug("Returning value for cube:" + Arrays.toString(uniqueCubeName) + " address:" +
                         c + ": " + " key " + Base64.encodeBase64String(rowKey) + ": " + deserialized);
@@ -475,7 +489,7 @@ public class HBaseDbHarness<T extends Op> implements DbHarness<T> {
                 if (result == null || result.isEmpty()) {
                     resultsOptionals.add(Optional.<T>empty());
                 } else {
-                    T deserialized = deserializer.fromBytes(result.value());
+                    T deserialized = resultParser.apply(result);
                     resultsOptionals.add(Optional.of(deserialized));
                 }
                 resultPosition++;

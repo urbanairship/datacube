@@ -4,6 +4,7 @@ import com.google.common.collect.ImmutableList;
 import com.urbanairship.datacube.bucketers.HourDayMonthBucketer;
 import com.urbanairship.datacube.bucketers.StringToBytesBucketer;
 import com.urbanairship.datacube.dbharnesses.HBaseDbHarness;
+import com.urbanairship.datacube.dbharnesses.SingleColumnParser;
 import com.urbanairship.datacube.idservices.MapIdService;
 import com.urbanairship.datacube.ops.LongOp;
 import org.apache.hadoop.hbase.client.HTablePool;
@@ -68,7 +69,8 @@ public class HBaseHarnessTest extends EmbeddedClusterTestAbstract {
         HTablePool pool = new HTablePool(getTestUtil().getConfiguration(), Integer.MAX_VALUE);
         DbHarness<LongOp> hbaseDbHarness = new HBaseDbHarness<LongOp>(pool,
                 "dh" .getBytes(), DATA_CUBE_TABLE, CF, LongOp.DESERIALIZER, idService,
-                DbHarness.CommitType.INCREMENT, new TestCallback(s), 1, 1, 1, "none", this.batchSize);
+                DbHarness.CommitType.INCREMENT, new TestCallback(s), 1, 1, 1, "none", this.batchSize,
+                new SingleColumnParser<>());
         // Do an increment of 5 for a certain time and zipcode
         DataCubeIo<LongOp> dataCubeIo = new DataCubeIo<LongOp>(dataCube, hbaseDbHarness, 1, 100000,
                 SyncLevel.BATCH_SYNC, "scope", true);
@@ -108,7 +110,8 @@ public class HBaseHarnessTest extends EmbeddedClusterTestAbstract {
         HTablePool pool = new HTablePool(getTestUtil().getConfiguration(), Integer.MAX_VALUE);
         DbHarness<LongOp> hbaseDbHarness = new HBaseDbHarness<LongOp>(pool,
                 "dh" .getBytes(), DATA_CUBE_TABLE, CF, LongOp.DESERIALIZER, idService,
-                DbHarness.CommitType.INCREMENT, (ignored) -> null, 1, 1, 1,"none", this.batchSize);
+                DbHarness.CommitType.INCREMENT, (ignored) -> null, 1, 1, 1,"none", this.batchSize,
+                new SingleColumnParser<>());
 
         DataCubeIo<LongOp> dataCubeIo = new DataCubeIo<LongOp>(dataCube, hbaseDbHarness, 1, 100000,
                 SyncLevel.BATCH_SYNC, "scope", true);
