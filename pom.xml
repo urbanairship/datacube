@@ -11,6 +11,14 @@
   <url>http://github.com/urbanairship/datacube</url>
 
   <build>
+    <extensions>
+      <extension>
+        <groupId>com.gkatzioura.maven.cloud</groupId>
+        <artifactId>google-storage-wagon</artifactId>
+        <version>1.7</version>
+      </extension>
+    </extensions>
+
     <plugins>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
