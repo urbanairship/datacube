@@ -4,7 +4,6 @@ Copyright 2012 Urban Airship and Contributors
 
 package com.urbanairship.datacube;
 
-import java.io.Serializable;
 import java.util.List;
 import java.util.Objects;
 
