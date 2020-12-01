@@ -108,7 +108,7 @@ public class Dimension<F> {
         return nullable;
     }
 
-    int getBucketPrefixSize() {
+    public int getBucketPrefixSize() {
         return bucketPrefixSize;
     }
 
