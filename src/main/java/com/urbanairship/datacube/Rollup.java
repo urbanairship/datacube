@@ -83,7 +83,7 @@ public class Rollup {
                 new DimensionAndBucketType(d2, bt2)));
     }
 
-    List<DimensionAndBucketType> getComponents() {
+    public List<DimensionAndBucketType> getComponents() {
         return components;
     }
 
