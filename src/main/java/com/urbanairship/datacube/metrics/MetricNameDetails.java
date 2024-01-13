@@ -1,6 +1,6 @@
 package com.urbanairship.datacube.metrics;
 
-import com.google.common.base.Objects;
+import com.google.common.base.MoreObjects;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import org.apache.commons.lang.StringUtils;
@@ -61,7 +61,7 @@ public final class MetricNameDetails {
 
     @Override
     public String toString() {
-        return Objects.toStringHelper(this)
+        return MoreObjects.toStringHelper(this)
                 .add("group", group)
                 .add("type", type)
                 .add("scope", scope)
