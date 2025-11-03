@@ -201,15 +201,15 @@
       <version>1.18.0</version>
     </dependency>
     <dependency>
-        <groupId>io.dropwizard.metrics</groupId>
-        <artifactId>metrics-core</artifactId>
-        <version>4.2.32</version>
+      <groupId>io.dropwizard.metrics</groupId>
+      <artifactId>metrics-core</artifactId>
+      <version>4.2.32</version>
     </dependency>
     <dependency>
-          <groupId>io.dropwizard.metrics</groupId>
-          <artifactId>metrics-jmx</artifactId>
-          <version>4.2.32</version>
-      </dependency>
+      <groupId>io.dropwizard.metrics</groupId>
+      <artifactId>metrics-jmx</artifactId>
+      <version>4.2.32</version>
+    </dependency>
     <dependency>
       <groupId>io.dropwizard.metrics</groupId>
       <artifactId>metrics-jvm</artifactId>
@@ -255,10 +255,10 @@
       <artifactId>hbase</artifactId>
       <version>${hbaseVersion}</version>
       <exclusions>
-          <exclusion>
-              <groupId>org.slf4j</groupId>
-              <artifactId>slf4j-log4j12</artifactId>
-          </exclusion>
+        <exclusion>
+          <groupId>org.slf4j</groupId>
+          <artifactId>slf4j-log4j12</artifactId>
+        </exclusion>
       </exclusions>
     </dependency>
 
@@ -269,10 +269,10 @@
       <scope>test</scope>
       <classifier>tests</classifier>
       <exclusions>
-          <exclusion>
-              <groupId>org.slf4j</groupId>
-              <artifactId>slf4j-log4j12</artifactId>
-          </exclusion>
+        <exclusion>
+          <groupId>org.slf4j</groupId>
+          <artifactId>slf4j-log4j12</artifactId>
+        </exclusion>
       </exclusions>
     </dependency>
 
